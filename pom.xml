@@ -274,6 +274,26 @@
             <version>1.7.32</version>
         </dependency>
 
+        <!-- TODO remove this later, this is only to make testing work -->
+        <!-- JUnit 5 dependencies -->
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-console-standalone</artifactId>
+            <version>1.8.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>5.8.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>5.8.2</version>
+            <scope>test</scope>
+        </dependency>
+
         <dependency>
             <!-- database support - ORM -->
             <groupId>com.j256.ormlite</groupId>

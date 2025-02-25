@@ -34,14 +34,16 @@ import java.util.UUID;
  * AI player that can be taken under control by another player (AI or human).
  * <p>
  * Under control logic on choose dialog (under human):
- * - create fake human player and assign it to real human data transfer object (for income answers);
+ * - create fake human player and assign it to real human data transfer object
+ * (for income answers);
  * - call choose dialog from fake human (e.g. send choose data to real player);
- * - game will process all sending and answering logic as "human under human" logic;
+ * - game will process all sending and answering logic as "human under human"
+ * logic;
  * - return choose dialog result without AI code processing;
  *
  * @author JayDi85
  */
-public class ComputerPlayerControllableProxy extends ComputerPlayer7 {
+public class ComputerPlayerControllableProxy extends ComputerPlayer8 {
 
     private static final Logger logger = Logger.getLogger(ComputerPlayerControllableProxy.class);
 
@@ -153,11 +155,13 @@ public class ComputerPlayerControllableProxy extends ComputerPlayer7 {
     }
 
     @Override
-    public boolean chooseUse(Outcome outcome, String message, String secondMessage, String trueText, String falseText, Ability source, Game game) {
+    public boolean chooseUse(Outcome outcome, String message, String secondMessage, String trueText, String falseText,
+            Ability source, Game game) {
         if (isUnderMe(game)) {
             return super.chooseUse(outcome, message, secondMessage, trueText, falseText, source, game);
         } else {
-            return getControllingPlayer(game).chooseUse(outcome, message, secondMessage, trueText, falseText, source, game);
+            return getControllingPlayer(game).chooseUse(outcome, message, secondMessage, trueText, falseText, source,
+                    game);
         }
     }
 
@@ -189,7 +193,8 @@ public class ComputerPlayerControllableProxy extends ComputerPlayer7 {
     }
 
     @Override
-    public boolean choose(Outcome outcome, Target target, Ability source, Game game, Map<String, Serializable> options) {
+    public boolean choose(Outcome outcome, Target target, Ability source, Game game,
+            Map<String, Serializable> options) {
         if (isUnderMe(game)) {
             return super.choose(outcome, target, source, game, options);
         } else {
@@ -297,7 +302,8 @@ public class ComputerPlayerControllableProxy extends ComputerPlayer7 {
     }
 
     @Override
-    public UUID chooseBlockerOrder(java.util.List<Permanent> blockers, CombatGroup combatGroup, java.util.List<UUID> blockerOrder, Game game) {
+    public UUID chooseBlockerOrder(java.util.List<Permanent> blockers, CombatGroup combatGroup,
+            java.util.List<UUID> blockerOrder, Game game) {
         if (isUnderMe(game)) {
             return super.chooseBlockerOrder(blockers, combatGroup, blockerOrder, game);
         } else {
@@ -321,12 +327,12 @@ public class ComputerPlayerControllableProxy extends ComputerPlayer7 {
             int totalMin,
             int totalMax,
             MultiAmountType type,
-            Game game
-    ) {
+            Game game) {
         if (isUnderMe(game)) {
             return super.getMultiAmountWithIndividualConstraints(outcome, messages, totalMin, totalMax, type, game);
         } else {
-            return getControllingPlayer(game).getMultiAmountWithIndividualConstraints(outcome, messages, totalMin, totalMax, type, game);
+            return getControllingPlayer(game).getMultiAmountWithIndividualConstraints(outcome, messages, totalMin,
+                    totalMax, type, game);
         }
     }
 
@@ -379,7 +385,8 @@ public class ComputerPlayerControllableProxy extends ComputerPlayer7 {
     }
 
     @Override
-    public boolean choosePile(Outcome outcome, String message, java.util.List<? extends Card> pile1, java.util.List<? extends Card> pile2, Game game) {
+    public boolean choosePile(Outcome outcome, String message, java.util.List<? extends Card> pile1,
+            java.util.List<? extends Card> pile2, Game game) {
         if (isUnderMe(game)) {
             return super.choosePile(outcome, message, pile1, pile2, game);
         } else {
@@ -389,7 +396,8 @@ public class ComputerPlayerControllableProxy extends ComputerPlayer7 {
 
     @Override
     public void abort() {
-        // TODO: need research, is it require real player call? Concede/leave/timeout works by default
+        // TODO: need research, is it require real player call? Concede/leave/timeout
+        // works by default
         super.abort();
     }
 

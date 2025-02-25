@@ -15,5 +15,6 @@
     <deckTypes>
         <deckType name="Constructed" jar="mage-deck-constructed.jar" className="mage.deck.Constructed"/>
         <deckType name="Limited" jar="mage-deck-limited.jar" className="mage.deck.Limited"/>
+        <deckType name="Constructed - Premodern" jar="mage-deck-constructed.jar" className="mage.deck.Premodern"/>
     </deckTypes>
 </config>
