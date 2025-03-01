@@ -58,8 +58,16 @@ public class LoadTest {
     private static final String TEST_AI_RANDOM_DECK_COLORS_FOR_EMPTY_GAME = "GR"; // colors list for deck generation,
                                                                                   // empty for all colors
     private static final String TEST_AI_RANDOM_DECK_COLORS_FOR_AI_GAME = "WUBRG";
-    private static final String TEST_AI_CUSTOM_DECK_PATH_1 = ""; // custom deck file instead random for player 1 (empty
-                                                                 // for random)
+    private static final String TEST_AI_CUSTOM_DECK_PATH_1 = "/home/pv/Downloads/jogos/xmage/decks/ai_test_zero_cost.dck"; // custom
+                                                                                                                           // deck
+                                                                                                                           // file
+                                                                                                                           // instead
+                                                                                                                           // random
+                                                                                                                           // for
+                                                                                                                           // player
+                                                                                                                           // 1
+                                                                                                                           // (empty
+    // for random)
     private static final String TEST_AI_CUSTOM_DECK_PATH_2 = ""; // custom deck file instead random for player 2 (empty
                                                                  // for random)
 
