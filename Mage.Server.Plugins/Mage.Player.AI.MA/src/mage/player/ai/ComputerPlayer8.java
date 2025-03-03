@@ -5,8 +5,18 @@ import mage.constants.RangeOfInfluence;
 import mage.game.Game;
 import org.apache.log4j.Logger;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+
+import java.io.OutputStream;
+import java.net.URL;
 
 /**
  * AI: server side bot with game simulations (mad bot, the latest version)
@@ -108,6 +118,154 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
                 return false;
         }
         return false;
+    }
+
+    protected int simulatePriority(SimulationNode2 node, Game game, int depth, int alpha, int beta) {
+        // TODO PV this is where we can add the LLM, allActions are listed here. There
+        // is a
+        // complicated
+        // simulation logic going on here, which we could completely replace by an LLM
+        // receiving
+        // a text description of the game state and having to choose a number from a
+        // list
+        // corresponding to one of the possible allActions
+        if (!COMPUTER_DISABLE_TIMEOUT_IN_GAME_SIMULATIONS
+                && Thread.interrupted()) {
+            Thread.currentThread().interrupt();
+            logger.info("interrupted");
+            return GameStateEvaluator2.evaluate(playerId, game).getTotalScore();
+        }
+        node.setGameValue(game.getState().getValue(true).hashCode());
+        SimulatedPlayer2 currentPlayer = (SimulatedPlayer2) game.getPlayer(game.getPlayerList().get());
+        SimulationNode2 bestNode = null;
+        List<Ability> allActions = currentPlayer.simulatePriority(game);
+        optimize(game, allActions);
+
+        // Call the LLM to choose an action
+        int chosenActionIndex = callLLMToChooseAction(game, allActions, currentPlayer);
+
+        // Log the chosen action
+        if (logger.isInfoEnabled()) {
+            logger.info("LLM chosen action: " + allActions.get(chosenActionIndex).toString());
+        }
+        return chosenActionIndex;
+    }
+
+    private int callLLMToChooseAction(Game game, List<Ability> allActions, SimulatedPlayer2 currentPlayer) {
+        // Prepare the context for the LLM
+        Map<String, Object> context = new HashMap<>();
+        context.put("gameState", game.getState().toString());
+        context.put("allActions", allActions);
+        context.put("playerContext", currentPlayer.toString());
+
+        // Convert context to a format suitable for the LLM (e.g., JSON)
+        String contextJson = convertContextToJson(context);
+        String allActionsJson = convertAllActionsToJson(allActions);
+
+        // Send the context to the LLM and get the response
+        HttpURLConnection llmResponse = sendContextToLLM(contextJson, allActionsJson);
+
+        // Parse the response to get the chosen action index
+        int chosenActionIndex = parseLLMResponse(llmResponse);
+
+        // TODO PV remove later this simple test later - BEGIN
+        chosenActionIndex = Math.max(0, allActions.size() - 2);
+        // Log the random action chosen
+        if (logger.isInfoEnabled()) {
+            logger.info("Random action chosen: " +
+                    allActions.get(chosenActionIndex).toString());
+        }
+
+        return chosenActionIndex;
+    }
+
+    private String convertContextToJson(Map<String, Object> context) {
+        // Implement the conversion to JSON (e.g., using a library like Gson or Jackson)
+        // For example:
+        // return new Gson().toJson(context);
+        return "{}"; // Placeholder
+    }
+
+    private String convertAllActionsToJson(List<Ability> allActions) {
+        // Implement the conversion to JSON (e.g., using a library like Gson or Jackson)
+        // For example:
+        // return new Gson().toJson(allActions);
+        return "[0, 1, 2]"; // Placeholder
+    }
+
+    private HttpURLConnection sendContextToLLM(String contextJson, String allActionsJson) {
+        HttpURLConnection connection = null;
+        try {
+            URL url = new URL("http://localhost:9000/api/mtg_llm/choose_from_all_actions/");
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Content-Type", "application/json; utf-8");
+            connection.setRequestProperty("Accept", "application/json");
+            connection.setDoOutput(true);
+
+            String jsonInputString = "{\"game_context\": " + contextJson + ", \"allActions\": " + allActionsJson + "}";
+
+            try (OutputStream os = connection.getOutputStream()) {
+                byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
+                os.write(input, 0, input.length);
+            }
+
+            int responseCode = connection.getResponseCode();
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                // Log the error response
+                try (BufferedReader br = new BufferedReader(
+                        new InputStreamReader(connection.getErrorStream(), StandardCharsets.UTF_8))) {
+                    StringBuilder errorResponse = new StringBuilder();
+                    String responseLine;
+                    while ((responseLine = br.readLine()) != null) {
+                        errorResponse.append(responseLine.trim());
+                    }
+                    logger.error("Failed to get response from LLM. HTTP code: " + responseCode + ", Response: "
+                            + errorResponse.toString());
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Exception while sending context to LLM", e);
+        }
+        return connection;
+    }
+
+    private int parseLLMResponse(HttpURLConnection llmResponse) {
+        int chosenActionIndex = 0; // Default value
+        try {
+            int responseCode = llmResponse.getResponseCode();
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                try (BufferedReader br = new BufferedReader(
+                        new InputStreamReader(llmResponse.getInputStream(), StandardCharsets.UTF_8))) {
+                    StringBuilder response = new StringBuilder();
+                    String responseLine;
+                    while ((responseLine = br.readLine()) != null) {
+                        response.append(responseLine.trim());
+                    }
+                    // Use the responseString directly
+                    String responseString = response.toString();
+                    // Assuming the responseString contains the chosen action index directly
+                    chosenActionIndex = Integer.parseInt(responseString);
+                }
+            } else {
+                // Log the error response
+                try (BufferedReader br = new BufferedReader(
+                        new InputStreamReader(llmResponse.getErrorStream(), StandardCharsets.UTF_8))) {
+                    StringBuilder errorResponse = new StringBuilder();
+                    String responseLine;
+                    while ((responseLine = br.readLine()) != null) {
+                        errorResponse.append(responseLine.trim());
+                    }
+                    logger.error("Failed to get response from LLM. HTTP code: " + responseCode + ", Response: "
+                            + errorResponse.toString());
+                }
+            }
+        } catch (NumberFormatException e) {
+            logger.error("NumberFormatException while parsing LLM response", e);
+        } catch (Exception e) {
+            logger.error("Exception while parsing LLM response", e);
+        }
+        return chosenActionIndex;
     }
 
     protected void calculateActions(Game game) {
