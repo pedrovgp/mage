@@ -16,6 +16,7 @@ import mage.game.match.MatchPlayer;
 import mage.players.Player;
 
 import org.apache.log4j.Logger;
+import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -222,7 +223,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         private Map<UUID, TriggeredAbilities> triggers;
     }
 
-    private String convertObjectToJson(Object obj) {
+    private JSONObject convertObjectToJson(Object obj) {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
         objectMapper.addMixIn(GenericManaCost.class, GenericManaCostMixIn.class);
@@ -235,26 +236,40 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         objectMapper.addMixIn(ColoredManaCost.class, ColoredManaCostMixIn.class);
         objectMapper.addMixIn(GameState.class, GameStateMixIn.class); // Add this line
         try {
-            return objectMapper.writeValueAsString(obj);
+            String jsonString = objectMapper.writeValueAsString(obj);
+            return new JSONObject(jsonString);
         } catch (JsonProcessingException e) {
             logger.error("Error converting object to JSON: " + obj.getClass().getName(), e);
-            return String.format("{\"error\": \"Failed to convert %s to JSON\", \"message\": \"%s\"}",
-                    obj.getClass().getName(), e.getMessage().replace("\"", "\\\""));
+            return new JSONObject().put("error", "Failed to convert " + obj.getClass().getName() + " to JSON")
+                    .put("message", e.getMessage().replace("\"", "\\\""));
         }
     }
 
     private int callLLMToChooseAction(Game game, List<Ability> allActions, SimulatedPlayer2 currentPlayer) {
         // Prepare the context for the LLM
-        Map<String, String> context = new HashMap<>();
-        context.put("gameState", convertObjectToJson(game.getState()));
-        context.put("allActions", convertObjectToJson(allActions));
-        context.put("playerContext", convertObjectToJson(currentPlayer));
+        JSONObject payload = new JSONObject();
+        payload.put("gameState", convertObjectToJson(game.getState()));
+        payload.put("allActions", convertObjectToJson(allActions));
+        payload.put("playerContext", convertObjectToJson(currentPlayer));
 
         // Convert the context to JSON
-        String contextJson = convertContextToJson(context);
+        // String contextJson = convertContextToJson(context);
+        JSONObject payloadTest = new JSONObject()
+                .put("gameState",
+                        new JSONObject().put("turn", 5).put("activePlayer", "player1").put("lifeTotalPlayer1", 20)
+                                .put("lifeTotalPlayer2", 18).toString())
+                .put("allActions", new JSONObject()
+                        .put("actions",
+                                new JSONObject[] {
+                                        new JSONObject().put("actionId", 1).put("description",
+                                                "Attack with creature A"),
+                                        new JSONObject().put("actionId", 2).put("description", "Cast spell B") })
+                        .toString())
+                .put("playerContext", new JSONObject().put("playerId", "player1").put("manaAvailable", 3).toString());
 
         // Send the context to the LLM and get the response
-        HttpURLConnection llmResponse = sendContextToLLM(contextJson);
+        HttpURLConnection llmResponseTest = sendContextToLLM(payloadTest.toString());
+        HttpURLConnection llmResponse = sendContextToLLM(payload.toString());
 
         // Parse the response to get the chosen action index
         int chosenActionIndex = parseLLMResponse(llmResponse);

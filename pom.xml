@@ -280,6 +280,12 @@
             <version>2.13.3</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20210307</version>
+        </dependency>
+
         <!-- TODO remove this later, this is only to make testing work -->
         <!-- JUnit 5 dependencies -->
         <dependency>
