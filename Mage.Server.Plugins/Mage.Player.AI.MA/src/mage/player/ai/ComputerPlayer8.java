@@ -1,8 +1,16 @@
 package mage.player.ai;
 
 import mage.abilities.Ability;
+import mage.abilities.costs.mana.ColoredManaCost;
+import mage.abilities.costs.mana.GenericManaCost;
+import mage.abilities.costs.mana.ManaCost;
+import mage.cards.Card;
+import mage.cards.decks.Deck;
+import mage.cards.o.Ornithopter;
 import mage.constants.RangeOfInfluence;
 import mage.game.Game;
+import mage.game.match.MatchPlayer;
+
 import org.apache.log4j.Logger;
 
 import java.io.BufferedReader;
@@ -14,9 +22,14 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-
+import java.util.Set;
 import java.io.OutputStream;
 import java.net.URL;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 /**
  * AI: server side bot with game simulations (mad bot, the latest version)
@@ -151,19 +164,79 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         return chosenActionIndex;
     }
 
+    // MixIn class to ignore the problematic field
+    public abstract class GenericManaCostMixIn {
+        @JsonIgnore
+        private GenericManaCost unpaid;
+    }
+
+    public abstract class OrnithopterMixIn {
+        @JsonIgnore
+        private Ability secondFaceSpellAbility;
+    }
+
+    public abstract class SimulatedPlayer2MixIn {
+        @JsonIgnore
+        private MatchPlayer matchPlayer;
+    }
+
+    public abstract class MatchPlayerMixIn {
+        @JsonIgnore
+        private Deck deck;
+    }
+
+    public abstract class DeckMixIn {
+        @JsonIgnore
+        private Set<Card> cards;
+    }
+
+    public abstract class CardMixIn {
+        @JsonIgnore
+        private ManaCost manaCost;
+    }
+
+    public abstract class ManaCostMixIn {
+        @JsonIgnore
+        private List<ColoredManaCost> manaCosts;
+    }
+
+    public abstract class ColoredManaCostMixIn {
+        @JsonIgnore
+        private boolean unpaid;
+    }
+
+    private String convertObjectToJson(Object obj) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+        objectMapper.addMixIn(GenericManaCost.class, GenericManaCostMixIn.class);
+        objectMapper.addMixIn(Ornithopter.class, OrnithopterMixIn.class);
+        objectMapper.addMixIn(SimulatedPlayer2.class, SimulatedPlayer2MixIn.class);
+        objectMapper.addMixIn(MatchPlayer.class, MatchPlayerMixIn.class);
+        objectMapper.addMixIn(Deck.class, DeckMixIn.class);
+        objectMapper.addMixIn(Card.class, CardMixIn.class);
+        objectMapper.addMixIn(ManaCost.class, ManaCostMixIn.class);
+        objectMapper.addMixIn(ColoredManaCost.class, ColoredManaCostMixIn.class);
+        try {
+            return objectMapper.writeValueAsString(obj);
+        } catch (JsonProcessingException e) {
+            logger.error("Error converting object to JSON: " + obj.getClass().getName(), e);
+            return String.format("{\"error\": \"Failed to convert %s to JSON\", \"message\": \"%s\"}",
+                    obj.getClass().getName(), e.getMessage().replace("\"", "\\\""));
+        }
+    }
+
     private int callLLMToChooseAction(Game game, List<Ability> allActions, SimulatedPlayer2 currentPlayer) {
         // Prepare the context for the LLM
         Map<String, Object> context = new HashMap<>();
-        context.put("gameState", game.getState().toString());
-        context.put("allActions", allActions);
-        context.put("playerContext", currentPlayer.toString());
+        context.put("gameState", convertObjectToJson(game.getState()));
+        context.put("allActions", convertObjectToJson(allActions));
+        context.put("playerContext", convertObjectToJson(currentPlayer));
 
         // Convert context to a format suitable for the LLM (e.g., JSON)
         String contextJson = convertContextToJson(context);
-        String allActionsJson = convertAllActionsToJson(allActions);
 
         // Send the context to the LLM and get the response
-        HttpURLConnection llmResponse = sendContextToLLM(contextJson, allActionsJson);
+        HttpURLConnection llmResponse = sendContextToLLM(contextJson);
 
         // Parse the response to get the chosen action index
         int chosenActionIndex = parseLLMResponse(llmResponse);
@@ -183,17 +256,10 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         // Implement the conversion to JSON (e.g., using a library like Gson or Jackson)
         // For example:
         // return new Gson().toJson(context);
-        return "{}"; // Placeholder
+        return context.toString(); // Placeholder
     }
 
-    private String convertAllActionsToJson(List<Ability> allActions) {
-        // Implement the conversion to JSON (e.g., using a library like Gson or Jackson)
-        // For example:
-        // return new Gson().toJson(allActions);
-        return "[0, 1, 2]"; // Placeholder
-    }
-
-    private HttpURLConnection sendContextToLLM(String contextJson, String allActionsJson) {
+    private HttpURLConnection sendContextToLLM(String contextJson) {
         HttpURLConnection connection = null;
         try {
             URL url = new URL("http://localhost:9000/api/mtg_llm/choose_from_all_actions/");
@@ -203,7 +269,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
             connection.setRequestProperty("Accept", "application/json");
             connection.setDoOutput(true);
 
-            String jsonInputString = "{\"game_context\": " + contextJson + ", \"allActions\": " + allActionsJson + "}";
+            String jsonInputString = contextJson;
 
             try (OutputStream os = connection.getOutputStream()) {
                 byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
