@@ -1,6 +1,8 @@
 package mage.player.ai;
 
+import mage.Mana;
 import mage.abilities.Ability;
+import mage.abilities.TriggeredAbilities;
 import mage.abilities.costs.mana.ColoredManaCost;
 import mage.abilities.costs.mana.GenericManaCost;
 import mage.abilities.costs.mana.ManaCost;
@@ -9,7 +11,9 @@ import mage.cards.decks.Deck;
 import mage.cards.o.Ornithopter;
 import mage.constants.RangeOfInfluence;
 import mage.game.Game;
+import mage.game.GameState;
 import mage.game.match.MatchPlayer;
+import mage.players.Player;
 
 import org.apache.log4j.Logger;
 
@@ -23,12 +27,15 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.io.OutputStream;
 import java.net.URL;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import com.fasterxml.jackson.core.JsonProcessingException;
 
 /**
@@ -164,10 +171,12 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         return chosenActionIndex;
     }
 
-    // MixIn class to ignore the problematic field
+    // MixIn classes to ignore the problematic fields
     public abstract class GenericManaCostMixIn {
         @JsonIgnore
         private GenericManaCost unpaid;
+        @JsonIgnore
+        private List<Mana> options; // Add this line to ignore the options field
     }
 
     public abstract class OrnithopterMixIn {
@@ -175,9 +184,12 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         private Ability secondFaceSpellAbility;
     }
 
+    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
     public abstract class SimulatedPlayer2MixIn {
         @JsonIgnore
         private MatchPlayer matchPlayer;
+        @JsonIgnore
+        private Player realPlayer; // Add this line to ignore the realPlayer field
     }
 
     public abstract class MatchPlayerMixIn {
@@ -205,6 +217,11 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         private boolean unpaid;
     }
 
+    public abstract class GameStateMixIn {
+        @JsonIgnore
+        private Map<UUID, TriggeredAbilities> triggers;
+    }
+
     private String convertObjectToJson(Object obj) {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
@@ -216,6 +233,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         objectMapper.addMixIn(Card.class, CardMixIn.class);
         objectMapper.addMixIn(ManaCost.class, ManaCostMixIn.class);
         objectMapper.addMixIn(ColoredManaCost.class, ColoredManaCostMixIn.class);
+        objectMapper.addMixIn(GameState.class, GameStateMixIn.class); // Add this line
         try {
             return objectMapper.writeValueAsString(obj);
         } catch (JsonProcessingException e) {
@@ -227,12 +245,12 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
 
     private int callLLMToChooseAction(Game game, List<Ability> allActions, SimulatedPlayer2 currentPlayer) {
         // Prepare the context for the LLM
-        Map<String, Object> context = new HashMap<>();
+        Map<String, String> context = new HashMap<>();
         context.put("gameState", convertObjectToJson(game.getState()));
         context.put("allActions", convertObjectToJson(allActions));
         context.put("playerContext", convertObjectToJson(currentPlayer));
 
-        // Convert context to a format suitable for the LLM (e.g., JSON)
+        // Convert the context to JSON
         String contextJson = convertContextToJson(context);
 
         // Send the context to the LLM and get the response
@@ -252,11 +270,19 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         return chosenActionIndex;
     }
 
-    private String convertContextToJson(Map<String, Object> context) {
-        // Implement the conversion to JSON (e.g., using a library like Gson or Jackson)
-        // For example:
-        // return new Gson().toJson(context);
-        return context.toString(); // Placeholder
+    private String convertContextToJson(Map<String, String> context) {
+        StringBuilder jsonBuilder = new StringBuilder();
+        jsonBuilder.append("{");
+        boolean first = true;
+        for (Map.Entry<String, String> entry : context.entrySet()) {
+            if (!first) {
+                jsonBuilder.append(",");
+            }
+            jsonBuilder.append("\"").append(entry.getKey()).append("\":").append(entry.getValue());
+            first = false;
+        }
+        jsonBuilder.append("}");
+        return jsonBuilder.toString();
     }
 
     private HttpURLConnection sendContextToLLM(String contextJson) {
