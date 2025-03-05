@@ -16,9 +16,11 @@ import mage.game.match.MatchPlayer;
 import mage.players.Player;
 
 import org.apache.log4j.Logger;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
@@ -34,9 +36,13 @@ import java.net.URL;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 
 /**
@@ -177,7 +183,9 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         @JsonIgnore
         private GenericManaCost unpaid;
         @JsonIgnore
-        private List<Mana> options; // Add this line to ignore the options field
+        private List<Mana> options;
+        @JsonIgnore
+        private boolean paid;
     }
 
     public abstract class OrnithopterMixIn {
@@ -206,11 +214,17 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
     public abstract class CardMixIn {
         @JsonIgnore
         private ManaCost manaCost;
+        @JsonIgnore
+        private List<ManaCost> manaCosts;
+        @JsonIgnore
+        private Ability secondFaceSpellAbility;
     }
 
     public abstract class ManaCostMixIn {
         @JsonIgnore
         private List<ColoredManaCost> manaCosts;
+        @JsonIgnore
+        private boolean unpaid;
     }
 
     public abstract class ColoredManaCostMixIn {
@@ -223,10 +237,61 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         private Map<UUID, TriggeredAbilities> triggers;
     }
 
-    private JSONObject convertObjectToJson(Object obj) {
+    public class CustomSerializer extends StdSerializer<Object> {
+
+        public CustomSerializer() {
+            this(null);
+        }
+
+        public CustomSerializer(Class<Object> t) {
+            super(t);
+        }
+
+        @Override
+        public void serialize(Object value, JsonGenerator gen, SerializerProvider provider) throws IOException {
+            try {
+                gen.writeObject(value);
+            } catch (Exception e) {
+                gen.writeString("Serialization error: " + e.getMessage());
+            }
+        }
+    }
+
+    public class CardSerializer extends StdSerializer<Card> {
+
+        public CardSerializer() {
+            this(null);
+        }
+
+        public CardSerializer(Class<Card> t) {
+            super(t);
+        }
+
+        @Override
+        public void serialize(Card card, JsonGenerator gen, SerializerProvider provider) throws IOException {
+            gen.writeStartObject();
+            gen.writeStringField("name", card.getName());
+            gen.writeStringField("id", card.getId().toString());
+            gen.writeStringField("abilities", card.getAbilities().toString());
+            gen.writeStringField("cardType", card.getCardType().toString());
+            gen.writeStringField("color", card.getColor().toString());
+            // gen.writeStringField("manaCost", card.getManaCost().toString()); // Very
+            // likely generates infinite recursion issues
+            gen.writeStringField("ownerId", card.getOwnerId().toString());
+            gen.writeStringField("power", card.getPower().toString());
+            gen.writeStringField("toughness", card.getToughness().toString());
+            gen.writeStringField("rules", card.getRules().toString());
+            gen.writeStringField("spellAbility", card.getSpellAbility().toString());
+            gen.writeStringField("subtype", card.getSubtype().toString());
+            gen.writeStringField("supertype", card.getSuperType().toString());
+            // Add other fields you want to serialize
+            gen.writeEndObject();
+        }
+    }
+
+    private Object convertObjectToJson(Object obj) {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-        objectMapper.addMixIn(GenericManaCost.class, GenericManaCostMixIn.class);
         objectMapper.addMixIn(Ornithopter.class, OrnithopterMixIn.class);
         objectMapper.addMixIn(SimulatedPlayer2.class, SimulatedPlayer2MixIn.class);
         objectMapper.addMixIn(MatchPlayer.class, MatchPlayerMixIn.class);
@@ -234,10 +299,26 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         objectMapper.addMixIn(Card.class, CardMixIn.class);
         objectMapper.addMixIn(ManaCost.class, ManaCostMixIn.class);
         objectMapper.addMixIn(ColoredManaCost.class, ColoredManaCostMixIn.class);
-        objectMapper.addMixIn(GameState.class, GameStateMixIn.class); // Add this line
+        objectMapper.addMixIn(GameState.class, GameStateMixIn.class);
+        objectMapper.addMixIn(GenericManaCost.class, GenericManaCostMixIn.class);
+        // objectMapper.registerModule(new SimpleModule().addSerializer(Object.class,
+        // new CustomSerializer()));
+
+        // Register the custom serializer for the Card class
+        SimpleModule module = new SimpleModule();
+        module.addSerializer(Card.class, new CardSerializer());
+        objectMapper.registerModule(module);
+
         try {
             String jsonString = objectMapper.writeValueAsString(obj);
-            return new JSONObject(jsonString);
+            if (jsonString.startsWith("{")) {
+                return new JSONObject(jsonString);
+            } else if (jsonString.startsWith("[")) {
+                return new JSONArray(jsonString);
+            } else {
+                throw new JsonProcessingException("Invalid JSON string: " + jsonString) {
+                };
+            }
         } catch (JsonProcessingException e) {
             logger.error("Error converting object to JSON: " + obj.getClass().getName(), e);
             return new JSONObject().put("error", "Failed to convert " + obj.getClass().getName() + " to JSON")
@@ -248,27 +329,29 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
     private int callLLMToChooseAction(Game game, List<Ability> allActions, SimulatedPlayer2 currentPlayer) {
         // Prepare the context for the LLM
         JSONObject payload = new JSONObject();
+        payload.put("gameCards", convertObjectToJson(game.getCards()));
         payload.put("gameState", convertObjectToJson(game.getState()));
         payload.put("allActions", convertObjectToJson(allActions));
-        payload.put("playerContext", convertObjectToJson(currentPlayer));
+        payload.put("currentPlayer", convertObjectToJson(currentPlayer));
 
-        // Convert the context to JSON
-        // String contextJson = convertContextToJson(context);
-        JSONObject payloadTest = new JSONObject()
-                .put("gameState",
-                        new JSONObject().put("turn", 5).put("activePlayer", "player1").put("lifeTotalPlayer1", 20)
-                                .put("lifeTotalPlayer2", 18).toString())
-                .put("allActions", new JSONObject()
-                        .put("actions",
-                                new JSONObject[] {
-                                        new JSONObject().put("actionId", 1).put("description",
-                                                "Attack with creature A"),
-                                        new JSONObject().put("actionId", 2).put("description", "Cast spell B") })
-                        .toString())
-                .put("playerContext", new JSONObject().put("playerId", "player1").put("manaAvailable", 3).toString());
+        // Test
+        // JSONObject payloadTest = new JSONObject()
+        // .put("gameState",
+        // new JSONObject().put("turn", 5).put("activePlayer",
+        // "player1").put("lifeTotalPlayer1", 20)
+        // .put("lifeTotalPlayer2", 18).toString())
+        // .put("allActions", new JSONObject()
+        // .put("actions",
+        // new JSONObject[] {
+        // new JSONObject().put("actionId", 1).put("description",
+        // "Attack with creature A"),
+        // new JSONObject().put("actionId", 2).put("description", "Cast spell B") })
+        // .toString())
+        // .put("playerContext", new JSONObject().put("playerId",
+        // "player1").put("manaAvailable", 3).toString());
+        // HttpURLConnection llmResponseTest = sendContextToLLM(payloadTest.toString());
 
         // Send the context to the LLM and get the response
-        HttpURLConnection llmResponseTest = sendContextToLLM(payloadTest.toString());
         HttpURLConnection llmResponse = sendContextToLLM(payload.toString());
 
         // Parse the response to get the chosen action index

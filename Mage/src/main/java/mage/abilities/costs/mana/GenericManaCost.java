@@ -1,5 +1,7 @@
 package mage.abilities.costs.mana;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import mage.Mana;
 import mage.abilities.Ability;
 import mage.abilities.costs.Cost;
@@ -53,6 +55,7 @@ public class GenericManaCost extends ManaCostImpl {
     }
 
     @Override
+    @JsonIgnore
     public GenericManaCost getUnpaid() {
         GenericManaCost unpaid = new GenericManaCost(mana - this.payment.count());
         if (sourceFilter != null) {
