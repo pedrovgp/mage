@@ -2,6 +2,8 @@ package mage.player.ai;
 
 import mage.Mana;
 import mage.abilities.Ability;
+import mage.abilities.ActivatedAbility;
+import mage.abilities.StaticAbility;
 import mage.abilities.TriggeredAbilities;
 import mage.abilities.costs.mana.ColoredManaCost;
 import mage.abilities.costs.mana.GenericManaCost;
@@ -44,6 +46,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonSerializer;
 
 /**
  * AI: server side bot with game simulations (mad bot, the latest version)
@@ -175,7 +179,26 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         if (logger.isInfoEnabled()) {
             logger.info("LLM chosen action: " + allActions.get(chosenActionIndex).toString());
         }
-        return chosenActionIndex;
+
+        // Execute the chosen action
+        if (chosenActionIndex >= 0 && chosenActionIndex < allActions.size()) {
+            Ability chosenAction = allActions.get(chosenActionIndex);
+            if (!(chosenAction instanceof StaticAbility)) {
+                currentPlayer.activateAbility((ActivatedAbility) chosenAction, game);
+            }
+
+            // Create a new SimulationNode2 for the chosen action
+            SimulationNode2 newNode = new SimulationNode2(node, game, chosenAction, depth, currentPlayer.getId());
+
+            // Update the node with the new child node
+            node.children.clear();
+            node.children.add(newNode);
+            node.setScore(GameStateEvaluator2.evaluate(playerId, game).getTotalScore());
+        }
+
+        // Return the score after executing the chosen action
+        return GameStateEvaluator2.evaluate(playerId, game).getTotalScore();
+
     }
 
     // MixIn classes to ignore the problematic fields
@@ -237,23 +260,38 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         private Map<UUID, TriggeredAbilities> triggers;
     }
 
-    public class CustomSerializer extends StdSerializer<Object> {
+    public class AbilitySerializer extends StdSerializer<Ability> {
 
-        public CustomSerializer() {
+        public AbilitySerializer() {
             this(null);
         }
 
-        public CustomSerializer(Class<Object> t) {
+        public AbilitySerializer(Class<Ability> t) {
             super(t);
         }
 
         @Override
-        public void serialize(Object value, JsonGenerator gen, SerializerProvider provider) throws IOException {
-            try {
-                gen.writeObject(value);
-            } catch (Exception e) {
-                gen.writeString("Serialization error: " + e.getMessage());
-            }
+        public void serialize(Ability ability, JsonGenerator gen, SerializerProvider provider) throws IOException {
+            gen.writeStartObject();
+            gen.writeStringField("className", ability.getClass().getName());
+            gen.writeStringField("description", ability.toString());
+            gen.writeStringField("abilityType",
+                    ability.getAbilityType() != null ? ability.getAbilityType().toString() : "");
+            gen.writeStringField("controllerId",
+                    ability.getControllerId() != null ? ability.getControllerId().toString() : "");
+            gen.writeStringField("controllerOrOwnerId",
+                    ability.getControllerOrOwnerId() != null ? ability.getControllerOrOwnerId().toString() : "");
+            gen.writeStringField("rule", ability.getRule() != null ? ability.getRule().toString() : "");
+            gen.writeStringField("sourceId", ability.getSourceId() != null ? ability.getSourceId().toString() : "");
+            gen.writeStringField("costAdjuster",
+                    ability.getCostAdjuster() != null ? ability.getCostAdjuster().toString() : "");
+            gen.writeStringField("costs", ability.getCosts() != null ? ability.getCosts().toString() : "");
+            gen.writeStringField("customOutcome",
+                    ability.getCustomOutcome() != null ? ability.getCustomOutcome().toString() : "");
+            gen.writeStringField("effects", ability.getEffects() != null ? ability.getEffects().toString() : "");
+            gen.writeStringField("targets", ability.getTargets() != null ? ability.getTargets().toString() : "");
+            gen.writeStringField("zone", ability.getZone() != null ? ability.getZone().toString() : "");
+            gen.writeEndObject();
         }
     }
 
@@ -272,19 +310,20 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
             gen.writeStartObject();
             gen.writeStringField("name", card.getName());
             gen.writeStringField("id", card.getId().toString());
-            gen.writeStringField("abilities", card.getAbilities().toString());
-            gen.writeStringField("cardType", card.getCardType().toString());
-            gen.writeStringField("color", card.getColor().toString());
-            // gen.writeStringField("manaCost", card.getManaCost().toString()); // Very
+            gen.writeStringField("abilities", card.getAbilities() != null ? card.getAbilities().toString() : "");
+            gen.writeStringField("cardType", card.getCardType() != null ? card.getCardType().toString() : "");
+            gen.writeStringField("color", card.getColor() != null ? card.getColor().toString() : "");
+            // gen.writeStringField("manaCost", card.getManaCost() != null ?
+            // card.getManaCost().toString() : ""); // Very
             // likely generates infinite recursion issues
-            gen.writeStringField("ownerId", card.getOwnerId().toString());
-            gen.writeStringField("power", card.getPower().toString());
-            gen.writeStringField("toughness", card.getToughness().toString());
-            gen.writeStringField("rules", card.getRules().toString());
-            gen.writeStringField("spellAbility", card.getSpellAbility().toString());
-            gen.writeStringField("subtype", card.getSubtype().toString());
-            gen.writeStringField("supertype", card.getSuperType().toString());
-            // Add other fields you want to serialize
+            gen.writeStringField("ownerId", card.getOwnerId() != null ? card.getOwnerId().toString() : "");
+            gen.writeStringField("power", card.getPower() != null ? card.getPower().toString() : "");
+            gen.writeStringField("toughness", card.getToughness() != null ? card.getToughness().toString() : "");
+            gen.writeStringField("rules", card.getRules() != null ? card.getRules().toString() : "");
+            gen.writeStringField("spellAbility",
+                    card.getSpellAbility() != null ? card.getSpellAbility().toString() : "");
+            gen.writeStringField("subtype", card.getSubtype() != null ? card.getSubtype().toString() : "");
+            gen.writeStringField("supertype", card.getSuperType() != null ? card.getSuperType().toString() : "");
             gen.writeEndObject();
         }
     }
@@ -301,12 +340,11 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         objectMapper.addMixIn(ColoredManaCost.class, ColoredManaCostMixIn.class);
         objectMapper.addMixIn(GameState.class, GameStateMixIn.class);
         objectMapper.addMixIn(GenericManaCost.class, GenericManaCostMixIn.class);
-        // objectMapper.registerModule(new SimpleModule().addSerializer(Object.class,
-        // new CustomSerializer()));
 
         // Register the custom serializer for the Card class
         SimpleModule module = new SimpleModule();
         module.addSerializer(Card.class, new CardSerializer());
+        module.addSerializer(Ability.class, new AbilitySerializer());
         objectMapper.registerModule(module);
 
         try {
