@@ -364,6 +364,21 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         }
     }
 
+    private void sendMsgWithLLMChosenAction(List<Ability> allActions, LLMResponse parsedResponse) {
+        StringBuilder message = new StringBuilder("Possible actions:\n");
+        for (int i = 0; i < allActions.size(); i++) {
+            message.append(i).append(": ").append(allActions.get(i).toString()).append("\n");
+        }
+
+        int chosenActionIndex = parsedResponse.getChosenActionIndex();
+
+        message.append("LLM chosen action: ").append(allActions.get(chosenActionIndex).toString()).append(": ")
+                .append(allActions.get(chosenActionIndex).toString());
+
+        // Assuming there's a method to send a chat message
+        sendChatMessage(message.toString());
+    }
+
     private int callLLMToChooseAction(Game game, List<Ability> allActions, SimulatedPlayer2 currentPlayer) {
         // Prepare the context for the LLM
         JSONObject payload = new JSONObject();
@@ -392,8 +407,12 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         // Send the context to the LLM and get the response
         HttpURLConnection llmResponse = sendContextToLLM(payload.toString());
 
+        LLMResponse parsedResponse = parseLLMResponse(llmResponse);
+
+        sendMsgWithLLMChosenAction(allActions, parsedResponse);
+
         // Parse the response to get the chosen action index
-        int chosenActionIndex = parseLLMResponse(llmResponse);
+        int chosenActionIndex = parsedResponse.getChosenActionIndex();
 
         // TODO PV remove later this simple test later - BEGIN
         chosenActionIndex = Math.max(0, allActions.size() - 2);
@@ -458,8 +477,9 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         return connection;
     }
 
-    private int parseLLMResponse(HttpURLConnection llmResponse) {
+    private LLMResponse parseLLMResponse(HttpURLConnection llmResponse) {
         int chosenActionIndex = 0; // Default value
+        String reason = "";
         try {
             int responseCode = llmResponse.getResponseCode();
             if (responseCode == HttpURLConnection.HTTP_OK) {
@@ -472,8 +492,12 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
                     }
                     // Use the responseString directly
                     String responseString = response.toString();
-                    // Assuming the responseString contains the chosen action index directly
-                    chosenActionIndex = Integer.parseInt(responseString);
+                    // Assuming the responseString contains the chosen action index and reason
+                    String[] parts = responseString.split(": ", 2);
+                    if (parts.length == 2) {
+                        chosenActionIndex = Integer.parseInt(parts[0]);
+                        reason = parts[1];
+                    }
                 }
             } else {
                 // Log the error response
@@ -493,7 +517,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         } catch (Exception e) {
             logger.error("Exception while parsing LLM response", e);
         }
-        return chosenActionIndex;
+        return new LLMResponse(chosenActionIndex, reason);
     }
 
     protected void calculateActions(Game game) {
