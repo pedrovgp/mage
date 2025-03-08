@@ -28,6 +28,7 @@ public class SimulationNode2 implements Serializable {
     protected List<String> choices = new ArrayList<>(); // TODO: un-used at all, maybe same history as targets above
     protected UUID playerId;
     protected Combat combat;
+    public Game originalGame; // Optional public attribute
 
     public SimulationNode2(SimulationNode2 parent, Game game, int depth, UUID playerId) {
         this.parent = parent;
@@ -47,6 +48,11 @@ public class SimulationNode2 implements Serializable {
         this(parent, game, depth, playerId);
         this.abilities = new ArrayList<>();
         abilities.add(ability);
+    }
+
+    public SimulationNode2(SimulationNode2 parent, Game game, int depth, UUID playerId, Game originalGame) {
+        this(parent, game, depth, playerId);
+        this.originalGame = originalGame;
     }
 
     public static void resetCount() {

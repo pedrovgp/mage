@@ -168,12 +168,11 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         }
         node.setGameValue(game.getState().getValue(true).hashCode());
         SimulatedPlayer2 currentPlayer = (SimulatedPlayer2) game.getPlayer(game.getPlayerList().get());
-        SimulationNode2 bestNode = null;
         List<Ability> allActions = currentPlayer.simulatePriority(game);
         optimize(game, allActions);
 
         // Call the LLM to choose an action
-        int chosenActionIndex = callLLMToChooseAction(game, allActions, currentPlayer);
+        int chosenActionIndex = callLLMToChooseAction(node.originalGame, allActions, currentPlayer);
 
         // Log the chosen action
         if (logger.isInfoEnabled()) {
@@ -364,19 +363,20 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         }
     }
 
-    private void sendMsgWithLLMChosenAction(List<Ability> allActions, LLMResponse parsedResponse) {
-        StringBuilder message = new StringBuilder("Possible actions:\n");
+    private void sendMsgWithLLMChosenAction(Game game, Player player, List<Ability> allActions,
+            LLMResponse parsedResponse) {
+        StringBuilder message = new StringBuilder("Possible actions: \n");
+        game.informPlayers(player.getLogName() + " POSSIBLE ACTIONS:");
         for (int i = 0; i < allActions.size(); i++) {
-            message.append(i).append(": ").append(allActions.get(i).toString()).append("\n");
+            game.informPlayers(i + ": " + allActions.get(i).toString());
         }
 
         int chosenActionIndex = parsedResponse.getChosenActionIndex();
 
-        message.append("LLM chosen action: ").append(allActions.get(chosenActionIndex).toString()).append(": ")
-                .append(allActions.get(chosenActionIndex).toString());
-
-        // Assuming there's a method to send a chat message
-        sendChatMessage(message.toString());
+        game.informPlayers("LLM CHOSEN ACTION:");
+        game.informPlayers(chosenActionIndex + ": " + allActions.get(chosenActionIndex).toString());
+        game.informPlayers(" REASON:");
+        game.informPlayers(parsedResponse.getReason());
     }
 
     private int callLLMToChooseAction(Game game, List<Ability> allActions, SimulatedPlayer2 currentPlayer) {
@@ -409,13 +409,11 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
 
         LLMResponse parsedResponse = parseLLMResponse(llmResponse);
 
-        sendMsgWithLLMChosenAction(allActions, parsedResponse);
+        sendMsgWithLLMChosenAction(game, currentPlayer, allActions, parsedResponse);
 
         // Parse the response to get the chosen action index
         int chosenActionIndex = parsedResponse.getChosenActionIndex();
 
-        // TODO PV remove later this simple test later - BEGIN
-        chosenActionIndex = Math.max(0, allActions.size() - 2);
         // Log the random action chosen
         if (logger.isInfoEnabled()) {
             logger.info("Random action chosen: " +
@@ -493,10 +491,12 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
                     // Use the responseString directly
                     String responseString = response.toString();
                     // Assuming the responseString contains the chosen action index and reason
-                    String[] parts = responseString.split(": ", 2);
+                    String[] parts = responseString.split(":", 2);
                     if (parts.length == 2) {
-                        chosenActionIndex = Integer.parseInt(parts[0]);
-                        reason = parts[1];
+                        String cleanedChoice = parts[0].replace("\"", ""); // Remove double quotes
+                        chosenActionIndex = Integer.parseInt(cleanedChoice);
+                        String cleanedReason = parts[1].replace("\"", ""); // Remove double quotes
+                        reason = cleanedReason;
                     }
                 }
             } else {
@@ -528,7 +528,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
             currentScore = GameStateEvaluator2.evaluate(playerId, game).getTotalScore();
             Game sim = createSimulation(game);
             SimulationNode2.resetCount();
-            root = new SimulationNode2(null, sim, maxDepth, playerId);
+            root = new SimulationNode2(null, sim, maxDepth, playerId, game);
             addActionsTimed(); // TODO: root can be null again after addActionsTimed O_o need to research (it's
                                // a CPU AI problem?)
             if (root != null && root.children != null && !root.children.isEmpty()) {
