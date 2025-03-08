@@ -16,6 +16,8 @@ import mage.game.Game;
 import mage.game.GameState;
 import mage.game.match.MatchPlayer;
 import mage.players.Player;
+import mage.players.PlayerList;
+import mage.players.Players;
 
 import org.apache.log4j.Logger;
 import org.json.JSONArray;
@@ -215,6 +217,14 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         private Ability secondFaceSpellAbility;
     }
 
+    public class RealPlayerUuidSerializer extends JsonSerializer<Player> {
+        @Override
+        public void serialize(Player player, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+            // Write only the player's id (UUID) as a string
+            gen.writeString(player.getId().toString());
+        }
+    }
+
     @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
     public abstract class SimulatedPlayer2MixIn {
         @JsonIgnore
@@ -223,9 +233,19 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         private Player realPlayer; // Add this line to ignore the realPlayer field
     }
 
+    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "name")
     public abstract class MatchPlayerMixIn {
         @JsonIgnore
         private Deck deck;
+        @JsonIgnore
+        private Player player;
+    }
+
+    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
+    public abstract class HumanPlayerMixIn {
+        // Instead of ignoring realPlayer, serialize it as an UUID
+        @com.fasterxml.jackson.databind.annotation.JsonSerialize(using = RealPlayerUuidSerializer.class)
+        private Player realPlayer;
     }
 
     public abstract class DeckMixIn {
@@ -257,6 +277,20 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
     public abstract class GameStateMixIn {
         @JsonIgnore
         private Map<UUID, TriggeredAbilities> triggers;
+        @JsonIgnore
+        private Players players;
+        @JsonIgnore
+        private PlayerList playersList;
+    }
+
+    // Helper method to find the opponent
+    private Player findOpponent(Game game, SimulatedPlayer2 currentPlayer) {
+        for (UUID opponentId : game.getState().getPlayers().keySet()) {
+            if (!opponentId.equals(currentPlayer.getId())) {
+                return game.getPlayer(opponentId);
+            }
+        }
+        return null;
     }
 
     public class AbilitySerializer extends StdSerializer<Ability> {
@@ -333,6 +367,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         objectMapper.addMixIn(Ornithopter.class, OrnithopterMixIn.class);
         objectMapper.addMixIn(SimulatedPlayer2.class, SimulatedPlayer2MixIn.class);
         objectMapper.addMixIn(MatchPlayer.class, MatchPlayerMixIn.class);
+        objectMapper.addMixIn(Player.class, HumanPlayerMixIn.class);
         objectMapper.addMixIn(Deck.class, DeckMixIn.class);
         objectMapper.addMixIn(Card.class, CardMixIn.class);
         objectMapper.addMixIn(ManaCost.class, ManaCostMixIn.class);
@@ -382,10 +417,15 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
     private int callLLMToChooseAction(Game game, List<Ability> allActions, SimulatedPlayer2 currentPlayer) {
         // Prepare the context for the LLM
         JSONObject payload = new JSONObject();
+
+        GameState gameState = game.getState();
+        Player opponentPlayer = findOpponent(game, currentPlayer);
+
         payload.put("gameCards", convertObjectToJson(game.getCards()));
-        payload.put("gameState", convertObjectToJson(game.getState()));
+        payload.put("gameState", convertObjectToJson(gameState));
         payload.put("allActions", convertObjectToJson(allActions));
         payload.put("currentPlayer", convertObjectToJson(currentPlayer));
+        payload.put("opponentPlayer", convertObjectToJson(opponentPlayer));
 
         // Test
         // JSONObject payloadTest = new JSONObject()
@@ -488,16 +528,11 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
                     while ((responseLine = br.readLine()) != null) {
                         response.append(responseLine.trim());
                     }
-                    // Use the responseString directly
+                    // Parse the JSON response
                     String responseString = response.toString();
-                    // Assuming the responseString contains the chosen action index and reason
-                    String[] parts = responseString.split(":", 2);
-                    if (parts.length == 2) {
-                        String cleanedChoice = parts[0].replace("\"", ""); // Remove double quotes
-                        chosenActionIndex = Integer.parseInt(cleanedChoice);
-                        String cleanedReason = parts[1].replace("\"", ""); // Remove double quotes
-                        reason = cleanedReason;
-                    }
+                    JSONObject jsonResponse = new JSONObject(responseString);
+                    chosenActionIndex = jsonResponse.getInt("chosen_action");
+                    reason = jsonResponse.getString("reason");
                 }
             } else {
                 // Log the error response
