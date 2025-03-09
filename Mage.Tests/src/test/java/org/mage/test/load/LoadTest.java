@@ -48,28 +48,14 @@ public class LoadTest {
     private static final int TEST_PORT = 17171;
     private static final String TEST_PROXY_TYPE = "None";
     private static final String TEST_USER_NAME_GLOBAL_PREFIX = "t_";
-    private static final Boolean TEST_SHOW_GAME_LOGS_AS_HTML = false; // html is original format with full data, but can
-                                                                      // be too bloated
-    private static final String TEST_AI_GAME_MODE = "Two Player Duel";
-    private static final String TEST_AI_DECK_TYPE = "Constructed - Premodern";
-    private static final String TEST_AI_RANDOM_DECK_SETS = ""; // sets list for random generated decks (GRN,ACR for
-                                                               // specific sets, empty for all sets, PELP for lands only
-                                                               // - communication test)
-    private static final String TEST_AI_RANDOM_DECK_COLORS_FOR_EMPTY_GAME = "GR"; // colors list for deck generation,
-                                                                                  // empty for all colors
+    private static final Boolean TEST_SHOW_GAME_LOGS_AS_HTML = false; // html is original format with full data, but can be too bloated
+    private static final String TEST_AI_GAME_MODE = "Freeform Commander Free For All";
+    private static final String TEST_AI_DECK_TYPE = "Variant Magic - Freeform Commander";
+    private static final String TEST_AI_RANDOM_DECK_SETS = ""; // sets list for random generated decks (GRN,ACR for specific sets, empty for all sets, PELP for lands only - communication test)
+    private static final String TEST_AI_RANDOM_DECK_COLORS_FOR_EMPTY_GAME = "GR";  // colors list for deck generation, empty for all colors
     private static final String TEST_AI_RANDOM_DECK_COLORS_FOR_AI_GAME = "WUBRG";
-    private static final String TEST_AI_CUSTOM_DECK_PATH_1 = "/home/pv/Downloads/jogos/xmage/decks/ai_test_zero_cost.dck"; // custom
-                                                                                                                           // deck
-                                                                                                                           // file
-                                                                                                                           // instead
-                                                                                                                           // random
-                                                                                                                           // for
-                                                                                                                           // player
-                                                                                                                           // 1
-                                                                                                                           // (empty
-    // for random)
-    private static final String TEST_AI_CUSTOM_DECK_PATH_2 = ""; // custom deck file instead random for player 2 (empty
-                                                                 // for random)
+    private static final String TEST_AI_CUSTOM_DECK_PATH_1 = ""; // custom deck file instead random for player 1 (empty for random)
+    private static final String TEST_AI_CUSTOM_DECK_PATH_2 = ""; // custom deck file instead random for player 2 (empty for random)
 
     @BeforeClass
     public static void initDatabase() {
@@ -86,8 +72,7 @@ public class LoadTest {
         Assert.assertNotNull(deck);
         for (Card card : deck.getCards()) {
             Assert.assertNotNull(card);
-            Assert.assertTrue(
-                    "card " + card.getName() + " color " + card.getColorIdentity().toString() + " must be in G",
+            Assert.assertTrue("card " + card.getName() + " color " + card.getColorIdentity().toString() + " must be in G",
                     card.getColorIdentity().isGreen());
         }
 
@@ -95,8 +80,7 @@ public class LoadTest {
         Assert.assertNotNull(deck);
         for (Card card : deck.getCards()) {
             Assert.assertNotNull(card);
-            Assert.assertTrue(
-                    "card " + card.getName() + " color " + card.getColorIdentity().toString() + " must be in U",
+            Assert.assertTrue("card " + card.getName() + " color " + card.getColorIdentity().toString() + " must be in U",
                     card.getColorIdentity().isBlue());
         }
 
@@ -104,8 +88,7 @@ public class LoadTest {
         Assert.assertNotNull(deck);
         for (Card card : deck.getCards()) {
             Assert.assertNotNull(card);
-            Assert.assertTrue(
-                    "card " + card.getName() + " color " + card.getColorIdentity().toString() + " must be in BR",
+            Assert.assertTrue("card " + card.getName() + " color " + card.getColorIdentity().toString() + " must be in BR",
                     card.getColorIdentity().isBlack() || card.getColorIdentity().isRed());
         }
 
@@ -113,10 +96,8 @@ public class LoadTest {
         Assert.assertNotNull(deck);
         for (Card card : deck.getCards()) {
             Assert.assertNotNull(card);
-            Assert.assertTrue(
-                    "card " + card.getName() + " color " + card.getColorIdentity().toString() + " must be in BUG",
-                    card.getColorIdentity().isBlack() || card.getColorIdentity().isBlue()
-                            || card.getColorIdentity().isGreen());
+            Assert.assertTrue("card " + card.getName() + " color " + card.getColorIdentity().toString() + " must be in BUG",
+                    card.getColorIdentity().isBlack() || card.getColorIdentity().isBlue() || card.getColorIdentity().isGreen());
         }
 
         // lands
@@ -124,8 +105,7 @@ public class LoadTest {
         Assert.assertNotNull(deck);
         for (Card card : deck.getCards()) {
             Assert.assertNotNull(card);
-            Assert.assertTrue(
-                    "card " + card.getName() + " color " + card.getColorIdentity().toString() + " must be in UR",
+            Assert.assertTrue("card " + card.getName() + " color " + card.getColorIdentity().toString() + " must be in UR",
                     card.getColorIdentity().isBlue() || card.getColorIdentity().isRed());
             Assert.assertEquals("card " + card.getName() + " must be basic land ", Rarity.LAND, card.getRarity());
         }
@@ -134,9 +114,7 @@ public class LoadTest {
         Assert.assertNotNull(deck);
         for (Card card : deck.getCards()) {
             Assert.assertNotNull(card);
-            Assert.assertTrue(
-                    "card " + card.getName() + " color " + card.getColorIdentity().toString() + " must be in B",
-                    card.getColorIdentity().isBlack());
+            Assert.assertTrue("card " + card.getName() + " color " + card.getColorIdentity().toString() + " must be in B", card.getColorIdentity().isBlack());
             Assert.assertEquals("card " + card.getName() + " must be basic land ", Rarity.LAND, card.getRarity());
         }
 
@@ -145,16 +123,13 @@ public class LoadTest {
         Assert.assertNotNull(deck);
         for (Card card : deck.getCards()) {
             Assert.assertNotNull(card);
-            Assert.assertTrue(
-                    "card " + card.getName() + " color " + card.getColorIdentity().toString() + " must be in B",
-                    card.getColorIdentity().isBlack());
-            Assert.assertEquals("card " + card.getName() + " have wrong set code " + card.getExpansionSetCode(), "GRN",
-                    card.getExpansionSetCode());
+            Assert.assertTrue("card " + card.getName() + " color " + card.getColorIdentity().toString() + " must be in B", card.getColorIdentity().isBlack());
+            Assert.assertEquals("card " + card.getName() + " have wrong set code " + card.getExpansionSetCode(), "GRN", card.getExpansionSetCode());
         }
     }
 
     @Test
-    // @Ignore
+    @Ignore
     public void test_UsersConnectToServer() throws Exception {
 
         // simple connection to server
@@ -195,15 +170,13 @@ public class LoadTest {
         UUID tableId = game.getTableId();
         Assert.assertEquals(player1.userName, game.getControllerName());
 
-        DeckCardLists deckList = loadGameDeck(1, TEST_AI_RANDOM_DECK_COLORS_FOR_EMPTY_GAME, true,
-                TEST_AI_RANDOM_DECK_SETS);
+        DeckCardLists deckList = loadGameDeck(1, TEST_AI_RANDOM_DECK_COLORS_FOR_EMPTY_GAME, true, TEST_AI_RANDOM_DECK_SETS);
         Optional<TableView> checkGame;
 
         /*
-         * for(DeckCardInfo info: deckList.getCards()) {
-         * logger.info(info.getCardName());
-         * }
-         */
+        for(DeckCardInfo info: deckList.getCards()) {
+            logger.info(info.getCardName());
+        }*/
         // before connect
         checkGame = monitor.getTable(tableId);
         Assert.assertTrue(checkGame.isPresent());
@@ -212,8 +185,7 @@ public class LoadTest {
         Assert.assertEquals("", checkGame.get().getSeats().get(1).getPlayerName());
 
         // connect user 1
-        Assert.assertTrue(player1.session.joinTable(player1.roomID, tableId, player1.userName, PlayerType.HUMAN, 1,
-                deckList, ""));
+        Assert.assertTrue(player1.session.joinTable(player1.roomID, tableId, player1.userName, PlayerType.HUMAN, 1, deckList, ""));
         checkGame = monitor.getTable(tableId);
         Assert.assertTrue(checkGame.isPresent());
         Assert.assertEquals(2, checkGame.get().getSeats().size());
@@ -221,8 +193,7 @@ public class LoadTest {
         Assert.assertEquals("", checkGame.get().getSeats().get(1).getPlayerName());
 
         // connect user 2
-        Assert.assertTrue(player2.session.joinTable(player2.roomID, tableId, player2.userName, PlayerType.HUMAN, 1,
-                deckList, ""));
+        Assert.assertTrue(player2.session.joinTable(player2.roomID, tableId, player2.userName, PlayerType.HUMAN, 1, deckList, ""));
         checkGame = monitor.getTable(tableId);
         Assert.assertTrue(checkGame.isPresent());
         Assert.assertEquals(2, checkGame.get().getSeats().size());
@@ -244,8 +215,7 @@ public class LoadTest {
         }
     }
 
-    public void playTwoAIGame(String gameName, Integer taskNumber, TasksProgress tasksProgress, long randomSeed,
-            String deckColors, String deckAllowedSets, LoadTestGameResult gameResult) {
+    public void playTwoAIGame(String gameName, Integer taskNumber, TasksProgress tasksProgress, long randomSeed, String deckColors, String deckAllowedSets, LoadTestGameResult gameResult) {
         Assert.assertFalse("need deck colors", deckColors.isEmpty());
 
         // monitor and game source
@@ -263,10 +233,8 @@ public class LoadTest {
         DeckCardLists deckList2 = loadGameDeck(2, deckColors, deckAllowedSets.equals("PELP"), deckAllowedSets);
 
         // join AI
-        Assert.assertTrue(
-                monitor.session.joinTable(monitor.roomID, tableId, "ai_1", PlayerType.COMPUTER_MAD, 5, deckList1, ""));
-        Assert.assertTrue(
-                monitor.session.joinTable(monitor.roomID, tableId, "ai_2", PlayerType.COMPUTER_MAD, 5, deckList2, ""));
+        Assert.assertTrue(monitor.session.joinTable(monitor.roomID, tableId, "ai_1", PlayerType.COMPUTER_MAD, 5, deckList1, ""));
+        Assert.assertTrue(monitor.session.joinTable(monitor.roomID, tableId, "ai_2", PlayerType.COMPUTER_MAD, 5, deckList2, ""));
 
         // match start
         Assert.assertTrue(monitor.session.startMatch(monitor.roomID, tableId));
@@ -283,8 +251,7 @@ public class LoadTest {
 
             String finishInfo = "";
             if (state == TableState.FINISHED) {
-                finishInfo = gameView == null ? "??"
-                        : gameView.getStep().getStepShortText().toLowerCase(Locale.ENGLISH);
+                finishInfo = gameView == null ? "??" : gameView.getStep().getStepShortText().toLowerCase(Locale.ENGLISH);
             }
             tasksProgress.update(taskNumber, finishInfo, gameView == null ? 0 : gameView.getTurn());
             String globalProgress = tasksProgress.getInfo();
@@ -297,7 +264,8 @@ public class LoadTest {
                         checkGame.getTableName(),
                         gameView.getTurn(),
                         gameView.getStep().toString(),
-                        state));
+                        state
+                ));
             }
 
             if (state == TableState.FINISHED) {
@@ -325,9 +293,9 @@ public class LoadTest {
                                     p.getName(),
                                     p.getLife(),
                                     p.getLibraryCount(),
-                                    p.getBattlefield().values().stream().filter(CardView::isCreature).mapToInt(x -> 1)
-                                            .sum(),
-                                    activeInfo));
+                                    p.getBattlefield().values().stream().filter(CardView::isCreature).mapToInt(x -> 1).sum(),
+                                    activeInfo
+                            ));
                         });
                 logger.info(globalProgress + ", " + checkGame.getTableName() + ": ---");
             }
@@ -350,37 +318,33 @@ public class LoadTest {
     }
 
     @Test
-    // @Ignore
+    @Ignore
     public void test_TwoAIPlayGame_One() {
         LoadTestGameResultsList gameResults = new LoadTestGameResultsList();
         long randomSeed = RandomUtil.nextInt();
         LoadTestGameResult gameResult = gameResults.createGame(0, "test game", randomSeed);
         TasksProgress tasksProgress = new TasksProgress();
         tasksProgress.update(1, "", 0);
-        playTwoAIGame("Single AI game", 1, tasksProgress, randomSeed, "GR", TEST_AI_RANDOM_DECK_SETS, gameResult);
+        playTwoAIGame("Single AI game", 1, tasksProgress, randomSeed, "WGUBR", TEST_AI_RANDOM_DECK_SETS, gameResult);
 
         printGameResults(gameResults);
     }
 
     @Test
-    // @Ignore
+    @Ignore
     public void test_TwoAIPlayGame_Multiple() {
-        // play multiple AI games with CLIENT side code (catch every GameView changes
-        // from the server)
+        // play multiple AI games with CLIENT side code (catch every GameView changes from the server)
 
         int singleGameSID = 0; // set sid for same deck games, set 0 for random decks
 
         int runTotalGames = 10;
-        int runMaxParallelGames = 5; // use 1 to run one by one (warning, it's limited by
-                                     // COMPUTER_MAX_THREADS_FOR_SIMULATIONS)
+        int runMaxParallelGames = 5; // use 1 to run one by one (warning, it's limited by COMPUTER_MAX_THREADS_FOR_SIMULATIONS)
 
         ExecutorService executerService;
         if (runMaxParallelGames > 1) {
-            executerService = Executors.newFixedThreadPool(runMaxParallelGames,
-                    new XmageThreadFactory(ThreadUtils.THREAD_PREFIX_TESTS_AI_VS_AI_GAMES));
+            executerService = Executors.newFixedThreadPool(runMaxParallelGames, new XmageThreadFactory(ThreadUtils.THREAD_PREFIX_TESTS_AI_VS_AI_GAMES));
         } else {
-            executerService = Executors
-                    .newSingleThreadExecutor(new XmageThreadFactory(ThreadUtils.THREAD_PREFIX_TESTS_AI_VS_AI_GAMES));
+            executerService = Executors.newSingleThreadExecutor(new XmageThreadFactory(ThreadUtils.THREAD_PREFIX_TESTS_AI_VS_AI_GAMES));
         }
 
         // save random seeds for repeated results (in decks generating)
@@ -407,8 +371,7 @@ public class LoadTest {
                 Future gameTask = executerService.submit(() -> {
                     String gameName = String.format("AI game #%02d", gameIndex + 1);
                     LoadTestGameResult gameResult = gameResults.createGame(gameIndex + 1, gameName, randomSeed);
-                    playTwoAIGame(gameName, gameIndex + 1, tasksProgress, randomSeed,
-                            TEST_AI_RANDOM_DECK_COLORS_FOR_AI_GAME, TEST_AI_RANDOM_DECK_SETS, gameResult);
+                    playTwoAIGame(gameName, gameIndex + 1, tasksProgress, randomSeed, TEST_AI_RANDOM_DECK_COLORS_FOR_AI_GAME, TEST_AI_RANDOM_DECK_SETS, gameResult);
                 });
                 gameTasks.add(gameTask);
 
@@ -453,7 +416,8 @@ public class LoadTest {
                 "game",
                 "u",
                 loadGameDeck(1, TEST_AI_RANDOM_DECK_COLORS_FOR_EMPTY_GAME, true, TEST_AI_RANDOM_DECK_SETS),
-                loadGameDeck(2, TEST_AI_RANDOM_DECK_COLORS_FOR_EMPTY_GAME, true, TEST_AI_RANDOM_DECK_SETS));
+                loadGameDeck(2, TEST_AI_RANDOM_DECK_COLORS_FOR_EMPTY_GAME, true, TEST_AI_RANDOM_DECK_SETS)
+        );
         game.gameStart();
 
         while (game.isPlaying()) {
@@ -476,7 +440,8 @@ public class LoadTest {
                 "game",
                 "u",
                 loadGameDeck(1, TEST_AI_RANDOM_DECK_COLORS_FOR_EMPTY_GAME, true, TEST_AI_RANDOM_DECK_SETS),
-                loadGameDeck(2, TEST_AI_RANDOM_DECK_COLORS_FOR_EMPTY_GAME, true, TEST_AI_RANDOM_DECK_SETS));
+                loadGameDeck(2, TEST_AI_RANDOM_DECK_COLORS_FOR_EMPTY_GAME, true, TEST_AI_RANDOM_DECK_SETS)
+        );
         game.gameStart();
         game.gameEnd(true); // abort -- close client thread
         Assert.assertEquals("aborted", game.gameResult);
@@ -491,7 +456,8 @@ public class LoadTest {
                 "game",
                 "u",
                 loadGameDeck(1, TEST_AI_RANDOM_DECK_COLORS_FOR_EMPTY_GAME, false, TEST_AI_RANDOM_DECK_SETS),
-                loadGameDeck(2, TEST_AI_RANDOM_DECK_COLORS_FOR_EMPTY_GAME, false, TEST_AI_RANDOM_DECK_SETS));
+                loadGameDeck(2, TEST_AI_RANDOM_DECK_COLORS_FOR_EMPTY_GAME, false, TEST_AI_RANDOM_DECK_SETS)
+        );
 
         game.gameStart();
         game.gameWaitToStop();
@@ -507,7 +473,8 @@ public class LoadTest {
                 "game",
                 "u",
                 loadGameDeck(1, TEST_AI_RANDOM_DECK_COLORS_FOR_EMPTY_GAME, true, TEST_AI_RANDOM_DECK_SETS),
-                loadGameDeck(2, TEST_AI_RANDOM_DECK_COLORS_FOR_EMPTY_GAME, true, TEST_AI_RANDOM_DECK_SETS));
+                loadGameDeck(2, TEST_AI_RANDOM_DECK_COLORS_FOR_EMPTY_GAME, true, TEST_AI_RANDOM_DECK_SETS)
+        );
         game.gameStart();
 
         try {
@@ -523,7 +490,7 @@ public class LoadTest {
     }
 
     @Test
-    // @Ignore
+    @Ignore
     public void test_MultipleGames() {
         // for load testing only (example: memory usage, max games limit, network usage)
         // play multiple EMPTY games with SERVER side only (without AI),
@@ -542,7 +509,8 @@ public class LoadTest {
                     "game" + i,
                     "u" + i,
                     loadGameDeck(1, TEST_AI_RANDOM_DECK_COLORS_FOR_EMPTY_GAME, true, TEST_AI_RANDOM_DECK_SETS),
-                    loadGameDeck(2, TEST_AI_RANDOM_DECK_COLORS_FOR_EMPTY_GAME, true, TEST_AI_RANDOM_DECK_SETS));
+                    loadGameDeck(2, TEST_AI_RANDOM_DECK_COLORS_FOR_EMPTY_GAME, true, TEST_AI_RANDOM_DECK_SETS)
+            );
             gamesList.add(game);
 
             if (!START_GAMES_AT_ONCE) {
@@ -609,8 +577,7 @@ public class LoadTest {
         return con;
     }
 
-    private MatchOptions createSimpleGameOptions(String gameName, GameTypeView gameTypeView, Session session,
-            PlayerType playersType) {
+    private MatchOptions createSimpleGameOptions(String gameName, GameTypeView gameTypeView, Session session, PlayerType playersType) {
         MatchOptions options = new MatchOptions(gameName, gameTypeView.getName(), true, 2);
 
         options.getPlayerTypes().add(playersType);
@@ -747,8 +714,7 @@ public class LoadTest {
         }
 
         public void connectToTable(UUID tableID) {
-            Assert.assertTrue(this.session.joinTable(this.roomID, tableID, this.userName, PlayerType.HUMAN, 1,
-                    this.deckList, ""));
+            Assert.assertTrue(this.session.joinTable(this.roomID, tableID, this.userName, PlayerType.HUMAN, 1, this.deckList, ""));
             this.connectedTableID = tableID;
         }
 
@@ -783,7 +749,8 @@ public class LoadTest {
         public LoadGame(String gameName, String playerPrefix) {
             this(gameName, playerPrefix,
                     loadGameDeck(1, TEST_AI_RANDOM_DECK_COLORS_FOR_EMPTY_GAME, true, TEST_AI_RANDOM_DECK_SETS),
-                    loadGameDeck(2, TEST_AI_RANDOM_DECK_COLORS_FOR_EMPTY_GAME, true, TEST_AI_RANDOM_DECK_SETS));
+                    loadGameDeck(2, TEST_AI_RANDOM_DECK_COLORS_FOR_EMPTY_GAME, true, TEST_AI_RANDOM_DECK_SETS)
+            );
         }
 
         public LoadGame(String gameName, String playerPrefix, DeckCardLists deck1, DeckCardLists deck2) {
@@ -915,21 +882,19 @@ public class LoadTest {
         }
 
         public int getCreaturesCount1() {
-            return finalGameView == null ? 0
-                    : this.finalGameView.getPlayers().get(0).getBattlefield().values()
-                            .stream()
-                            .filter(CardView::isCreature)
-                            .mapToInt(x -> 1)
-                            .sum();
+            return finalGameView == null ? 0 : this.finalGameView.getPlayers().get(0).getBattlefield().values()
+                    .stream()
+                    .filter(CardView::isCreature)
+                    .mapToInt(x -> 1)
+                    .sum();
         }
 
         public int getCreaturesCount2() {
-            return finalGameView == null ? 0
-                    : this.finalGameView.getPlayers().get(1).getBattlefield().values()
-                            .stream()
-                            .filter(CardView::isCreature)
-                            .mapToInt(x -> 1)
-                            .sum();
+            return finalGameView == null ? 0 : this.finalGameView.getPlayers().get(1).getBattlefield().values()
+                    .stream()
+                    .filter(CardView::isCreature)
+                    .mapToInt(x -> 1)
+                    .sum();
         }
 
         public int getTurn() {
@@ -938,8 +903,7 @@ public class LoadTest {
 
         public String getTurnInfo() {
             int turn = finalGameView == null ? 0 : this.finalGameView.getTurn();
-            String stepInfo = finalGameView == null ? "??"
-                    : this.finalGameView.getStep().getStepShortText().toLowerCase(Locale.ENGLISH);
+            String stepInfo = finalGameView == null ? "??" : this.finalGameView.getStep().getStepShortText().toLowerCase(Locale.ENGLISH);
             return String.format("%02d.%s", turn, stepInfo);
         }
 
@@ -983,7 +947,8 @@ public class LoadTest {
                     "creatures p1",
                     "creatures p2",
                     "time, sec",
-                    "time per turn, sec");
+                    "time per turn, sec"
+            );
             System.out.printf(tableFormatHeader, data.toArray());
         }
 
@@ -993,28 +958,26 @@ public class LoadTest {
 
         public void printResultData(LoadTestGameResult gameResult) {
             List<String> data = Arrays.asList(
-                    String.valueOf(gameResult.index), // "index",
-                    gameResult.name, // "name",
+                    String.valueOf(gameResult.index), //"index",
+                    gameResult.name, //"name",
                     String.valueOf(gameResult.randomSeed), // "random sid",
                     String.valueOf(gameResult.getTotalErrorsCount()), // "errors",
                     String.valueOf(gameResult.getTotalEffectsCount()), // "effects",
-                    gameResult.getTurnInfo(), // "turn",
-                    String.valueOf(gameResult.getLife1()), // "life p1",
-                    String.valueOf(gameResult.getLife2()), // "life p2",
-                    String.valueOf(gameResult.getCreaturesCount1()), // "creatures p1",
-                    String.valueOf(gameResult.getCreaturesCount2()), // "creatures p2",
-                    String.format("%.3f", (float) gameResult.getDurationMs() / 1000), // "time, sec",
-                    String.format("%.3f", ((float) gameResult.getDurationMs() / 1000) / gameResult.getTurn()) // "per
-                                                                                                              // turn,
-                                                                                                              // sec"
+                    gameResult.getTurnInfo(), //"turn",
+                    String.valueOf(gameResult.getLife1()), //"life p1",
+                    String.valueOf(gameResult.getLife2()), //"life p2",
+                    String.valueOf(gameResult.getCreaturesCount1()), //"creatures p1",
+                    String.valueOf(gameResult.getCreaturesCount2()), //"creatures p2",
+                    String.format("%.3f", (float) gameResult.getDurationMs() / 1000), //"time, sec",
+                    String.format("%.3f", ((float) gameResult.getDurationMs() / 1000) / gameResult.getTurn()) //"per turn, sec"
             );
             System.out.printf(tableFormatData, data.toArray());
         }
 
         public void printResultTotal() {
             List<String> data = Arrays.asList(
-                    "TOTAL/AVG", // "index",
-                    String.valueOf(this.size()), // "name",
+                    "TOTAL/AVG", //"index",
+                    String.valueOf(this.size()), //"name",
                     "total, secs: " + String.format("%.3f", (float) this.getTotalDurationMs() / 1000), // "random sid",
                     String.valueOf(this.getTotalErrorsCount()), // errors
                     String.valueOf(this.getAvgEffectsCount()), // effects
@@ -1024,8 +987,7 @@ public class LoadTest {
                     String.valueOf(this.getAvgCreaturesCount1()), // creatures p1
                     String.valueOf(this.getAvgCreaturesCount2()), // creatures p2
                     String.valueOf(String.format("%.3f", (float) this.getAvgDurationMs() / 1000)), // time, sec
-                    String.valueOf(String.format("%.3f", (float) this.getAvgDurationPerTurnMs() / 1000)) // time per
-                                                                                                         // turn, sec
+                    String.valueOf(String.format("%.3f", (float) this.getAvgDurationPerTurnMs() / 1000)) // time per turn, sec
             );
             System.out.printf(tableFormatData, data.toArray());
         }
@@ -1035,33 +997,27 @@ public class LoadTest {
         }
 
         private int getAvgEffectsCount() {
-            return this.size() == 0 ? 0
-                    : this.values().stream().mapToInt(LoadTestGameResult::getTotalEffectsCount).sum() / this.size();
+            return this.size() == 0 ? 0 : this.values().stream().mapToInt(LoadTestGameResult::getTotalEffectsCount).sum() / this.size();
         }
 
         private int getAvgTurn() {
-            return this.size() == 0 ? 0
-                    : this.values().stream().mapToInt(LoadTestGameResult::getTurn).sum() / this.size();
+            return this.size() == 0 ? 0 : this.values().stream().mapToInt(LoadTestGameResult::getTurn).sum() / this.size();
         }
 
         private int getAvgLife1() {
-            return this.size() == 0 ? 0
-                    : this.values().stream().mapToInt(LoadTestGameResult::getLife1).sum() / this.size();
+            return this.size() == 0 ? 0 : this.values().stream().mapToInt(LoadTestGameResult::getLife1).sum() / this.size();
         }
 
         private int getAvgLife2() {
-            return this.size() == 0 ? 0
-                    : this.values().stream().mapToInt(LoadTestGameResult::getLife2).sum() / this.size();
+            return this.size() == 0 ? 0 : this.values().stream().mapToInt(LoadTestGameResult::getLife2).sum() / this.size();
         }
 
         private int getAvgCreaturesCount1() {
-            return this.size() == 0 ? 0
-                    : this.values().stream().mapToInt(LoadTestGameResult::getCreaturesCount1).sum() / this.size();
+            return this.size() == 0 ? 0 : this.values().stream().mapToInt(LoadTestGameResult::getCreaturesCount1).sum() / this.size();
         }
 
         private int getAvgCreaturesCount2() {
-            return this.size() == 0 ? 0
-                    : this.values().stream().mapToInt(LoadTestGameResult::getCreaturesCount2).sum() / this.size();
+            return this.size() == 0 ? 0 : this.values().stream().mapToInt(LoadTestGameResult::getCreaturesCount2).sum() / this.size();
         }
 
         private int getTotalDurationMs() {
@@ -1069,8 +1025,7 @@ public class LoadTest {
         }
 
         private int getAvgDurationMs() {
-            return this.size() == 0 ? 0
-                    : this.values().stream().mapToInt(LoadTestGameResult::getDurationMs).sum() / this.size();
+            return this.size() == 0 ? 0 : this.values().stream().mapToInt(LoadTestGameResult::getDurationMs).sum() / this.size();
         }
 
         private int getAvgDurationPerTurnMs() {
@@ -1089,23 +1044,20 @@ public class LoadTest {
         return gameType;
     }
 
-    private DeckCardLists loadGameDeck(int playerNumber, String deckColors, boolean onlyBasicLands,
-            String allowedSets) {
+    private DeckCardLists loadGameDeck(int playerNumber, String deckColors, boolean onlyBasicLands, String allowedSets) {
         // priority for custom deck file
         DeckCardLists deckList = null;
         switch (playerNumber) {
             case 1:
                 if (!TEST_AI_CUSTOM_DECK_PATH_1.isEmpty()) {
                     deckList = DeckImporter.importDeckFromFile(TEST_AI_CUSTOM_DECK_PATH_1, false);
-                    Assert.assertFalse("Can't load custom deck 1 from " + TEST_AI_CUSTOM_DECK_PATH_1,
-                            deckList.getCards().isEmpty());
+                    Assert.assertFalse("Can't load custom deck 1 from " + TEST_AI_CUSTOM_DECK_PATH_1, deckList.getCards().isEmpty());
                 }
                 break;
             case 2:
                 if (!TEST_AI_CUSTOM_DECK_PATH_2.isEmpty()) {
                     deckList = DeckImporter.importDeckFromFile(TEST_AI_CUSTOM_DECK_PATH_2, false);
-                    Assert.assertFalse("Can't load custom deck 2 from " + TEST_AI_CUSTOM_DECK_PATH_2,
-                            deckList.getCards().isEmpty());
+                    Assert.assertFalse("Can't load custom deck 2 from " + TEST_AI_CUSTOM_DECK_PATH_2, deckList.getCards().isEmpty());
                 }
                 break;
             default:
