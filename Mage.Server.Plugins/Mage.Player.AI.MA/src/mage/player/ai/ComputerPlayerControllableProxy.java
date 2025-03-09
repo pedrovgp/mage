@@ -41,7 +41,7 @@ import java.util.UUID;
  *
  * @author JayDi85
  */
-public class ComputerPlayerControllableProxy extends ComputerPlayer7 {
+public class ComputerPlayerControllableProxy extends ComputerPlayer8 {
 
     private static final Logger logger = Logger.getLogger(ComputerPlayerControllableProxy.class);
 
