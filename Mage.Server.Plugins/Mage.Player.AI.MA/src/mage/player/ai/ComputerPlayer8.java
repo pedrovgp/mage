@@ -205,6 +205,8 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
     // MixIn classes to ignore the problematic fields
     public abstract class GenericManaCostMixIn {
         @JsonIgnore
+        public GenericManaCost getUnpaid;
+        @JsonIgnore
         private GenericManaCost unpaid;
         @JsonIgnore
         private List<Mana> options;
