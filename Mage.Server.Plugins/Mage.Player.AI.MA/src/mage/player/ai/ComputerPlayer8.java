@@ -5,6 +5,7 @@ import mage.abilities.Ability;
 import mage.abilities.ActivatedAbility;
 import mage.abilities.StaticAbility;
 import mage.abilities.TriggeredAbilities;
+import mage.abilities.common.PassAbility;
 import mage.abilities.costs.mana.ColoredManaCost;
 import mage.abilities.costs.mana.GenericManaCost;
 import mage.abilities.costs.mana.ManaCost;
@@ -14,10 +15,12 @@ import mage.cards.o.Ornithopter;
 import mage.constants.RangeOfInfluence;
 import mage.game.Game;
 import mage.game.GameState;
+import mage.game.events.GameEvent;
 import mage.game.match.MatchPlayer;
 import mage.players.Player;
 import mage.players.PlayerList;
 import mage.players.Players;
+import mage.target.Target;
 
 import org.apache.log4j.Logger;
 import org.json.JSONArray;
@@ -97,14 +100,33 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
                 // in old version it passes opponent's pre-combat step
                 // (game.isActivePlayer(playerId) -> pass(game))
                 // why?!
+
                 printBattlefieldScore(game, "Sim PRIORITY on MAIN 1");
-                if (actions.isEmpty()) {
-                    calculateActions(game);
-                } else {
-                    // TODO: is it possible non empty actions without calculation?!
-                    throw new IllegalStateException("wtf");
+                PassAbility passAbility = new PassAbility();
+                LinkedList<Ability> allActions = new LinkedList<>();
+                allActions.add(passAbility);
+                allActions.addAll(this.getPlayable(game, false));
+
+                // Call the LLM to choose an action
+                int chosenActionIndex = callLLMToChooseAction(game, allActions, this);
+
+                Ability chosenAction = allActions.get(chosenActionIndex);
+
+                // Log the chosen action
+                if (logger.isInfoEnabled()) {
+                    logger.info("LLM chosen action: " +
+                            chosenAction.toString());
                 }
-                act(game);
+
+                if (chosenAction instanceof PassAbility) {
+                    pass(game);
+                } else {
+                    LinkedList<Ability> singleActionList = new LinkedList<>();
+                    singleActionList.add(chosenAction);
+                    this.actions = singleActionList; // this.actions is always a single item list when act is called
+                    act(game);
+                }
+
                 return true;
             case BEGIN_COMBAT:
                 pass(game);
@@ -151,55 +173,6 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
                 return false;
         }
         return false;
-    }
-
-    protected int simulatePriority(SimulationNode2 node, Game game, int depth, int alpha, int beta) {
-        // TODO PV this is where we can add the LLM, allActions are listed here. There
-        // is a
-        // complicated
-        // simulation logic going on here, which we could completely replace by an LLM
-        // receiving
-        // a text description of the game state and having to choose a number from a
-        // list
-        // corresponding to one of the possible allActions
-        if (!COMPUTER_DISABLE_TIMEOUT_IN_GAME_SIMULATIONS
-                && Thread.interrupted()) {
-            Thread.currentThread().interrupt();
-            logger.info("interrupted");
-            return GameStateEvaluator2.evaluate(playerId, game).getTotalScore();
-        }
-        node.setGameValue(game.getState().getValue(true).hashCode());
-        SimulatedPlayer2 currentPlayer = (SimulatedPlayer2) game.getPlayer(game.getPlayerList().get());
-        List<Ability> allActions = currentPlayer.simulatePriority(game);
-        optimize(game, allActions);
-
-        // Call the LLM to choose an action
-        int chosenActionIndex = callLLMToChooseAction(node.originalGame, allActions, currentPlayer);
-
-        // Log the chosen action
-        if (logger.isInfoEnabled()) {
-            logger.info("LLM chosen action: " + allActions.get(chosenActionIndex).toString());
-        }
-
-        // Execute the chosen action
-        if (chosenActionIndex >= 0 && chosenActionIndex < allActions.size()) {
-            Ability chosenAction = allActions.get(chosenActionIndex);
-            if (!(chosenAction instanceof StaticAbility)) {
-                currentPlayer.activateAbility((ActivatedAbility) chosenAction, game);
-            }
-
-            // Create a new SimulationNode2 for the chosen action
-            SimulationNode2 newNode = new SimulationNode2(node, game, chosenAction, depth, currentPlayer.getId());
-
-            // Update the node with the new child node
-            node.children.clear();
-            node.children.add(newNode);
-            node.setScore(GameStateEvaluator2.evaluate(playerId, game).getTotalScore());
-        }
-
-        // Return the score after executing the chosen action
-        return GameStateEvaluator2.evaluate(playerId, game).getTotalScore();
-
     }
 
     // MixIn classes to ignore the problematic fields
@@ -286,7 +259,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
     }
 
     // Helper method to find the opponent
-    private Player findOpponent(Game game, SimulatedPlayer2 currentPlayer) {
+    private Player findOpponent(Game game, Player currentPlayer) {
         for (UUID opponentId : game.getState().getPlayers().keySet()) {
             if (!opponentId.equals(currentPlayer.getId())) {
                 return game.getPlayer(opponentId);
@@ -416,7 +389,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         game.informPlayers(parsedResponse.getReason());
     }
 
-    private int callLLMToChooseAction(Game game, List<Ability> allActions, SimulatedPlayer2 currentPlayer) {
+    private int callLLMToChooseAction(Game game, LinkedList<Ability> allActions, ComputerPlayer currentPlayer) {
         // Prepare the context for the LLM
         JSONObject payload = new JSONObject();
 
@@ -463,21 +436,6 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         }
 
         return chosenActionIndex;
-    }
-
-    private String convertContextToJson(Map<String, String> context) {
-        StringBuilder jsonBuilder = new StringBuilder();
-        jsonBuilder.append("{");
-        boolean first = true;
-        for (Map.Entry<String, String> entry : context.entrySet()) {
-            if (!first) {
-                jsonBuilder.append(",");
-            }
-            jsonBuilder.append("\"").append(entry.getKey()).append("\":").append(entry.getValue());
-            first = false;
-        }
-        jsonBuilder.append("}");
-        return jsonBuilder.toString();
     }
 
     private HttpURLConnection sendContextToLLM(String contextJson) {
@@ -555,58 +513,6 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
             logger.error("Exception while parsing LLM response", e);
         }
         return new LLMResponse(chosenActionIndex, reason);
-    }
-
-    protected void calculateActions(Game game) {
-        if (!getNextAction(game)) {
-            // logger.info("--- calculating possible actions for " + this.getName() + " on "
-            // + game.toString());
-            Date startTime = new Date();
-            currentScore = GameStateEvaluator2.evaluate(playerId, game).getTotalScore();
-            Game sim = createSimulation(game);
-            SimulationNode2.resetCount();
-            root = new SimulationNode2(null, sim, maxDepth, playerId, game);
-            addActionsTimed(); // TODO: root can be null again after addActionsTimed O_o need to research (it's
-                               // a CPU AI problem?)
-            if (root != null && root.children != null && !root.children.isEmpty()) {
-                logger.trace("After add actions timed: root.children.size = " + root.children.size());
-                root = root.children.get(0);
-
-                // prevent repeating always the same action with no cost
-                boolean doThis = true;
-                if (root.abilities.size() == 1) {
-                    for (Ability ability : root.abilities) {
-                        if (ability.getManaCosts().manaValue() == 0
-                                && ability.getCosts().isEmpty()) {
-                            if (actionCache.contains(ability.getRule() + '_' + ability.getSourceId())) {
-                                doThis = false; // don't do it again
-                            }
-                        }
-                    }
-                }
-
-                if (doThis) {
-                    actions = new LinkedList<>(root.abilities);
-                    combat = root.combat; // TODO: must use copy?!
-                    for (Ability ability : actions) {
-                        actionCache.add(ability.getRule() + '_' + ability.getSourceId());
-                    }
-                }
-            } else {
-                logger.info('[' + game.getPlayer(playerId).getName() + "][pre] Action: skip");
-            }
-            Date endTime = new Date();
-            this.setLastThinkTime((endTime.getTime() - startTime.getTime()));
-
-            /*
-             * logger.warn("Last think time: " + this.getLastThinkTime()
-             * + "; actions: " + actions.size()
-             * + "; hand: " + this.getHand().size()
-             * + "; permanents: " + game.getBattlefield().getAllPermanents().size());
-             */
-        } else {
-            logger.debug("Next Action exists!");
-        }
     }
 
     @Override
