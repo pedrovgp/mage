@@ -1,6 +1,7 @@
 package mage.player.ai;
 
 import mage.Mana;
+// import mage.ObjectColor;
 import mage.abilities.Ability;
 import mage.abilities.ActivatedAbility;
 import mage.abilities.StaticAbility;
@@ -20,7 +21,9 @@ import mage.game.match.MatchPlayer;
 import mage.players.Player;
 import mage.players.PlayerList;
 import mage.players.Players;
+import mage.server.game.GameSessionPlayer;
 import mage.target.Target;
+import mage.view.GameView;
 
 import org.apache.log4j.Logger;
 import org.json.JSONArray;
@@ -336,6 +339,31 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         }
     }
 
+    // public class ObjectColorSerializer extends StdSerializer<ObjectColor> {
+
+    // public ObjectColorSerializer() {
+    // this(null);
+    // }
+
+    // public ObjectColorSerializer(Class<ObjectColor> t) {
+    // super(t);
+    // }
+
+    // @Override
+    // public void serialize(ObjectColor objectColor, JsonGenerator gen,
+    // SerializerProvider provider)
+    // throws IOException {
+    // gen.writeStartObject();
+    // gen.writeBooleanField("white", objectColor.isWhite());
+    // gen.writeBooleanField("blue", objectColor.isBlue());
+    // gen.writeBooleanField("black", objectColor.isBlack());
+    // gen.writeBooleanField("red", objectColor.isRed());
+    // gen.writeBooleanField("green", objectColor.isGreen());
+    // gen.writeBooleanField("gold", objectColor.isGold());
+    // gen.writeEndObject();
+    // }
+    // }
+
     private Object convertObjectToJson(Object obj) {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
@@ -354,6 +382,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         SimpleModule module = new SimpleModule();
         module.addSerializer(Card.class, new CardSerializer());
         module.addSerializer(Ability.class, new AbilitySerializer());
+        // module.addSerializer(ObjectColor.class, new ObjectColorSerializer());
         objectMapper.registerModule(module);
 
         try {
@@ -393,6 +422,8 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         // Prepare the context for the LLM
         JSONObject payload = new JSONObject();
 
+        GameView gameView = GameSessionPlayer.prepareGameView(game, currentPlayer.getId(), currentPlayer.getId());
+
         GameState gameState = game.getState();
         Player opponentPlayer = findOpponent(game, currentPlayer);
 
@@ -401,6 +432,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         payload.put("allActions", convertObjectToJson(allActions));
         payload.put("currentPlayer", convertObjectToJson(currentPlayer));
         payload.put("opponentPlayer", convertObjectToJson(opponentPlayer));
+        payload.put("gameView", convertObjectToJson(gameView));
 
         // Test
         // JSONObject payloadTest = new JSONObject()
