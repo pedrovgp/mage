@@ -318,7 +318,7 @@ public class LoadTest {
     }
 
     @Test
-    @Ignore
+    // @Ignore
     public void test_TwoAIPlayGame_One() {
         LoadTestGameResultsList gameResults = new LoadTestGameResultsList();
         long randomSeed = RandomUtil.nextInt();
