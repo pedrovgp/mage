@@ -134,6 +134,9 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         game.firePriorityEvent(playerId);
 
         switch (game.getTurnStepType()) {
+            case UNTAP:
+                pass(game);
+                return false;
             case UPKEEP:
                 return llmPay(game);
             case DRAW:
@@ -145,41 +148,18 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
             case BEGIN_COMBAT:
                 return llmPay(game);
             case DECLARE_ATTACKERS:
-                printBattlefieldScore(game, "Sim PRIORITY on DECLARE ATTACKERS");
-                if (actions.isEmpty()) {
-                    calculateActions(game);
-                } else {
-                    // TODO: is it possible non empty actions without calculation?!
-                    throw new IllegalStateException("wtf");
-                }
-                act(game);
-                return true;
+                return llmPay(game);
             case DECLARE_BLOCKERS:
-                printBattlefieldScore(game, "Sim PRIORITY on DECLARE BLOCKERS");
-                if (actions.isEmpty()) {
-                    calculateActions(game);
-                } else {
-                    // TODO: is it possible non empty actions without calculation?!
-                    throw new IllegalStateException("wtf");
-                }
-                act(game);
-                return true;
+                return llmPay(game);
             case FIRST_COMBAT_DAMAGE:
             case COMBAT_DAMAGE:
             case END_COMBAT:
                 pass(game);
                 return false;
             case POSTCOMBAT_MAIN:
-                printBattlefieldScore(game, "Sim PRIORITY on MAIN 2");
-                if (actions.isEmpty()) {
-                    calculateActions(game);
-                } else {
-                    // TODO: is it possible non empty actions without calculation?!
-                    throw new IllegalStateException("wtf");
-                }
-                act(game);
-                return true;
+                return llmPay(game);
             case END_TURN:
+                return llmPay(game);
             case CLEANUP:
                 actionCache.clear();
                 pass(game);
@@ -348,31 +328,6 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
             gen.writeEndObject();
         }
     }
-
-    // public class ObjectColorSerializer extends StdSerializer<ObjectColor> {
-
-    // public ObjectColorSerializer() {
-    // this(null);
-    // }
-
-    // public ObjectColorSerializer(Class<ObjectColor> t) {
-    // super(t);
-    // }
-
-    // @Override
-    // public void serialize(ObjectColor objectColor, JsonGenerator gen,
-    // SerializerProvider provider)
-    // throws IOException {
-    // gen.writeStartObject();
-    // gen.writeBooleanField("white", objectColor.isWhite());
-    // gen.writeBooleanField("blue", objectColor.isBlue());
-    // gen.writeBooleanField("black", objectColor.isBlack());
-    // gen.writeBooleanField("red", objectColor.isRed());
-    // gen.writeBooleanField("green", objectColor.isGreen());
-    // gen.writeBooleanField("gold", objectColor.isGold());
-    // gen.writeEndObject();
-    // }
-    // }
 
     private Object convertObjectToJson(Object obj) {
         ObjectMapper objectMapper = new ObjectMapper();
