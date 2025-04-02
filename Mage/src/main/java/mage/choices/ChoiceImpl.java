@@ -47,7 +47,8 @@ public class ChoiceImpl implements Choice {
     }
 
     /**
-     * @param hintType enable card popup hint (each value will be used as card/dungeon name)
+     * @param hintType enable card popup hint (each value will be used as
+     *                 card/dungeon name)
      */
     public ChoiceImpl(boolean required, ChoiceHintType hintType) {
         this.required = required;
@@ -66,7 +67,8 @@ public class ChoiceImpl implements Choice {
         this.hintType = choice.hintType;
         this.choices.addAll(choice.choices);
         this.choiceKey = choice.choiceKey;
-        this.keyChoices = choice.keyChoices; // list should never change for the same object so copy by reference TODO: check errors with that, it that ok? Color list is static
+        this.keyChoices = choice.keyChoices; // list should never change for the same object so copy by reference TODO:
+                                             // check errors with that, it that ok? Color list is static
         this.sortData = choice.sortData;
         this.specialEnabled = choice.specialEnabled;
         this.specialCanBeEmpty = choice.specialCanBeEmpty;
@@ -264,7 +266,8 @@ public class ChoiceImpl implements Choice {
                     UUID objectId = UUID.fromString(info.get(1));
                 }
             } catch (Exception e) {
-                throw new IllegalArgumentException("Wrong code usage: hints info must contains valid data, but found - " + info);
+                throw new IllegalArgumentException(
+                        "Wrong code usage: hints info must contains valid data, but found - " + info);
             }
         });
 
@@ -273,6 +276,26 @@ public class ChoiceImpl implements Choice {
 
     @Override
     public void setRandomChoice() {
+
+        if (this.isKeyChoice()) {
+            // key mode
+            String[] vals = this.getKeyChoices().keySet().toArray(new String[0]);
+            if (vals.length > 0) {
+                int choiceNum = RandomUtil.nextInt(vals.length);
+                this.setChoiceByKey(vals[choiceNum], false);
+            }
+        } else {
+            // string mode
+            String[] vals = this.getChoices().toArray(new String[0]);
+            if (vals.length > 0) {
+                int choiceNum = RandomUtil.nextInt(vals.length);
+                this.setChoice(vals[choiceNum], false);
+            }
+        }
+    }
+
+    // TODO PV
+    public void setLLMChoice() {
 
         if (this.isKeyChoice()) {
             // key mode
@@ -387,7 +410,8 @@ public class ChoiceImpl implements Choice {
     }
 
     private void protectFromEmptyChoices() {
-        // if there are no choices then required must be disabled to allow user to close a dialog
+        // if there are no choices then required must be disabled to allow user to close
+        // a dialog
         // example: database error on too low memory, see Brain Pry and 500 Mb server
 
         // normal situation

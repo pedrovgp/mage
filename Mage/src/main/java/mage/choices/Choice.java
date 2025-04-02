@@ -109,10 +109,14 @@ public interface Choice extends Serializable, Copyable<Choice> {
     // random choice (for AI usage)
     void setRandomChoice();
 
+    // LLM (external) choice (for AI usage)
+    void setLLMChoice();
+
     boolean setChoiceByAnswers(List<String> answers, boolean removeSelectAnswerFromList);
 
     /**
-     * Run additional code before player start to choose (example: add info and hints for choosing player)
+     * Run additional code before player start to choose (example: add info and
+     * hints for choosing player)
      */
     void onChooseStart(Game game, UUID choosingPlayerId);
 

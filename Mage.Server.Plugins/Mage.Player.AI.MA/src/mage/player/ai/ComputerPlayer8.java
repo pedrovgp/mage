@@ -18,6 +18,8 @@ import mage.abilities.keyword.ReachAbility;
 import mage.cards.Card;
 import mage.cards.decks.Deck;
 import mage.cards.o.Ornithopter;
+import mage.choices.Choice;
+import mage.constants.Outcome;
 import mage.constants.RangeOfInfluence;
 import mage.counters.CounterType;
 import mage.filter.StaticFilters;
@@ -95,7 +97,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         return result;
     }
 
-    private boolean llmPay(Game game) {
+    private boolean llmPlay(Game game) {
         // printBattlefieldScore(game, "Sim PRIORITY on MAIN 1");
         PassAbility passAbility = new PassAbility();
         LinkedList<Ability> allActions = new LinkedList<>();
@@ -138,28 +140,28 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
                 pass(game);
                 return false;
             case UPKEEP:
-                return llmPay(game);
+                return llmPlay(game);
             case DRAW:
                 pass(game);
                 return false;
             case PRECOMBAT_MAIN:
-                return llmPay(game);
+                return llmPlay(game);
 
             case BEGIN_COMBAT:
-                return llmPay(game);
+                return llmPlay(game);
             case DECLARE_ATTACKERS:
-                return llmPay(game);
+                return llmPlay(game);
             case DECLARE_BLOCKERS:
-                return llmPay(game);
+                return llmPlay(game);
             case FIRST_COMBAT_DAMAGE:
             case COMBAT_DAMAGE:
             case END_COMBAT:
                 pass(game);
                 return false;
             case POSTCOMBAT_MAIN:
-                return llmPay(game);
+                return llmPlay(game);
             case END_TURN:
-                return llmPay(game);
+                return llmPlay(game);
             case CLEANUP:
                 actionCache.clear();
                 pass(game);
@@ -567,6 +569,20 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
     @Override
     public void setAllowBadMoves(boolean allowBadMoves) {
         this.allowBadMoves = allowBadMoves;
+    }
+
+    @Override
+    public boolean choose(Outcome outcome, Choice choice, Game game) {
+        if (choices.isEmpty()) {
+            return super.choose(outcome, choice, game);
+        }
+        if (!choice.isChosen()) {
+            if (!choice.setChoiceByAnswers(choices, true)) {
+                // TODO PV use setLLMChoice, after its implemented
+                choice.setRandomChoice();
+            }
+        }
+        return true;
     }
 
     @Override
