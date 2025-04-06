@@ -110,7 +110,7 @@ public interface Choice extends Serializable, Copyable<Choice> {
     void setRandomChoice();
 
     // LLM (external) choice (for AI usage)
-    void setLLMChoice();
+    void setLLMChoice(Game game);
 
     boolean setChoiceByAnswers(List<String> answers, boolean removeSelectAnswerFromList);
 

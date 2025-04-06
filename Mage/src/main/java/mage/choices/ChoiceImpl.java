@@ -295,7 +295,7 @@ public class ChoiceImpl implements Choice {
     }
 
     // TODO PV
-    public void setLLMChoice() {
+    public void setLLMChoice(Game game) {
 
         if (this.isKeyChoice()) {
             // key mode
