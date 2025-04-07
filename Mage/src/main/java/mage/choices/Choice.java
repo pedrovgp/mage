@@ -1,5 +1,6 @@
 package mage.choices;
 
+import mage.constants.Outcome;
 import mage.game.Game;
 import mage.players.Player;
 import mage.util.Copyable;
@@ -110,7 +111,7 @@ public interface Choice extends Serializable, Copyable<Choice> {
     void setRandomChoice();
 
     // LLM (external) choice (for AI usage)
-    void setLLMChoice(Game game);
+    void setLLMChoice(Outcome outcome, Game game, ComputerPlayer8 player);
 
     boolean setChoiceByAnswers(List<String> answers, boolean removeSelectAnswerFromList);
 

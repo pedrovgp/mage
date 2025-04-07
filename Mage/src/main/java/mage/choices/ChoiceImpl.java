@@ -1,5 +1,6 @@
 package mage.choices;
 
+import mage.constants.Outcome;
 import mage.game.Game;
 import mage.util.CardUtil;
 import mage.util.RandomUtil;
@@ -295,21 +296,21 @@ public class ChoiceImpl implements Choice {
     }
 
     // TODO PV
-    public void setLLMChoice(Game game) {
+    public void setLLMChoice(Outcome outcome, Game game, ComputerPlayer8 currentPlayer) {
 
         if (this.isKeyChoice()) {
             // key mode
             String[] vals = this.getKeyChoices().keySet().toArray(new String[0]);
             if (vals.length > 0) {
-                int choiceNum = RandomUtil.nextInt(vals.length);
-                this.setChoiceByKey(vals[choiceNum], false);
+                int llmChoice = currentPlayer.callLLMToChooseFromChoices(game, currentPlayer, outcome, this, vals);
+                this.setChoiceByKey(vals[llmChoice], false);
             }
         } else {
             // string mode
             String[] vals = this.getChoices().toArray(new String[0]);
             if (vals.length > 0) {
-                int choiceNum = RandomUtil.nextInt(vals.length);
-                this.setChoice(vals[choiceNum], false);
+                int llmChoice = currentPlayer.callLLMToChooseFromChoices(game, currentPlayer, outcome, this, vals);
+                this.setChoice(vals[llmChoice], false);
             }
         }
     }

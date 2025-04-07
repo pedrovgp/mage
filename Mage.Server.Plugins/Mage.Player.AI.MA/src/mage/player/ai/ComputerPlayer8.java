@@ -412,6 +412,22 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         game.informPlayers(parsedResponse.getReason());
     }
 
+    private void sendMsgWithLLMChosenChoice(Game game, Player player, String[] allChoices,
+            LLMResponse parsedResponse) {
+        StringBuilder message = new StringBuilder("Possible choices: \n");
+        game.informPlayers(player.getLogName() + " POSSIBLE CHOICES:");
+        for (int i = 0; i < allChoices.length; i++) {
+            game.informPlayers(i + ": " + allChoices[i].toString());
+        }
+
+        int chosenActionIndex = parsedResponse.getChosenActionIndex();
+
+        game.informPlayers("LLM CHOSEN ACTION:");
+        game.informPlayers(chosenActionIndex + ": " + allChoices[chosenActionIndex].toString());
+        game.informPlayers(" REASON:");
+        game.informPlayers(parsedResponse.getReason());
+    }
+
     private int callLLMToChooseAction(Game game, LinkedList<Ability> allActions, ComputerPlayer currentPlayer) {
         // Prepare the context for the LLM
         JSONObject payload = new JSONObject();
@@ -464,6 +480,47 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         }
 
         return chosenActionIndex;
+    }
+
+    public int callLLMToChooseFromChoices(Game game, ComputerPlayer currentPlayer, Outcome outcome, Choice choice,
+            String[] allChoices) {
+        // Prepare the context for the LLM
+        JSONObject payload = new JSONObject();
+
+        // GameView gameView = GameSessionPlayer.prepareGameView(game,
+        // currentPlayer.getId(), currentPlayer.getId());
+
+        GameState gameState = game.getState();
+        Player opponentPlayer = findOpponent(game, currentPlayer);
+
+        payload.put("gameCards", convertObjectToJson(game.getCards()));
+        payload.put("gameState", convertObjectToJson(gameState));
+        payload.put("outcome", convertObjectToJson(outcome));
+        payload.put("choice", convertObjectToJson(choice));
+        payload.put("allChoices", convertObjectToJson(allChoices));
+        payload.put("currentPlayer", convertObjectToJson(currentPlayer));
+        payload.put("opponentPlayer", convertObjectToJson(opponentPlayer));
+        // payload.put("gameView", convertObjectToJson(gameView));
+        payload.put("gameView", new JSONObject());
+
+        // Send the context to the LLM and get the response
+        HttpURLConnection llmResponse = sendContextToLLM(payload.toString(),
+                "http://localhost:9000/api/mtg_llm/choose_from_choices/");
+
+        LLMResponse parsedResponse = parseLLMResponse(llmResponse);
+
+        sendMsgWithLLMChosenChoice(game, currentPlayer, allChoices, parsedResponse);
+
+        // Parse the response to get the chosen choice index
+        int chosenChoiceIndex = parsedResponse.getChosenActionIndex();
+
+        // Log the random choice chosen
+        if (logger.isInfoEnabled()) {
+            logger.info("Random choice chosen: " +
+                    allChoices[chosenChoiceIndex].toString());
+        }
+
+        return chosenChoiceIndex;
     }
 
     private HttpURLConnection sendContextToLLM(String contextJson, String urlString) {
@@ -522,7 +579,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
                     // Parse the JSON response
                     String responseString = response.toString();
                     JSONObject jsonResponse = new JSONObject(responseString);
-                    chosenActionIndex = jsonResponse.getInt("chosen_action");
+                    chosenActionIndex = jsonResponse.getInt("chosen_idx");
                     reason = jsonResponse.getString("reason");
                 }
             } else {
@@ -606,7 +663,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         if (!choice.isChosen()) {
             if (!choice.setChoiceByAnswers(choices, true)) {
                 // TODO PV use setLLMChoice, after its implemented
-                choice.setLLMChoice(game);
+                choice.setLLMChoice(outcome, game, this);
             }
         }
         return true;
@@ -731,6 +788,11 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
             // Fill the array with the MageObjects corresponding to the UUIDs
             possibleTargetsArray[index++] = game.getObject(possibleTargetUUID);
         }
+
+        // TODO PV
+        // Call LLM with outcome, target (required), source and possibleTargetsArray
+        // the response should be an index of possibleTargetsArray (or -1 if target is
+        // not required and None was chosen)
 
         List<Permanent> goodList = new ArrayList<>();
         List<Permanent> badList = new ArrayList<>();
