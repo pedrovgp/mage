@@ -15,6 +15,8 @@ import mage.cards.CardsImpl;
 import mage.cards.decks.Deck;
 import mage.cards.o.Ornithopter;
 import mage.choices.Choice;
+import mage.choices.ComputerPlayer8Interface;
+import mage.constants.ColoredManaSymbol;
 import mage.constants.Outcome;
 import mage.constants.RangeOfInfluence;
 import mage.constants.Zone;
@@ -96,7 +98,7 @@ import com.fasterxml.jackson.databind.JsonSerializer;
  *
  * @author ayratn
  */
-public class ComputerPlayer8 extends ComputerPlayer7 {
+public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8Interface {
 
     private static final Logger logger = Logger.getLogger(ComputerPlayer8.class);
 
@@ -219,6 +221,17 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         public void serialize(Player player, JsonGenerator gen, SerializerProvider serializers) throws IOException {
             // Write only the player's id (UUID) as a string
             gen.writeString(player.getId().toString());
+        }
+    }
+
+    public class OutcomeSerializer extends JsonSerializer<Outcome> {
+        @Override
+        public void serialize(Outcome outcome, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+            gen.writeStartObject(); // Start JSON object
+            gen.writeStringField("name", outcome.name()); // Serialize the name of the enum
+            gen.writeBooleanField("good", outcome.isGood()); // Serialize the 'good' field
+            gen.writeBooleanField("canTargetAll", outcome.isCanTargetAll()); // Serialize the 'canTargetAll' field
+            gen.writeEndObject(); // End JSON object
         }
     }
 
@@ -376,6 +389,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         SimpleModule module = new SimpleModule();
         module.addSerializer(Card.class, new CardSerializer());
         module.addSerializer(Ability.class, new AbilitySerializer());
+        module.addSerializer(Outcome.class, new OutcomeSerializer());
         // module.addSerializer(ObjectColor.class, new ObjectColorSerializer());
         objectMapper.registerModule(module);
 
@@ -398,7 +412,6 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
 
     private void sendMsgWithLLMChosenAction(Game game, Player player, List<Ability> allActions,
             LLMResponse parsedResponse) {
-        StringBuilder message = new StringBuilder("Possible actions: \n");
         game.informPlayers(player.getLogName() + " POSSIBLE ACTIONS:");
         for (int i = 0; i < allActions.size(); i++) {
             game.informPlayers(i + ": " + allActions.get(i).toString());
@@ -414,7 +427,6 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
 
     private void sendMsgWithLLMChosenChoice(Game game, Player player, String[] allChoices,
             LLMResponse parsedResponse) {
-        StringBuilder message = new StringBuilder("Possible choices: \n");
         game.informPlayers(player.getLogName() + " POSSIBLE CHOICES:");
         for (int i = 0; i < allChoices.length; i++) {
             game.informPlayers(i + ": " + allChoices[i].toString());
@@ -482,7 +494,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
         return chosenActionIndex;
     }
 
-    public int callLLMToChooseFromChoices(Game game, ComputerPlayer currentPlayer, Outcome outcome, Choice choice,
+    public int callLLMToChooseFromChoices(Game game, Player currentPlayer, Outcome outcome, Choice choice,
             String[] allChoices) {
         // Prepare the context for the LLM
         JSONObject payload = new JSONObject();
@@ -657,15 +669,54 @@ public class ComputerPlayer8 extends ComputerPlayer7 {
 
     @Override
     public boolean choose(Outcome outcome, Choice choice, Game game) {
-        if (choices.isEmpty()) {
-            return super.choose(outcome, choice, game);
+        logger.debug("choose 8");
+        // TODO: improve this
+
+        // choose creature type
+        // TODO: WTF?! Creature types dialog text can changes, need to replace that code
+        if (choice.getMessage() != null && (choice.getMessage().equals("Choose creature type")
+                || choice.getMessage().equals("Choose a creature type"))) {
+            chooseCreatureType(outcome, choice, game);
         }
-        if (!choice.isChosen()) {
-            if (!choice.setChoiceByAnswers(choices, true)) {
-                // TODO PV use setLLMChoice, after its implemented
-                choice.setLLMChoice(outcome, game, this);
+
+        // choose the correct color to pay a spell (use last unpaid ability for color
+        // hint)
+        ManaCost unpaid = null;
+        if (!lastUnpaidMana.isEmpty()) {
+            unpaid = new ArrayList<>(lastUnpaidMana.values()).get(lastUnpaidMana.size() - 1);
+        }
+        if (outcome == Outcome.PutManaInPool && unpaid != null && choice.isManaColorChoice()) {
+            if (unpaid.containsColor(ColoredManaSymbol.W) && choice.getChoices().contains("White")) {
+                choice.setChoice("White");
+                return true;
+            }
+            if (unpaid.containsColor(ColoredManaSymbol.R) && choice.getChoices().contains("Red")) {
+                choice.setChoice("Red");
+                return true;
+            }
+            if (unpaid.containsColor(ColoredManaSymbol.G) && choice.getChoices().contains("Green")) {
+                choice.setChoice("Green");
+                return true;
+            }
+            if (unpaid.containsColor(ColoredManaSymbol.U) && choice.getChoices().contains("Blue")) {
+                choice.setChoice("Blue");
+                return true;
+            }
+            if (unpaid.containsColor(ColoredManaSymbol.B) && choice.getChoices().contains("Black")) {
+                choice.setChoice("Black");
+                return true;
+            }
+            if (unpaid.getMana().getColorless() > 0 && choice.getChoices().contains("Colorless")) {
+                choice.setChoice("Colorless");
+                return true;
             }
         }
+
+        // choose by random
+        if (!choice.isChosen()) {
+            choice.setLLMChoice(outcome, game, this);
+        }
+
         return true;
     }
 

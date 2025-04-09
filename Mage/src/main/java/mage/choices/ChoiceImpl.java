@@ -296,7 +296,7 @@ public class ChoiceImpl implements Choice {
     }
 
     // TODO PV
-    public void setLLMChoice(Outcome outcome, Game game, ComputerPlayer8 currentPlayer) {
+    public void setLLMChoice(Outcome outcome, Game game, ComputerPlayer8Interface currentPlayer) {
 
         if (this.isKeyChoice()) {
             // key mode

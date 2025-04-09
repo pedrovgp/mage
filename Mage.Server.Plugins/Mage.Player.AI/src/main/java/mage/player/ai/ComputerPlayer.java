@@ -101,7 +101,7 @@ public class ComputerPlayer extends PlayerImpl {
     // mana abilities must ask payment too, so keep full chain
     // TODO: make sure it thread safe for AI simulations (all transient fields above
     // and bottom)
-    private final transient Map<UUID, ManaCost> lastUnpaidMana = new LinkedHashMap<>();
+    public final transient Map<UUID, ManaCost> lastUnpaidMana = new LinkedHashMap<>();
 
     // For stopping infinite loops when trying to pay Phyrexian mana when the player
     // can't spend life and no other sources are available
