@@ -61,3 +61,8 @@ Utils/*implemented.txt
 # build tools
 mage-bundle.zip
 .env
+
+# backup files
+Mage.Client/plugins/images_bkp/
+gamelogs/
+gamelogsJson/
