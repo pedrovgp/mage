@@ -473,7 +473,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         // .toString())
         // .put("playerContext", new JSONObject().put("playerId",
         // "player1").put("manaAvailable", 3).toString());
-        // HttpURLConnection llmResponseTest = sendContextToLLM(payloadTest.toString());
+        // Raw HTTP test removed in favor of LlmDecisionClient
 
         // Unified helper call
         DecisionPayload dp = new DecisionPayload("/api/mtg_llm/choose_from_all_actions/", payload);
@@ -523,45 +523,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         return chosenChoiceIndex;
     }
 
-    private HttpURLConnection sendContextToLLM(String contextJson, String urlString) {
-        if (urlString == null || urlString.isEmpty()) {
-            urlString = "http://localhost:9000/api/mtg_llm/choose_from_all_actions/";
-        }
-        HttpURLConnection connection = null;
-        try {
-            URL url = new URL(urlString);
-            connection = (HttpURLConnection) url.openConnection();
-            connection.setRequestMethod("POST");
-            connection.setRequestProperty("Content-Type", "application/json; utf-8");
-            connection.setRequestProperty("Accept", "application/json");
-            connection.setDoOutput(true);
-
-            String jsonInputString = contextJson;
-
-            try (OutputStream os = connection.getOutputStream()) {
-                byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
-                os.write(input, 0, input.length);
-            }
-
-            int responseCode = connection.getResponseCode();
-            if (responseCode != HttpURLConnection.HTTP_OK) {
-                // Log the error response
-                try (BufferedReader br = new BufferedReader(
-                        new InputStreamReader(connection.getErrorStream(), StandardCharsets.UTF_8))) {
-                    StringBuilder errorResponse = new StringBuilder();
-                    String responseLine;
-                    while ((responseLine = br.readLine()) != null) {
-                        errorResponse.append(responseLine.trim());
-                    }
-                    logger.error("Failed to get response from LLM. HTTP code: " + responseCode + ", Response: "
-                            + errorResponse.toString());
-                }
-            }
-        } catch (Exception e) {
-            logger.error("Exception while sending context to LLM", e);
-        }
-        return connection;
-    }
+    // sendContextToLLM removed (use LlmDecisionClient)
 
     private LLMResponse parseLLMResponse(HttpURLConnection llmResponse) {
         int chosenActionIndex = 0; // Default value
@@ -608,47 +570,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         game.informPlayers(reason);
     }
 
-    private LLMResponseAttackers parseLLMResponseAttackers(HttpURLConnection llmResponse) {
-        List<UUID> chosenAttackersUUIDs = new ArrayList<>();
-        String reason = "";
-        try {
-            int responseCode = llmResponse.getResponseCode();
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                try (BufferedReader br = new BufferedReader(
-                        new InputStreamReader(llmResponse.getInputStream(), StandardCharsets.UTF_8))) {
-                    StringBuilder response = new StringBuilder();
-                    String responseLine;
-                    while ((responseLine = br.readLine()) != null) {
-                        response.append(responseLine.trim());
-                    }
-                    // Parse the JSON response
-                    String responseString = response.toString();
-                    JSONObject jsonResponse = new JSONObject(responseString);
-                    List<Object> chosenAttackersUUIDsStrings = jsonResponse.getJSONArray("chosen_attackers").toList();
-                    chosenAttackersUUIDs = new ArrayList<>();
-                    for (Object uuidString : chosenAttackersUUIDsStrings) {
-                        chosenAttackersUUIDs.add(UUID.fromString(uuidString.toString()));
-                    }
-                    reason = jsonResponse.getString("reason");
-                }
-            } else {
-                // Log the error response
-                try (BufferedReader br = new BufferedReader(
-                        new InputStreamReader(llmResponse.getErrorStream(), StandardCharsets.UTF_8))) {
-                    StringBuilder errorResponse = new StringBuilder();
-                    String responseLine;
-                    while ((responseLine = br.readLine()) != null) {
-                        errorResponse.append(responseLine.trim());
-                    }
-                    logger.error("Failed to get response from LLM. HTTP code: " + responseCode + ", Response: "
-                            + errorResponse.toString());
-                }
-            }
-        } catch (Exception e) {
-            logger.error("Exception while parsing LLM response", e);
-        }
-        return new LLMResponseAttackers(chosenAttackersUUIDs, reason);
-    }
+    // parseLLMResponseAttackers removed (use LlmDecisionClient)
 
     @Override
     public void setAllowBadMoves(boolean allowBadMoves) {
