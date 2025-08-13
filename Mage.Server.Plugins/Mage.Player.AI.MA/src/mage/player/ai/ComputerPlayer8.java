@@ -658,54 +658,12 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
     @Override
     public boolean choose(Outcome outcome, Choice choice, Game game) {
         logger.debug("choose 8");
-        // TODO: improve this
-
-        // choose creature type
-        // TODO: WTF?! Creature types dialog text can changes, need to replace that code
-        if (choice.getMessage() != null && (choice.getMessage().equals("Choose creature type")
-                || choice.getMessage().equals("Choose a creature type"))) {
+        if (choice.getMessage() != null && ("Choose creature type".equals(choice.getMessage())
+                || "Choose a creature type".equals(choice.getMessage()))) {
             chooseCreatureType(outcome, choice, game);
+            return true;
         }
-
-        // choose the correct color to pay a spell (use last unpaid ability for color
-        // hint)
-        ManaCost unpaid = null;
-        if (!lastUnpaidMana.isEmpty()) {
-            unpaid = new ArrayList<>(lastUnpaidMana.values()).get(lastUnpaidMana.size() - 1);
-        }
-        if (outcome == Outcome.PutManaInPool && unpaid != null && choice.isManaColorChoice()) {
-            if (unpaid.containsColor(ColoredManaSymbol.W) && choice.getChoices().contains("White")) {
-                choice.setChoice("White");
-                return true;
-            }
-            if (unpaid.containsColor(ColoredManaSymbol.R) && choice.getChoices().contains("Red")) {
-                choice.setChoice("Red");
-                return true;
-            }
-            if (unpaid.containsColor(ColoredManaSymbol.G) && choice.getChoices().contains("Green")) {
-                choice.setChoice("Green");
-                return true;
-            }
-            if (unpaid.containsColor(ColoredManaSymbol.U) && choice.getChoices().contains("Blue")) {
-                choice.setChoice("Blue");
-                return true;
-            }
-            if (unpaid.containsColor(ColoredManaSymbol.B) && choice.getChoices().contains("Black")) {
-                choice.setChoice("Black");
-                return true;
-            }
-            if (unpaid.getMana().getColorless() > 0 && choice.getChoices().contains("Colorless")) {
-                choice.setChoice("Colorless");
-                return true;
-            }
-        }
-
-        // choose by random
-        if (!choice.isChosen()) {
-            choice.setLLMChoice(outcome, game, this);
-        }
-
-        return true;
+        return super.choose(outcome, choice, game);
     }
 
     @Override
@@ -767,6 +725,8 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
 
         DecisionPayload dp = new DecisionPayload("/api/mtg_llm/choose_attackers/", payload);
         DecisionResult dr = new LlmDecisionClient("http://localhost:9000").requestDecision(dp);
+        // keep debug message with reasoning
+        sendMsgWithLLMChosenReason(game, currentPlayer, "CHOOSING THESE ATTACKERS", dr.getReason());
         List<UUID> chosenAttackers = dr.getChosenUuids();
         // Use game.getPermanent() to get the actual Permanent objects in a list to be
         // returned
