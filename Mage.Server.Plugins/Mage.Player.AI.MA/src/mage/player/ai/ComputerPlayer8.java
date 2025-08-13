@@ -475,15 +475,10 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         // "player1").put("manaAvailable", 3).toString());
         // HttpURLConnection llmResponseTest = sendContextToLLM(payloadTest.toString());
 
-        // Send the context to the LLM and get the response
-        HttpURLConnection llmResponse = sendContextToLLM(payload.toString(), null);
-
-        LLMResponse parsedResponse = parseLLMResponse(llmResponse);
-
-        sendMsgWithLLMChosenAction(game, currentPlayer, allActions, parsedResponse);
-
-        // Parse the response to get the chosen action index
-        int chosenActionIndex = parsedResponse.getChosenActionIndex();
+        // Unified helper call
+        DecisionPayload dp = new DecisionPayload("/api/mtg_llm/choose_from_all_actions/", payload);
+        DecisionResult dr = new LlmDecisionClient("http://localhost:9000").requestDecision(dp);
+        int chosenActionIndex = dr.getChosenIndex() != null ? dr.getChosenIndex() : 0;
 
         // Log the random action chosen
         if (logger.isInfoEnabled()) {
@@ -515,16 +510,9 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         // payload.put("gameView", convertObjectToJson(gameView));
         payload.put("gameView", new JSONObject());
 
-        // Send the context to the LLM and get the response
-        HttpURLConnection llmResponse = sendContextToLLM(payload.toString(),
-                "http://localhost:9000/api/mtg_llm/choose_from_choices/");
-
-        LLMResponse parsedResponse = parseLLMResponse(llmResponse);
-
-        sendMsgWithLLMChosenChoice(game, currentPlayer, allChoices, parsedResponse);
-
-        // Parse the response to get the chosen choice index
-        int chosenChoiceIndex = parsedResponse.getChosenActionIndex();
+        DecisionPayload dp = new DecisionPayload("/api/mtg_llm/choose_from_choices/", payload);
+        DecisionResult dr = new LlmDecisionClient("http://localhost:9000").requestDecision(dp);
+        int chosenChoiceIndex = dr.getChosenIndex() != null ? dr.getChosenIndex() : 0;
 
         // Log the random choice chosen
         if (logger.isInfoEnabled()) {
@@ -777,17 +765,9 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         // payload.put("gameView", convertObjectToJson(gameView));
         payload.put("gameView", new JSONObject());
 
-        // Send the context to the LLM and get the response
-        HttpURLConnection llmResponse = sendContextToLLM(payload.toString(),
-                "http://localhost:9000/api/mtg_llm/choose_attackers/");
-
-        LLMResponseAttackers parsedResponse = parseLLMResponseAttackers(llmResponse);
-
-        sendMsgWithLLMChosenReason(game, currentPlayer, "CHOOSING THESE ATTACKERS",
-                parsedResponse.getReason());
-
-        // Parse the response to get the chosen action index
-        List<UUID> chosenAttackers = parsedResponse.getChosenAttackersUUIDs();
+        DecisionPayload dp = new DecisionPayload("/api/mtg_llm/choose_attackers/", payload);
+        DecisionResult dr = new LlmDecisionClient("http://localhost:9000").requestDecision(dp);
+        List<UUID> chosenAttackers = dr.getChosenUuids();
         // Use game.getPermanent() to get the actual Permanent objects in a list to be
         // returned
         List<Permanent> chosenAttackersList = new ArrayList<>();
