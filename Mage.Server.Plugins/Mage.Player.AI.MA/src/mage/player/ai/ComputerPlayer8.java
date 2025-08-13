@@ -580,6 +580,21 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
     @Override
     public boolean choose(Outcome outcome, Choice choice, Game game) {
         logger.debug("choose 8");
+        // Delegate general choice selection to LLM when multiple options exist
+        if (!choice.isChosen() && choice.getChoices() != null && !choice.getChoices().isEmpty()) {
+            try {
+                Player currentPlayer = game.getPlayer(this.getId());
+                String[] allChoices = choice.getChoices().toArray(new String[0]);
+                int idx = callLLMToChooseFromChoices(game, currentPlayer, outcome, choice, allChoices);
+                if (idx >= 0 && idx < allChoices.length) {
+                    choice.setChoice(allChoices[idx]);
+                    return true;
+                }
+            } catch (Exception e) {
+                logger.error("LLM choice failed, falling back to super", e);
+            }
+        }
+        // Fallbacks and special cases
         if (choice.getMessage() != null && ("Choose creature type".equals(choice.getMessage())
                 || "Choose a creature type".equals(choice.getMessage()))) {
             chooseCreatureType(outcome, choice, game);
