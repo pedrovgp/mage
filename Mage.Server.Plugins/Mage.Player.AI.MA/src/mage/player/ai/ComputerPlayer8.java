@@ -717,10 +717,38 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
             possibleTargetsArray[index++] = game.getObject(possibleTargetUUID);
         }
 
-        // TODO PV
-        // Call LLM with outcome, target (required), source and possibleTargetsArray
-        // the response should be an index of possibleTargetsArray (or -1 if target is
-        // not required and None was chosen)
+        // LLM single-target selection (smoke coverage): if there is exactly one pick to
+        // make, ask LLM once
+        try {
+            if (possibleTargetsArray.length > 0
+                    && target.getMaxNumberOfTargets() == 1
+                    && target.getTargets().isEmpty()) {
+                String[] allChoices = new String[possibleTargetsArray.length];
+                for (int i2 = 0; i2 < possibleTargetsArray.length; i2++) {
+                    MageObject mo = possibleTargetsArray[i2];
+                    allChoices[i2] = mo != null ? mo.toString() : "unknown";
+                }
+                Player currentPlayer = game.getPlayer(this.getId());
+                // Use the new target selection endpoint
+                DecisionPayload dp = new DecisionPayload("/api/mtg_llm/choose_targets/",
+                        buildTargetPayload(game, currentPlayer, outcome, allChoices));
+                LlmDecisionClient client = new LlmDecisionClient("http://localhost:9000");
+                DecisionResult dr = client.requestDecision(dp);
+                int idx = dr.getChosenIndex() != null ? dr.getChosenIndex() : 0;
+                if (idx >= 0 && idx < possibleTargetsUUIDArray.length) {
+                    UUID chosen = possibleTargetsUUIDArray[idx];
+                    if (target.canTarget(abilityControllerId, chosen, source, game)) {
+                        target.addTarget(chosen, source, game);
+                        sendMsgWithLLMChosenReason(game, currentPlayer, "CHOOSING TARGET", dr.getReason());
+                        return true;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.error("LLM target choose failed, fallback to built-in", e);
+        }
+
+        // TODO PV: Multi-target LLM selection can iterate until min/max satisfied
 
         List<Permanent> goodList = new ArrayList<>();
         List<Permanent> badList = new ArrayList<>();
@@ -1290,4 +1318,71 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
     // super.selectBlockers(null, game, activePlayerId);
     // }
     // }
+
+    private JSONObject buildTargetPayload(Game game, Player currentPlayer, Outcome outcome, String[] allChoices) {
+        try {
+            JSONObject payload = new JSONObject();
+
+            // Build game cards
+            JSONArray gameCards = new JSONArray();
+            for (Card card : game.getCards()) {
+                JSONObject cardObj = new JSONObject();
+                cardObj.put("id", card.getId().toString());
+                cardObj.put("name", card.getName());
+                cardObj.put("type", card.getCardType().toString());
+                gameCards.put(cardObj);
+            }
+            payload.put("gameCards", gameCards);
+
+            // Build game state
+            JSONObject gameState = new JSONObject();
+            gameState.put("turn", game.getTurnNum());
+            gameState.put("phase", game.getPhase().getType().toString());
+            gameState.put("step", game.getStep().getType().toString());
+            payload.put("gameState", gameState);
+
+            // Build choices
+            JSONArray choices = new JSONArray();
+            for (String choice : allChoices) {
+                choices.put(choice);
+            }
+            payload.put("allChoices", choices);
+
+            // Build current player
+            JSONObject currentPlayerObj = new JSONObject();
+            currentPlayerObj.put("id", currentPlayer.getId().toString());
+            currentPlayerObj.put("life", currentPlayer.getLife());
+            currentPlayerObj.put("handSize", currentPlayer.getHand().size());
+            payload.put("currentPlayer", currentPlayerObj);
+
+            // Build opponent player
+            UUID opponentId = game.getOpponents(currentPlayer.getId()).iterator().next();
+            Player opponent = game.getPlayer(opponentId);
+            JSONObject opponentObj = new JSONObject();
+            opponentObj.put("id", opponent.getId().toString());
+            opponentObj.put("life", opponent.getLife());
+            opponentObj.put("handSize", opponent.getHand().size());
+            payload.put("opponentPlayer", opponentObj);
+
+            // Build outcome and choice
+            JSONObject outcomeObj = new JSONObject();
+            outcomeObj.put("isGood", outcome.isGood());
+            outcomeObj.put("toString", outcome.toString());
+            payload.put("outcome", outcomeObj);
+
+            JSONObject choiceObj = new JSONObject();
+            choiceObj.put("message", "Choose target");
+            payload.put("choice", choiceObj);
+
+            // Build game view
+            JSONObject gameView = new JSONObject();
+            gameView.put("battlefieldSize", game.getBattlefield().getAllActivePermanents().size());
+            payload.put("gameView", gameView);
+
+            return payload;
+        } catch (Exception e) {
+            logger.error("Failed to build target payload", e);
+            return new JSONObject();
+        }
+    }
 }
