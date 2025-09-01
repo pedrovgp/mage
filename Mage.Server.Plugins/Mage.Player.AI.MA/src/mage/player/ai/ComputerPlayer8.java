@@ -457,6 +457,9 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         payload.put("opponentPlayer", convertObjectToJson(opponentPlayer));
         // payload.put("gameView", convertObjectToJson(gameView));
         payload.put("gameView", new JSONObject());
+        payload.put("strategy", getStrategyFromEnvironment());
+        payload.put("game_id", getGameId(game));
+        payload.put("match_id", getMatchId(game));
 
         // Test
         // JSONObject payloadTest = new JSONObject()
@@ -509,6 +512,9 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         payload.put("opponentPlayer", convertObjectToJson(opponentPlayer));
         // payload.put("gameView", convertObjectToJson(gameView));
         payload.put("gameView", new JSONObject());
+        payload.put("strategy", getStrategyFromEnvironment());
+        payload.put("game_id", getGameId(game));
+        payload.put("match_id", getMatchId(game));
 
         DecisionPayload dp = new DecisionPayload("/api/mtg_llm/choose_from_choices/", payload);
         DecisionResult dr = new LlmDecisionClient("http://localhost:9000").requestDecision(dp);
@@ -568,6 +574,24 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
     private void sendMsgWithLLMChosenReason(Game game, Player player, String reasonFor, String reason) {
         game.informPlayers(player.getLogName() + " REASON FOR " + reasonFor);
         game.informPlayers(reason);
+    }
+
+    private String getStrategyFromEnvironment() {
+        String strategy = System.getProperty("MAGELLM_STRATEGY", System.getenv("MAGELLM_STRATEGY"));
+        if (strategy == null || strategy.trim().isEmpty()) {
+            return "rl";
+        }
+        return strategy;
+    }
+
+    private String getGameId(Game game) {
+        // Generate or retrieve game ID - using game's UUID
+        return game.getId().toString();
+    }
+
+    private String getMatchId(Game game) {
+        // TODO PV find a way to actually get the match ID or some match identifier
+        return "match_" + game.getGameType().toString();
     }
 
     // parseLLMResponseAttackers removed (use LlmDecisionClient)
@@ -659,6 +683,9 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         payload.put("opponentPlayer", convertObjectToJson(opponentPlayer));
         // payload.put("gameView", convertObjectToJson(gameView));
         payload.put("gameView", new JSONObject());
+        payload.put("strategy", getStrategyFromEnvironment());
+        payload.put("game_id", getGameId(game));
+        payload.put("match_id", getMatchId(game));
 
         DecisionPayload dp = new DecisionPayload("/api/mtg_llm/choose_attackers/", payload);
         DecisionResult dr = new LlmDecisionClient("http://localhost:9000").requestDecision(dp);
@@ -1378,6 +1405,9 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
             JSONObject gameView = new JSONObject();
             gameView.put("battlefieldSize", game.getBattlefield().getAllActivePermanents().size());
             payload.put("gameView", gameView);
+            payload.put("strategy", getStrategyFromEnvironment());
+            payload.put("game_id", getGameId(game));
+            payload.put("match_id", getMatchId(game));
 
             return payload;
         } catch (Exception e) {
