@@ -1,8 +1,6 @@
 package mage.player.ai;
 
 import mage.MageObject;
-import mage.Mana;
-// import mage.ObjectColor;
 import mage.abilities.Ability;
 import mage.abilities.TriggeredAbilities;
 import mage.abilities.common.PassAbility;
@@ -16,7 +14,6 @@ import mage.cards.decks.Deck;
 import mage.cards.o.Ornithopter;
 import mage.choices.Choice;
 import mage.choices.ComputerPlayer8Interface;
-import mage.constants.ColoredManaSymbol;
 import mage.constants.Outcome;
 import mage.constants.RangeOfInfluence;
 import mage.constants.Zone;
@@ -81,18 +78,6 @@ import java.util.UUID;
 import java.io.OutputStream;
 import java.net.URL;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.SerializerProvider;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.databind.ser.std.StdSerializer;
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.ObjectIdGenerators;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonSerializer;
-
 /**
  * AI: server side bot with game simulations (mad bot, the latest version)
  *
@@ -103,14 +88,17 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
     private static final Logger logger = Logger.getLogger(ComputerPlayer8.class);
 
     private boolean allowBadMoves;
+    private final DecisionHandler decisionHandler;
 
     public ComputerPlayer8(String name, RangeOfInfluence range, int skill) {
         super(name, range, skill);
+        this.decisionHandler = new DecisionHandler("http://localhost:9000");
     }
 
     public ComputerPlayer8(final ComputerPlayer8 player) {
         super(player);
         this.allowBadMoves = player.allowBadMoves;
+        this.decisionHandler = new DecisionHandler("http://localhost:9000");
     }
 
     @Override
@@ -127,14 +115,11 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
     }
 
     private boolean llmPlay(Game game) {
-        // printBattlefieldScore(game, "Sim PRIORITY on MAIN 1");
         PassAbility passAbility = new PassAbility();
         LinkedList<Ability> allActions = new LinkedList<>();
         allActions.add(passAbility);
         allActions.addAll(this.getPlayable(game, false));
 
-        // Call the LLM to choose an action
-        // If there is only one action (pass), then just pass
         int chosenActionIndex = 0;
         if (allActions.size() > 1) {
             chosenActionIndex = callLLMToChooseAction(game, allActions, this);
@@ -142,10 +127,8 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
 
         Ability chosenAction = allActions.get(chosenActionIndex);
 
-        // Log the chosen action
         if (logger.isInfoEnabled()) {
-            logger.info("LLM chosen action: " +
-                    chosenAction.toString());
+            logger.info("LLM chosen action: " + chosenAction.toString());
         }
 
         if (chosenAction instanceof PassAbility) {
@@ -153,7 +136,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         } else {
             LinkedList<Ability> singleActionList = new LinkedList<>();
             singleActionList.add(chosenAction);
-            this.actions = singleActionList; // this.actions is always a single item list when act is called
+            this.actions = singleActionList;
             act(game);
         }
 
@@ -175,7 +158,6 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
                 return false;
             case PRECOMBAT_MAIN:
                 return llmPlay(game);
-
             case BEGIN_COMBAT:
                 return llmPlay(game);
             case DECLARE_ATTACKERS:
@@ -199,402 +181,20 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         return false;
     }
 
-    // MixIn classes to ignore the problematic fields
-    public abstract class GenericManaCostMixIn {
-        @JsonIgnore
-        public GenericManaCost getUnpaid;
-        @JsonIgnore
-        private GenericManaCost unpaid;
-        @JsonIgnore
-        private List<Mana> options;
-        @JsonIgnore
-        private boolean paid;
-    }
-
-    public abstract class OrnithopterMixIn {
-        @JsonIgnore
-        private Ability secondFaceSpellAbility;
-    }
-
-    public class RealPlayerUuidSerializer extends JsonSerializer<Player> {
-        @Override
-        public void serialize(Player player, JsonGenerator gen, SerializerProvider serializers) throws IOException {
-            // Write only the player's id (UUID) as a string
-            gen.writeString(player.getId().toString());
-        }
-    }
-
-    public class OutcomeSerializer extends JsonSerializer<Outcome> {
-        @Override
-        public void serialize(Outcome outcome, JsonGenerator gen, SerializerProvider serializers) throws IOException {
-            gen.writeStartObject(); // Start JSON object
-            gen.writeStringField("name", outcome.name()); // Serialize the name of the enum
-            gen.writeBooleanField("good", outcome.isGood()); // Serialize the 'good' field
-            gen.writeBooleanField("canTargetAll", outcome.isCanTargetAll()); // Serialize the 'canTargetAll' field
-            gen.writeEndObject(); // End JSON object
-        }
-    }
-
-    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
-    public abstract class SimulatedPlayer2MixIn {
-        @JsonIgnore
-        private MatchPlayer matchPlayer;
-        @JsonIgnore
-        private Player realPlayer; // Add this line to ignore the realPlayer field
-    }
-
-    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "name")
-    public abstract class MatchPlayerMixIn {
-        @JsonIgnore
-        private Deck deck;
-        @JsonIgnore
-        private Player player;
-    }
-
-    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
-    public abstract class HumanPlayerMixIn {
-        // Instead of ignoring realPlayer, serialize it as an UUID
-        @com.fasterxml.jackson.databind.annotation.JsonSerialize(using = RealPlayerUuidSerializer.class)
-        private Player realPlayer;
-    }
-
-    public abstract class DeckMixIn {
-        @JsonIgnore
-        private Set<Card> cards;
-    }
-
-    public abstract class CardMixIn {
-        @JsonIgnore
-        private ManaCost manaCost;
-        @JsonIgnore
-        private List<ManaCost> manaCosts;
-        @JsonIgnore
-        private Ability secondFaceSpellAbility;
-    }
-
-    public abstract class ManaCostMixIn {
-        @JsonIgnore
-        private List<ColoredManaCost> manaCosts;
-        @JsonIgnore
-        private boolean unpaid;
-    }
-
-    public abstract class ColoredManaCostMixIn {
-        @JsonIgnore
-        private boolean unpaid;
-    }
-
-    public abstract class GameStateMixIn {
-        @JsonIgnore
-        private Map<UUID, TriggeredAbilities> triggers;
-        @JsonIgnore
-        private Players players;
-        @JsonIgnore
-        private PlayerList playersList;
-    }
-
-    // Helper method to find the opponent
-    private Player findOpponent(Game game, Player currentPlayer) {
-        for (UUID opponentId : game.getState().getPlayers().keySet()) {
-            if (!opponentId.equals(currentPlayer.getId())) {
-                return game.getPlayer(opponentId);
-            }
-        }
-        return null;
-    }
-
-    public class AbilitySerializer extends StdSerializer<Ability> {
-
-        public AbilitySerializer() {
-            this(null);
-        }
-
-        public AbilitySerializer(Class<Ability> t) {
-            super(t);
-        }
-
-        @Override
-        public void serialize(Ability ability, JsonGenerator gen, SerializerProvider provider) throws IOException {
-            gen.writeStartObject();
-            gen.writeStringField("className", ability.getClass().getName());
-            gen.writeStringField("description", ability.toString());
-            gen.writeStringField("abilityType",
-                    ability.getAbilityType() != null ? ability.getAbilityType().toString() : "");
-            gen.writeStringField("controllerId",
-                    ability.getControllerId() != null ? ability.getControllerId().toString() : "");
-            gen.writeStringField("controllerOrOwnerId",
-                    ability.getControllerOrOwnerId() != null ? ability.getControllerOrOwnerId().toString() : "");
-            gen.writeStringField("rule", ability.getRule() != null ? ability.getRule().toString() : "");
-            gen.writeStringField("sourceId", ability.getSourceId() != null ? ability.getSourceId().toString() : "");
-            gen.writeStringField("costAdjuster",
-                    ability.getCostAdjuster() != null ? ability.getCostAdjuster().toString() : "");
-            gen.writeStringField("costs", ability.getCosts() != null ? ability.getCosts().toString() : "");
-            gen.writeStringField("customOutcome",
-                    ability.getCustomOutcome() != null ? ability.getCustomOutcome().toString() : "");
-            gen.writeStringField("effects", ability.getEffects() != null ? ability.getEffects().toString() : "");
-            gen.writeStringField("targets", ability.getTargets() != null ? ability.getTargets().toString() : "");
-            gen.writeStringField("zone", ability.getZone() != null ? ability.getZone().toString() : "");
-            gen.writeEndObject();
-        }
-    }
-
-    public class CardSerializer extends StdSerializer<Card> {
-
-        public CardSerializer() {
-            this(null);
-        }
-
-        public CardSerializer(Class<Card> t) {
-            super(t);
-        }
-
-        @Override
-        public void serialize(Card card, JsonGenerator gen, SerializerProvider provider) throws IOException {
-            gen.writeStartObject();
-            gen.writeStringField("name", card.getName());
-            gen.writeStringField("id", card.getId().toString());
-            gen.writeStringField("abilities", card.getAbilities() != null ? card.getAbilities().toString() : "");
-            gen.writeStringField("cardType", card.getCardType() != null ? card.getCardType().toString() : "");
-            gen.writeStringField("color", card.getColor() != null ? card.getColor().toString() : "");
-            // gen.writeStringField("manaCost", card.getManaCost() != null ?
-            // card.getManaCost().toString() : ""); // Very
-            // likely generates infinite recursion issues
-            gen.writeStringField("ownerId", card.getOwnerId() != null ? card.getOwnerId().toString() : "");
-            gen.writeStringField("power", card.getPower() != null ? card.getPower().toString() : "");
-            gen.writeStringField("toughness", card.getToughness() != null ? card.getToughness().toString() : "");
-            gen.writeStringField("rules", card.getRules() != null ? card.getRules().toString() : "");
-            gen.writeStringField("spellAbility",
-                    card.getSpellAbility() != null ? card.getSpellAbility().toString() : "");
-            gen.writeStringField("subtype", card.getSubtype() != null ? card.getSubtype().toString() : "");
-            gen.writeStringField("supertype", card.getSuperType() != null ? card.getSuperType().toString() : "");
-            gen.writeEndObject();
-        }
-    }
-
-    private Object convertObjectToJson(Object obj) {
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-        objectMapper.addMixIn(Ornithopter.class, OrnithopterMixIn.class);
-        objectMapper.addMixIn(SimulatedPlayer2.class, SimulatedPlayer2MixIn.class);
-        objectMapper.addMixIn(MatchPlayer.class, MatchPlayerMixIn.class);
-        objectMapper.addMixIn(Player.class, HumanPlayerMixIn.class);
-        objectMapper.addMixIn(Deck.class, DeckMixIn.class);
-        objectMapper.addMixIn(Card.class, CardMixIn.class);
-        objectMapper.addMixIn(ManaCost.class, ManaCostMixIn.class);
-        objectMapper.addMixIn(ColoredManaCost.class, ColoredManaCostMixIn.class);
-        objectMapper.addMixIn(GameState.class, GameStateMixIn.class);
-        objectMapper.addMixIn(GenericManaCost.class, GenericManaCostMixIn.class);
-
-        // Register the custom serializer for the Card class
-        SimpleModule module = new SimpleModule();
-        module.addSerializer(Card.class, new CardSerializer());
-        module.addSerializer(Ability.class, new AbilitySerializer());
-        module.addSerializer(Outcome.class, new OutcomeSerializer());
-        // module.addSerializer(ObjectColor.class, new ObjectColorSerializer());
-        objectMapper.registerModule(module);
-
-        try {
-            String jsonString = objectMapper.writeValueAsString(obj);
-            if (jsonString.startsWith("{")) {
-                return new JSONObject(jsonString);
-            } else if (jsonString.startsWith("[")) {
-                return new JSONArray(jsonString);
-            } else {
-                throw new JsonProcessingException("Invalid JSON string: " + jsonString) {
-                };
-            }
-        } catch (JsonProcessingException e) {
-            logger.error("Error converting object to JSON: " + obj.getClass().getName(), e);
-            return new JSONObject().put("error", "Failed to convert " + obj.getClass().getName() + " to JSON")
-                    .put("message", e.getMessage().replace("\"", "\\\""));
-        }
-    }
-
-    private void sendMsgWithLLMChosenAction(Game game, Player player, List<Ability> allActions,
-            LLMResponse parsedResponse) {
-        game.informPlayers(player.getLogName() + " POSSIBLE ACTIONS:");
-        for (int i = 0; i < allActions.size(); i++) {
-            game.informPlayers(i + ": " + allActions.get(i).toString());
-        }
-
-        int chosenActionIndex = parsedResponse.getChosenActionIndex();
-
-        game.informPlayers("LLM CHOSEN ACTION:");
-        game.informPlayers(chosenActionIndex + ": " + allActions.get(chosenActionIndex).toString());
-        game.informPlayers(" REASON:");
-        game.informPlayers(parsedResponse.getReason());
-    }
-
-    private void sendMsgWithLLMChosenChoice(Game game, Player player, String[] allChoices,
-            LLMResponse parsedResponse) {
-        game.informPlayers(player.getLogName() + " POSSIBLE CHOICES:");
-        for (int i = 0; i < allChoices.length; i++) {
-            game.informPlayers(i + ": " + allChoices[i].toString());
-        }
-
-        int chosenActionIndex = parsedResponse.getChosenActionIndex();
-
-        game.informPlayers("LLM CHOSEN ACTION:");
-        game.informPlayers(chosenActionIndex + ": " + allChoices[chosenActionIndex].toString());
-        game.informPlayers(" REASON:");
-        game.informPlayers(parsedResponse.getReason());
-    }
-
     private int callLLMToChooseAction(Game game, LinkedList<Ability> allActions, ComputerPlayer currentPlayer) {
-        // Prepare the context for the LLM
-        JSONObject payload = new JSONObject();
-
-        // GameView gameView = GameSessionPlayer.prepareGameView(game,
-        // currentPlayer.getId(), currentPlayer.getId());
-
-        GameState gameState = game.getState();
-        Player opponentPlayer = findOpponent(game, currentPlayer);
-
-        payload.put("gameCards", convertObjectToJson(game.getCards()));
-        payload.put("gameState", convertObjectToJson(gameState));
-        payload.put("allActions", convertObjectToJson(allActions));
-        payload.put("currentPlayer", convertObjectToJson(currentPlayer));
-        payload.put("opponentPlayer", convertObjectToJson(opponentPlayer));
-        // payload.put("gameView", convertObjectToJson(gameView));
-        payload.put("gameView", new JSONObject());
-        payload.put("strategy", getStrategyFromEnvironment());
-        payload.put("game_id", getGameId(game));
-        payload.put("match_id", getMatchId(game));
-
-        // Test
-        // JSONObject payloadTest = new JSONObject()
-        // .put("gameState",
-        // new JSONObject().put("turn", 5).put("activePlayer",
-        // "player1").put("lifeTotalPlayer1", 20)
-        // .put("lifeTotalPlayer2", 18).toString())
-        // .put("allActions", new JSONObject()
-        // .put("actions",
-        // new JSONObject[] {
-        // new JSONObject().put("actionId", 1).put("description",
-        // "Attack with creature A"),
-        // new JSONObject().put("actionId", 2).put("description", "Cast spell B") })
-        // .toString())
-        // .put("playerContext", new JSONObject().put("playerId",
-        // "player1").put("manaAvailable", 3).toString());
-        // Raw HTTP test removed in favor of LlmDecisionClient
-
-        // Unified helper call
-        DecisionPayload dp = new DecisionPayload("/api/mtg_llm/choose_from_all_actions/", payload);
-        DecisionResult dr = new LlmDecisionClient("http://localhost:9000").requestDecision(dp);
-        int chosenActionIndex = dr.getChosenIndex() != null ? dr.getChosenIndex() : 0;
-
-        // Log the random action chosen
-        if (logger.isInfoEnabled()) {
-            logger.info("Random action chosen: " +
-                    allActions.get(chosenActionIndex).toString());
-        }
-
-        return chosenActionIndex;
+        DecisionResult result = decisionHandler.handleAction(game, currentPlayer, allActions,
+                getStrategyFromEnvironment());
+        decisionHandler.informChosenAction(game, currentPlayer, allActions, result);
+        return result.getChosenIndex() != null ? result.getChosenIndex() : 0;
     }
 
     public int callLLMToChooseFromChoices(Game game, Player currentPlayer, Outcome outcome, Choice choice,
             String[] allChoices) {
-        // Prepare the context for the LLM
-        JSONObject payload = new JSONObject();
-
-        // GameView gameView = GameSessionPlayer.prepareGameView(game,
-        // currentPlayer.getId(), currentPlayer.getId());
-
-        GameState gameState = game.getState();
-        Player opponentPlayer = findOpponent(game, currentPlayer);
-
-        payload.put("gameCards", convertObjectToJson(game.getCards()));
-        payload.put("gameState", convertObjectToJson(gameState));
-        payload.put("outcome", convertObjectToJson(outcome));
-        payload.put("choice", convertObjectToJson(choice));
-        payload.put("allChoices", convertObjectToJson(allChoices));
-        payload.put("currentPlayer", convertObjectToJson(currentPlayer));
-        payload.put("opponentPlayer", convertObjectToJson(opponentPlayer));
-        // payload.put("gameView", convertObjectToJson(gameView));
-        payload.put("gameView", new JSONObject());
-        payload.put("strategy", getStrategyFromEnvironment());
-        payload.put("game_id", getGameId(game));
-        payload.put("match_id", getMatchId(game));
-
-        DecisionPayload dp = new DecisionPayload("/api/mtg_llm/choose_from_choices/", payload);
-        DecisionResult dr = new LlmDecisionClient("http://localhost:9000").requestDecision(dp);
-        int chosenChoiceIndex = dr.getChosenIndex() != null ? dr.getChosenIndex() : 0;
-
-        // Log the random choice chosen
-        if (logger.isInfoEnabled()) {
-            logger.info("Random choice chosen: " +
-                    allChoices[chosenChoiceIndex].toString());
-        }
-
-        return chosenChoiceIndex;
+        DecisionResult result = decisionHandler.handleChoice(game, currentPlayer, outcome, choice, allChoices,
+                getStrategyFromEnvironment());
+        decisionHandler.informChosenChoice(game, currentPlayer, allChoices, result);
+        return result.getChosenIndex() != null ? result.getChosenIndex() : 0;
     }
-
-    // sendContextToLLM removed (use LlmDecisionClient)
-
-    private LLMResponse parseLLMResponse(HttpURLConnection llmResponse) {
-        int chosenActionIndex = 0; // Default value
-        String reason = "";
-        try {
-            int responseCode = llmResponse.getResponseCode();
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                try (BufferedReader br = new BufferedReader(
-                        new InputStreamReader(llmResponse.getInputStream(), StandardCharsets.UTF_8))) {
-                    StringBuilder response = new StringBuilder();
-                    String responseLine;
-                    while ((responseLine = br.readLine()) != null) {
-                        response.append(responseLine.trim());
-                    }
-                    // Parse the JSON response
-                    String responseString = response.toString();
-                    JSONObject jsonResponse = new JSONObject(responseString);
-                    chosenActionIndex = jsonResponse.getInt("chosen_idx");
-                    reason = jsonResponse.getString("reason");
-                }
-            } else {
-                // Log the error response
-                try (BufferedReader br = new BufferedReader(
-                        new InputStreamReader(llmResponse.getErrorStream(), StandardCharsets.UTF_8))) {
-                    StringBuilder errorResponse = new StringBuilder();
-                    String responseLine;
-                    while ((responseLine = br.readLine()) != null) {
-                        errorResponse.append(responseLine.trim());
-                    }
-                    logger.error("Failed to get response from LLM. HTTP code: " + responseCode + ", Response: "
-                            + errorResponse.toString());
-                }
-            }
-        } catch (NumberFormatException e) {
-            logger.error("NumberFormatException while parsing LLM response", e);
-        } catch (Exception e) {
-            logger.error("Exception while parsing LLM response", e);
-        }
-        return new LLMResponse(chosenActionIndex, reason);
-    }
-
-    private void sendMsgWithLLMChosenReason(Game game, Player player, String reasonFor, String reason) {
-        game.informPlayers(player.getLogName() + " REASON FOR " + reasonFor);
-        game.informPlayers(reason);
-    }
-
-    private String getStrategyFromEnvironment() {
-        String strategy = System.getProperty("MAGELLM_STRATEGY", System.getenv("MAGELLM_STRATEGY"));
-        if (strategy == null || strategy.trim().isEmpty()) {
-            return "rl";
-        }
-        return strategy;
-    }
-
-    private String getGameId(Game game) {
-        // Generate or retrieve game ID - using game's UUID
-        return game.getId().toString();
-    }
-
-    private String getMatchId(Game game) {
-        // TODO PV find a way to actually get the match ID or some match identifier
-        return "match_" + game.getGameType().toString();
-    }
-
-    // parseLLMResponseAttackers removed (use LlmDecisionClient)
 
     @Override
     public void setAllowBadMoves(boolean allowBadMoves) {
@@ -659,54 +259,24 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
                 for (Permanent attacker : selectedAttackers) {
                     attackingPlayer.declareAttacker(attacker.getId(), defenderId, game, true);
                 }
-
             }
         }
     }
 
     private List<Permanent> callLLMToChooseAttackers(Game game, List<Permanent> possibleAttackers,
             List<Permanent> possibleBlockers, Player currentPlayer) {
-        // Prepare the context for the LLM
-        JSONObject payload = new JSONObject();
-
-        // GameView gameView = GameSessionPlayer.prepareGameView(game,
-        // currentPlayer.getId(), currentPlayer.getId());
-
-        GameState gameState = game.getState();
-        Player opponentPlayer = findOpponent(game, currentPlayer);
-
-        payload.put("gameCards", convertObjectToJson(game.getCards()));
-        payload.put("gameState", convertObjectToJson(gameState));
-        payload.put("possibleAttackers", convertObjectToJson(possibleAttackers));
-        payload.put("possibleBlockers", convertObjectToJson(possibleBlockers));
-        payload.put("currentPlayer", convertObjectToJson(currentPlayer));
-        payload.put("opponentPlayer", convertObjectToJson(opponentPlayer));
-        // payload.put("gameView", convertObjectToJson(gameView));
-        payload.put("gameView", new JSONObject());
-        payload.put("strategy", getStrategyFromEnvironment());
-        payload.put("game_id", getGameId(game));
-        payload.put("match_id", getMatchId(game));
-
-        DecisionPayload dp = new DecisionPayload("/api/mtg_llm/choose_attackers/", payload);
-        DecisionResult dr = new LlmDecisionClient("http://localhost:9000").requestDecision(dp);
-        // keep debug message with reasoning
-        sendMsgWithLLMChosenReason(game, currentPlayer, "CHOOSING THESE ATTACKERS", dr.getReason());
-        List<UUID> chosenAttackers = dr.getChosenUuids();
-        // Use game.getPermanent() to get the actual Permanent objects in a list to be
-        // returned
-        List<Permanent> chosenAttackersList = new ArrayList<>();
-        for (UUID attackerId : chosenAttackers) {
-            chosenAttackersList.add(game.getPermanent(attackerId));
+        DecisionResult dr = decisionHandler.handleAttackers(game, currentPlayer, possibleAttackers, possibleBlockers,
+                getStrategyFromEnvironment());
+        decisionHandler.informChosenAttackers(game, currentPlayer, possibleAttackers, dr);
+        List<Permanent> chosen = new ArrayList<>();
+        if (dr.getChosenUuids() != null) {
+            for (UUID id : dr.getChosenUuids()) {
+                Permanent p = game.getPermanent(id);
+                if (p != null)
+                    chosen.add(p);
+            }
         }
-
-        // Log the random action chosen
-        if (logger.isInfoEnabled()) {
-            logger.info("Attackers chosen: " +
-                    chosenAttackers.toString());
-        }
-
-        return chosenAttackersList;
-
+        return chosen;
     }
 
     @Override
@@ -756,17 +326,14 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
                     allChoices[i2] = mo != null ? mo.toString() : "unknown";
                 }
                 Player currentPlayer = game.getPlayer(this.getId());
-                // Use the new target selection endpoint
-                DecisionPayload dp = new DecisionPayload("/api/mtg_llm/choose_targets/",
-                        buildTargetPayload(game, currentPlayer, outcome, allChoices));
-                LlmDecisionClient client = new LlmDecisionClient("http://localhost:9000");
-                DecisionResult dr = client.requestDecision(dp);
+                DecisionResult dr = decisionHandler.handleTargets(game, currentPlayer, outcome, allChoices,
+                        getStrategyFromEnvironment());
+                decisionHandler.informChosenChoice(game, currentPlayer, allChoices, dr);
                 int idx = dr.getChosenIndex() != null ? dr.getChosenIndex() : 0;
                 if (idx >= 0 && idx < possibleTargetsUUIDArray.length) {
                     UUID chosen = possibleTargetsUUIDArray[idx];
                     if (target.canTarget(abilityControllerId, chosen, source, game)) {
                         target.addTarget(chosen, source, game);
-                        sendMsgWithLLMChosenReason(game, currentPlayer, "CHOOSING TARGET", dr.getReason());
                         return true;
                     }
                 }
@@ -1346,73 +913,12 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
     // }
     // }
 
-    private JSONObject buildTargetPayload(Game game, Player currentPlayer, Outcome outcome, String[] allChoices) {
-        try {
-            JSONObject payload = new JSONObject();
-
-            // Build game cards
-            JSONArray gameCards = new JSONArray();
-            for (Card card : game.getCards()) {
-                JSONObject cardObj = new JSONObject();
-                cardObj.put("id", card.getId().toString());
-                cardObj.put("name", card.getName());
-                cardObj.put("type", card.getCardType().toString());
-                gameCards.put(cardObj);
-            }
-            payload.put("gameCards", gameCards);
-
-            // Build game state
-            JSONObject gameState = new JSONObject();
-            gameState.put("turn", game.getTurnNum());
-            gameState.put("phase", game.getPhase().getType().toString());
-            gameState.put("step", game.getStep().getType().toString());
-            payload.put("gameState", gameState);
-
-            // Build choices
-            JSONArray choices = new JSONArray();
-            for (String choice : allChoices) {
-                choices.put(choice);
-            }
-            payload.put("allChoices", choices);
-
-            // Build current player
-            JSONObject currentPlayerObj = new JSONObject();
-            currentPlayerObj.put("id", currentPlayer.getId().toString());
-            currentPlayerObj.put("life", currentPlayer.getLife());
-            currentPlayerObj.put("handSize", currentPlayer.getHand().size());
-            payload.put("currentPlayer", currentPlayerObj);
-
-            // Build opponent player
-            UUID opponentId = game.getOpponents(currentPlayer.getId()).iterator().next();
-            Player opponent = game.getPlayer(opponentId);
-            JSONObject opponentObj = new JSONObject();
-            opponentObj.put("id", opponent.getId().toString());
-            opponentObj.put("life", opponent.getLife());
-            opponentObj.put("handSize", opponent.getHand().size());
-            payload.put("opponentPlayer", opponentObj);
-
-            // Build outcome and choice
-            JSONObject outcomeObj = new JSONObject();
-            outcomeObj.put("isGood", outcome.isGood());
-            outcomeObj.put("toString", outcome.toString());
-            payload.put("outcome", outcomeObj);
-
-            JSONObject choiceObj = new JSONObject();
-            choiceObj.put("message", "Choose target");
-            payload.put("choice", choiceObj);
-
-            // Build game view
-            JSONObject gameView = new JSONObject();
-            gameView.put("battlefieldSize", game.getBattlefield().getAllActivePermanents().size());
-            payload.put("gameView", gameView);
-            payload.put("strategy", getStrategyFromEnvironment());
-            payload.put("game_id", getGameId(game));
-            payload.put("match_id", getMatchId(game));
-
-            return payload;
-        } catch (Exception e) {
-            logger.error("Failed to build target payload", e);
-            return new JSONObject();
+    private String getStrategyFromEnvironment() {
+        String strategy = System.getProperty("MAGELLM_STRATEGY", System.getenv("MAGELLM_STRATEGY"));
+        if (strategy == null || strategy.trim().isEmpty()) {
+            return "rl";
         }
+        return strategy;
     }
+
 }
