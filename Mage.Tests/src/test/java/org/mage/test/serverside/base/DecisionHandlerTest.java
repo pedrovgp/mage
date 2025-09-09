@@ -14,6 +14,7 @@ import mage.player.ai.DecisionResult;
 import mage.player.ai.LlmDecisionClient;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -244,5 +245,122 @@ public class DecisionHandlerTest {
         assertNotNull("Result should not be null even with exception", result);
         assertEquals("Should fallback to first target", 0, result.getChosenIndex().intValue());
         assertTrue("Reason should indicate fallback", result.getReason().contains("fallback"));
+    }
+
+    @Test
+    public void testHandleActionSuccessPath() {
+        // Setup mock client to return a successful decision
+        DecisionResult expectedResult = new DecisionResult(0, null, "TestStrategy");
+        when(mockClient.requestDecision(any())).thenReturn(expectedResult);
+
+        // Create a real game and player using TestGameFactory
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+
+        // Create test abilities
+        PassAbility passAbility = new PassAbility();
+        List<Ability> actions = Arrays.asList(passAbility);
+
+        // Test handleAction with real objects - should succeed
+        DecisionResult result = decisionHandler.handleAction(game, player, actions, "llm");
+
+        // Verify the result matches what the mock client returned
+        assertNotNull("Result should not be null", result);
+        assertEquals("Should return the mocked result", expectedResult.getChosenIndex(), result.getChosenIndex());
+        assertEquals("Should return the mocked reason", expectedResult.getReason(), result.getReason());
+
+        // Verify the client was called
+        verify(mockClient, times(1)).requestDecision(any());
+
+        // Verify the payload structure by capturing the DecisionPayload
+        ArgumentCaptor<mage.player.ai.DecisionPayload> payloadCaptor = ArgumentCaptor
+                .forClass(mage.player.ai.DecisionPayload.class);
+        verify(mockClient).requestDecision(payloadCaptor.capture());
+
+        mage.player.ai.DecisionPayload capturedPayload = payloadCaptor.getValue();
+        assertNotNull("Payload should not be null", capturedPayload);
+        assertEquals("Should use correct endpoint", "/api/mtg_llm/choose_from_all_actions/",
+                capturedPayload.getEndpointPath());
+
+        // Verify payload contains expected JSON structure
+        org.json.JSONObject payloadJson = capturedPayload.getBody();
+        assertTrue("Payload should contain gameState", payloadJson.has("gameState"));
+        assertTrue("Payload should contain currentPlayer", payloadJson.has("currentPlayer"));
+        assertTrue("Payload should contain allActions", payloadJson.has("allActions"));
+        assertTrue("Payload should contain opponentPlayer", payloadJson.has("opponentPlayer"));
+        assertTrue("Payload should contain strategy", payloadJson.has("strategy"));
+    }
+
+    @Test
+    public void testHandleChoiceSuccessPath() {
+        // Setup mock client to return a successful decision
+        DecisionResult expectedResult = new DecisionResult(1, null, "ChoiceStrategy");
+        when(mockClient.requestDecision(any())).thenReturn(expectedResult);
+
+        // Create a real game and player using TestGameFactory
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+
+        // Create test choice
+        Choice choice = new ChoiceImpl(true);
+        choice.setMessage("Test choice");
+        String[] choices = { "Option 1", "Option 2", "Option 3" };
+
+        // Test handleChoice with real objects - should succeed
+        DecisionResult result = decisionHandler.handleChoice(game, player, Outcome.Benefit, choice, choices, "llm");
+
+        // Verify the result matches what the mock client returned
+        assertNotNull("Result should not be null", result);
+        assertEquals("Should return the mocked result", expectedResult.getChosenIndex(), result.getChosenIndex());
+        assertEquals("Should return the mocked reason", expectedResult.getReason(), result.getReason());
+
+        // Verify the client was called
+        verify(mockClient, times(1)).requestDecision(any());
+
+        // Verify the payload structure by capturing the DecisionPayload
+        ArgumentCaptor<mage.player.ai.DecisionPayload> payloadCaptor = ArgumentCaptor
+                .forClass(mage.player.ai.DecisionPayload.class);
+        verify(mockClient).requestDecision(payloadCaptor.capture());
+
+        mage.player.ai.DecisionPayload capturedPayload = payloadCaptor.getValue();
+        assertNotNull("Payload should not be null", capturedPayload);
+        assertEquals("Should use correct endpoint", "/api/mtg_llm/choose_from_choices/",
+                capturedPayload.getEndpointPath());
+
+        // Verify payload contains expected JSON structure
+        org.json.JSONObject payloadJson = capturedPayload.getBody();
+        assertTrue("Payload should contain gameState", payloadJson.has("gameState"));
+        assertTrue("Payload should contain currentPlayer", payloadJson.has("currentPlayer"));
+        assertTrue("Payload should contain allChoices", payloadJson.has("allChoices"));
+        assertTrue("Payload should contain choice", payloadJson.has("choice"));
+        assertTrue("Payload should contain outcome", payloadJson.has("outcome"));
+        assertTrue("Payload should contain opponentPlayer", payloadJson.has("opponentPlayer"));
+        assertTrue("Payload should contain strategy", payloadJson.has("strategy"));
+    }
+
+    @Test
+    public void testSerializationProducesValidJson() {
+        // Create a real game and player using TestGameFactory
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+
+        // Create test abilities
+        PassAbility passAbility = new PassAbility();
+        List<Ability> actions = Arrays.asList(passAbility);
+
+        // Test that serialization produces valid JSON by calling handleAction
+        // This will internally use the ObjectMapper to serialize the game/player
+        // objects
+        DecisionResult expectedResult = new DecisionResult(0, null, "SerializationTest");
+        when(mockClient.requestDecision(any())).thenReturn(expectedResult);
+
+        DecisionResult result = decisionHandler.handleAction(game, player, actions, "llm");
+
+        // If we get here without exceptions, serialization worked
+        assertNotNull("Result should not be null", result);
+        assertEquals("Should return expected result", expectedResult.getChosenIndex(), result.getChosenIndex());
+
+        // Verify the client was called (which means serialization succeeded)
+        verify(mockClient, times(1)).requestDecision(any());
     }
 }
