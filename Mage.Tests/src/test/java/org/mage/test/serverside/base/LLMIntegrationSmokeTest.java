@@ -1,13 +1,8 @@
 package org.mage.test.serverside.base;
 
 import org.junit.Test;
-import mage.cards.Card;
-import mage.cards.Cards;
-import mage.cards.CardsImpl;
 import mage.constants.PhaseStep;
 import mage.constants.Zone;
-import mage.game.permanent.Permanent;
-import mage.players.Player;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -15,7 +10,6 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertEquals;
