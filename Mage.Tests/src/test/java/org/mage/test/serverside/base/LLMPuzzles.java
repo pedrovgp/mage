@@ -81,7 +81,8 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         System.out.println("Puzzle result: PlayerA life=" + lifeA + ", PlayerB life=" + lifeB + ", PlayerA won=" + won);
 
         // Save metrics to file (for aggregator script)
-        saveMetricsJson("tests/metrics.json", new JSONObject()
+        String artifacts = System.getProperty("artifact.dir", "tests");
+        saveMetricsJson(artifacts + "/metrics.json", new JSONObject()
                 .put("puzzle_id", "MTGP_01")
                 .put("agent", "ComputerPlayer8")
                 .put("strategy", STRATEGY)
@@ -167,7 +168,8 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         System.out.println("Puzzle result: PlayerA life=" + lifeA + ", PlayerB life=" + lifeB + ", PlayerA won=" + won);
 
         // Save metrics to file (for aggregator script)
-        saveMetricsJson("tests/metrics.json", new JSONObject()
+        String artifacts = System.getProperty("artifact.dir", "tests");
+        saveMetricsJson(artifacts + "/metrics.json", new JSONObject()
                 .put("puzzle_id", "MTGP_03")
                 .put("agent", "ComputerPlayer8")
                 .put("strategy", STRATEGY)
@@ -252,7 +254,8 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         System.out.println("Puzzle result: PlayerA life=" + lifeA + ", PlayerB life=" + lifeB + ", PlayerA won=" + won);
 
         // Save metrics to file (for aggregator script)
-        saveMetricsJson("tests/metrics.json", new JSONObject()
+        String artifacts = System.getProperty("artifact.dir", "tests");
+        saveMetricsJson(artifacts + "/metrics.json", new JSONObject()
                 .put("puzzle_id", "MTGP_04")
                 .put("agent", "ComputerPlayer8")
                 .put("strategy", STRATEGY)
