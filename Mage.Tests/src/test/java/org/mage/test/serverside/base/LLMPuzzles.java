@@ -274,10 +274,17 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
 
     // Helper to POST JSON to file (simple, not robust)
     private static void saveMetricsJson(String path, JSONObject obj) {
-        try (java.io.FileWriter fw = new java.io.FileWriter(path, true)) {
-            fw.write(obj.toString() + "\n");
+        try {
+            java.io.File f = new java.io.File(path);
+            java.io.File parent = f.getParentFile();
+            if (parent != null && !parent.exists()) {
+                parent.mkdirs();
+            }
+            try (java.io.FileWriter fw = new java.io.FileWriter(f, true)) {
+                fw.write(obj.toString() + System.lineSeparator());
+            }
         } catch (Exception e) {
-            System.err.println("Failed to save metrics: " + e.getMessage());
+            System.err.println("Failed to save metrics: " + path + " (" + e.getMessage() + ")");
         }
     }
 
