@@ -70,8 +70,13 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
 
         System.out.println("MTGP_01 metrics: " + metrics.toString());
 
-        // Assert at least one decision was made
-        assertTrue("Expected at least one external decision call", (actions + choices + attackers + targets) > 0);
+        // Assert at least one decision was made (skip when using local mageai agent
+        // that doesn't call external API)
+        if (!"mageai".equalsIgnoreCase(STRATEGY)) {
+            assertTrue("Expected at least one external decision call", (actions + choices + attackers + targets) > 0);
+        } else {
+            System.out.println("Skipping external decision assertion for strategy=mageai");
+        }
 
         // Collect performance metrics
         int lifeA = playerA.getLife();
@@ -84,7 +89,7 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         String artifacts = System.getProperty("artifact.dir", "tests");
         saveMetricsJson(artifacts + "/metrics.json", new JSONObject()
                 .put("puzzle_id", "MTGP_01")
-                .put("agent", "ComputerPlayer8")
+                .put("agent", ("mageai".equalsIgnoreCase(STRATEGY) ? "ComputerPlayer7" : "ComputerPlayer8"))
                 .put("strategy", STRATEGY)
                 .put("seed", SEED.isEmpty() ? JSONObject.NULL : Integer.parseInt(SEED))
                 .put("commit", COMMIT)
@@ -157,8 +162,13 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
 
         System.out.println("MTGP_03 metrics: " + metrics.toString());
 
-        // Assert at least one decision was made
-        assertTrue("Expected at least one external decision call", (actions + choices + attackers + targets) > 0);
+        // Assert at least one decision was made (skip when using local mageai agent
+        // that doesn't call external API)
+        if (!"mageai".equalsIgnoreCase(STRATEGY)) {
+            assertTrue("Expected at least one external decision call", (actions + choices + attackers + targets) > 0);
+        } else {
+            System.out.println("Skipping external decision assertion for strategy=mageai");
+        }
 
         // Collect performance metrics
         int lifeA = playerA.getLife();
@@ -171,7 +181,7 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         String artifacts = System.getProperty("artifact.dir", "tests");
         saveMetricsJson(artifacts + "/metrics.json", new JSONObject()
                 .put("puzzle_id", "MTGP_03")
-                .put("agent", "ComputerPlayer8")
+                .put("agent", ("mageai".equalsIgnoreCase(STRATEGY) ? "ComputerPlayer7" : "ComputerPlayer8"))
                 .put("strategy", STRATEGY)
                 .put("seed", SEED.isEmpty() ? JSONObject.NULL : Integer.parseInt(SEED))
                 .put("commit", COMMIT)
@@ -243,8 +253,13 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
 
         System.out.println("MTGP_04 metrics: " + metrics.toString());
 
-        // Assert at least one decision was made
-        assertTrue("Expected at least one external decision call", (actions + choices + attackers + targets) > 0);
+        // Assert at least one decision was made (skip when using local mageai agent
+        // that doesn't call external API)
+        if (!"mageai".equalsIgnoreCase(STRATEGY)) {
+            assertTrue("Expected at least one external decision call", (actions + choices + attackers + targets) > 0);
+        } else {
+            System.out.println("Skipping external decision assertion for strategy=mageai");
+        }
 
         // Collect performance metrics
         int lifeA = playerA.getLife();
@@ -257,7 +272,7 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         String artifacts = System.getProperty("artifact.dir", "tests");
         saveMetricsJson(artifacts + "/metrics.json", new JSONObject()
                 .put("puzzle_id", "MTGP_04")
-                .put("agent", "ComputerPlayer8")
+                .put("agent", ("mageai".equalsIgnoreCase(STRATEGY) ? "ComputerPlayer7" : "ComputerPlayer8"))
                 .put("strategy", STRATEGY)
                 .put("seed", SEED.isEmpty() ? JSONObject.NULL : Integer.parseInt(SEED))
                 .put("commit", COMMIT)

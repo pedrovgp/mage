@@ -62,9 +62,15 @@ public abstract class CardTestPlayerBaseAI extends CardTestPlayerAPIImpl {
     @Override
     protected TestPlayer createPlayer(String name, RangeOfInfluence rangeOfInfluence) {
         if (getFullSimulatedPlayers().contains(name)) {
-            // switch to ComputerPlayer8 for LLM-backed decisions
-            TestPlayer testPlayer = new TestPlayer(
-                    new org.mage.test.player.TestComputerPlayer8(name, rangeOfInfluence, getSkillLevel()));
+            // switch player implementation based on maven -Dstrategy property
+            String strategy = System.getProperty("strategy", "");
+            TestPlayer testPlayer;
+            if ("mageai".equalsIgnoreCase(strategy)) {
+                testPlayer = new TestPlayer(new TestComputerPlayer7(name, rangeOfInfluence, getSkillLevel()));
+            } else {
+                testPlayer = new TestPlayer(
+                        new org.mage.test.player.TestComputerPlayer8(name, rangeOfInfluence, getSkillLevel()));
+            }
             testPlayer.setAIPlayer(true); // enable full AI support (game simulations) for all turns by default
             return testPlayer;
         }
