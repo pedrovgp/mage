@@ -42,13 +42,73 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         return SELECTED_TESTS.isEmpty() || SELECTED_TESTS.contains(testName);
     }
 
+    /*
+     * Test helpers to reduce repeated boilerplate across puzzle tests.
+     * Usage in a test:
+     * beginPuzzle("test_ID_puzzle_llm_metrics", 1);
+     * // test-specific setup...
+     * execute();
+     * finishAndSave("ID", 1);
+     */
+    private void beginPuzzle(String testName, int stopTurn) {
+        // Reset counters and gate execution based on -Dtests
+        httpPost("http://localhost:9000/api/mtg_llm/__test__/reset_counters", "{}");
+        System.out.println("[RUNNING] " + testName);
+        org.junit.Assume.assumeTrue("Skipping " + testName, shouldRun(testName));
+        setStrictChooseMode(false);
+        setStopAt(stopTurn, PhaseStep.END_TURN);
+    }
+
+    private void finishAndSave(String puzzleId, int turnsTaken) {
+        // Query metrics from magellmfast
+        JSONObject metrics = httpGetJson("http://localhost:9000/api/mtg_llm/__test__/metrics");
+        int actions = metrics.optInt("choose_from_all_actions", 0);
+        int choices = metrics.optInt("choose_from_choices", 0);
+        int attackers = metrics.optInt("choose_attackers", 0);
+        int targets = metrics.optInt("choose_targets", 0);
+
+        System.out.println(puzzleId + " metrics: " + metrics.toString());
+
+        // Assert at least one decision was made (skip when using local mageai agent
+        // that doesn't call external API)
+        if (!"mageai".equalsIgnoreCase(STRATEGY)) {
+            assertTrue("Expected at least one external decision call", (actions + choices + attackers + targets) > 0);
+        } else {
+            System.out.println("Skipping external decision assertion for strategy=mageai");
+        }
+
+        // Collect performance metrics
+        int lifeA = playerA.getLife();
+        int lifeB = playerB.getLife();
+        boolean won = lifeB <= 0;
+
+        System.out.println("Puzzle result: PlayerA life=" + lifeA + ", PlayerB life=" + lifeB + ", PlayerA won=" + won);
+
+        // Save metrics to file (for aggregator script)
+        String artifacts = System.getProperty("artifact.dir", "tests");
+        String agent = ("mageai".equalsIgnoreCase(STRATEGY) ? "ComputerPlayer7" : "ComputerPlayer8");
+        saveMetricsJson(artifacts + "/metrics.json", new JSONObject()
+                .put("puzzle_id", puzzleId)
+                .put("agent", agent)
+                .put("strategy", STRATEGY)
+                .put("seed", SEED.isEmpty() ? JSONObject.NULL : Integer.parseInt(SEED))
+                .put("commit", COMMIT)
+                .put("lora_path", LORA_PATH.isEmpty() ? JSONObject.NULL : LORA_PATH)
+                .put("lora_hash", LORA_HASH.isEmpty() ? JSONObject.NULL : LORA_HASH)
+                .put("metadata", new JSONObject(METADATA))
+                .put("actions", actions)
+                .put("choices", choices)
+                .put("attackers", attackers)
+                .put("targets", targets)
+                .put("playerA_life", lifeA)
+                .put("playerB_life", lifeB)
+                .put("won", won)
+                .put("turns_taken", turnsTaken));
+    }
+
     @Test
     public void test_MTGP_01_puzzle_llm_metrics() {
-        // Reset counters before run
-        httpPost("http://localhost:9000/api/mtg_llm/__test__/reset_counters", "{}");
-        String THIS_TEST = "test_MTGP_01_puzzle_llm_metrics";
-        System.out.println("[RUNNING] " + THIS_TEST);
-        org.junit.Assume.assumeTrue("Skipping " + THIS_TEST, shouldRun(THIS_TEST));
+        beginPuzzle("test_MTGP_01_puzzle_llm_metrics", 1);
 
         // Setup MTGP_01 puzzle scenario (see https://mtgpuzzles.com/puzzle/1)
         // PlayerA (active): 5 life, hand: Banners Raised; Electrickery; Temporary
@@ -88,59 +148,12 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         } catch (InterruptedException e) {
         }
 
-        // Query metrics from magellmfast
-        JSONObject metrics = httpGetJson("http://localhost:9000/api/mtg_llm/__test__/metrics");
-        int actions = metrics.optInt("choose_from_all_actions", 0);
-        int choices = metrics.optInt("choose_from_choices", 0);
-        int attackers = metrics.optInt("choose_attackers", 0);
-        int targets = metrics.optInt("choose_targets", 0);
-
-        System.out.println("MTGP_01 metrics: " + metrics.toString());
-
-        // Assert at least one decision was made (skip when using local mageai agent
-        // that doesn't call external API)
-        if (!"mageai".equalsIgnoreCase(STRATEGY)) {
-            assertTrue("Expected at least one external decision call", (actions + choices + attackers + targets) > 0);
-        } else {
-            System.out.println("Skipping external decision assertion for strategy=mageai");
-        }
-
-        // Collect performance metrics
-        int lifeA = playerA.getLife();
-        int lifeB = playerB.getLife();
-        boolean won = lifeB <= 0;
-
-        System.out.println("Puzzle result: PlayerA life=" + lifeA + ", PlayerB life=" + lifeB + ", PlayerA won=" + won);
-
-        // Save metrics to file (for aggregator script)
-        String artifacts = System.getProperty("artifact.dir", "tests");
-        saveMetricsJson(artifacts + "/metrics.json", new JSONObject()
-                .put("puzzle_id", "MTGP_01")
-                .put("agent", ("mageai".equalsIgnoreCase(STRATEGY) ? "ComputerPlayer7" : "ComputerPlayer8"))
-                .put("strategy", STRATEGY)
-                .put("seed", SEED.isEmpty() ? JSONObject.NULL : Integer.parseInt(SEED))
-                .put("commit", COMMIT)
-                .put("lora_path", LORA_PATH.isEmpty() ? JSONObject.NULL : LORA_PATH)
-                .put("lora_hash", LORA_HASH.isEmpty() ? JSONObject.NULL : LORA_HASH)
-                .put("metadata", new JSONObject(METADATA))
-                .put("actions", actions)
-                .put("choices", choices)
-                .put("attackers", attackers)
-                .put("targets", targets)
-                .put("playerA_life", lifeA)
-                .put("playerB_life", lifeB)
-                .put("won", won)
-                .put("turns_taken", 1));
-
+        finishAndSave("MTGP_01", 1);
     }
 
     @Test
     public void test_MTGP_03_puzzle_llm_metrics() {
-        // Reset counters before run
-        httpPost("http://localhost:9000/api/mtg_llm/__test__/reset_counters", "{}");
-        String THIS_TEST = "test_MTGP_03_puzzle_llm_metrics";
-        System.out.println("[RUNNING] " + THIS_TEST);
-        org.junit.Assume.assumeTrue("Skipping " + THIS_TEST, shouldRun(THIS_TEST));
+        beginPuzzle("test_MTGP_03_puzzle_llm_metrics", 1);
 
         // Setup MTGP_03 puzzle scenario (see https://mtgpuzzles.com/puzzle/3)
         // PlayerA (active): 3 life, hand: Renegade Wheelsmith; Chaos Charm
@@ -183,59 +196,12 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         } catch (InterruptedException e) {
         }
 
-        // Query metrics from magellmfast
-        JSONObject metrics = httpGetJson("http://localhost:9000/api/mtg_llm/__test__/metrics");
-        int actions = metrics.optInt("choose_from_all_actions", 0);
-        int choices = metrics.optInt("choose_from_choices", 0);
-        int attackers = metrics.optInt("choose_attackers", 0);
-        int targets = metrics.optInt("choose_targets", 0);
-
-        System.out.println("MTGP_03 metrics: " + metrics.toString());
-
-        // Assert at least one decision was made (skip when using local mageai agent
-        // that doesn't call external API)
-        if (!"mageai".equalsIgnoreCase(STRATEGY)) {
-            assertTrue("Expected at least one external decision call", (actions + choices + attackers + targets) > 0);
-        } else {
-            System.out.println("Skipping external decision assertion for strategy=mageai");
-        }
-
-        // Collect performance metrics
-        int lifeA = playerA.getLife();
-        int lifeB = playerB.getLife();
-        boolean won = lifeB <= 0;
-
-        System.out.println("Puzzle result: PlayerA life=" + lifeA + ", PlayerB life=" + lifeB + ", PlayerA won=" + won);
-
-        // Save metrics to file (for aggregator script)
-        String artifacts = System.getProperty("artifact.dir", "tests");
-        saveMetricsJson(artifacts + "/metrics.json", new JSONObject()
-                .put("puzzle_id", "MTGP_03")
-                .put("agent", ("mageai".equalsIgnoreCase(STRATEGY) ? "ComputerPlayer7" : "ComputerPlayer8"))
-                .put("strategy", STRATEGY)
-                .put("seed", SEED.isEmpty() ? JSONObject.NULL : Integer.parseInt(SEED))
-                .put("commit", COMMIT)
-                .put("lora_path", LORA_PATH.isEmpty() ? JSONObject.NULL : LORA_PATH)
-                .put("lora_hash", LORA_HASH.isEmpty() ? JSONObject.NULL : LORA_HASH)
-                .put("metadata", new JSONObject(METADATA))
-                .put("actions", actions)
-                .put("choices", choices)
-                .put("attackers", attackers)
-                .put("targets", targets)
-                .put("playerA_life", lifeA)
-                .put("playerB_life", lifeB)
-                .put("won", won)
-                .put("turns_taken", 1));
-
+        finishAndSave("MTGP_03", 1);
     }
 
     @Test
     public void test_MTGP_04_puzzle_llm_metrics() {
-        // Reset counters before run
-        httpPost("http://localhost:9000/api/mtg_llm/__test__/reset_counters", "{}");
-        String THIS_TEST = "test_MTGP_04_puzzle_llm_metrics";
-        System.out.println("[RUNNING] " + THIS_TEST);
-        org.junit.Assume.assumeTrue("Skipping " + THIS_TEST, shouldRun(THIS_TEST));
+        beginPuzzle("test_MTGP_04_puzzle_llm_metrics", 1);
 
         // Setup MTGP_04 puzzle scenario (see https://mtgpuzzles.com/puzzle/4)
         // PlayerA (active): 5 life, hand: Dark Withering; Tahngarth's Rage; Alms of the
@@ -277,59 +243,12 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         } catch (InterruptedException e) {
         }
 
-        // Query metrics from magellmfast
-        JSONObject metrics = httpGetJson("http://localhost:9000/api/mtg_llm/__test__/metrics");
-        int actions = metrics.optInt("choose_from_all_actions", 0);
-        int choices = metrics.optInt("choose_from_choices", 0);
-        int attackers = metrics.optInt("choose_attackers", 0);
-        int targets = metrics.optInt("choose_targets", 0);
-
-        System.out.println("MTGP_04 metrics: " + metrics.toString());
-
-        // Assert at least one decision was made (skip when using local mageai agent
-        // that doesn't call external API)
-        if (!"mageai".equalsIgnoreCase(STRATEGY)) {
-            assertTrue("Expected at least one external decision call", (actions + choices + attackers + targets) > 0);
-        } else {
-            System.out.println("Skipping external decision assertion for strategy=mageai");
-        }
-
-        // Collect performance metrics
-        int lifeA = playerA.getLife();
-        int lifeB = playerB.getLife();
-        boolean won = lifeB <= 0;
-
-        System.out.println("Puzzle result: PlayerA life=" + lifeA + ", PlayerB life=" + lifeB + ", PlayerA won=" + won);
-
-        // Save metrics to file (for aggregator script)
-        String artifacts = System.getProperty("artifact.dir", "tests");
-        saveMetricsJson(artifacts + "/metrics.json", new JSONObject()
-                .put("puzzle_id", "MTGP_04")
-                .put("agent", ("mageai".equalsIgnoreCase(STRATEGY) ? "ComputerPlayer7" : "ComputerPlayer8"))
-                .put("strategy", STRATEGY)
-                .put("seed", SEED.isEmpty() ? JSONObject.NULL : Integer.parseInt(SEED))
-                .put("commit", COMMIT)
-                .put("lora_path", LORA_PATH.isEmpty() ? JSONObject.NULL : LORA_PATH)
-                .put("lora_hash", LORA_HASH.isEmpty() ? JSONObject.NULL : LORA_HASH)
-                .put("metadata", new JSONObject(METADATA))
-                .put("actions", actions)
-                .put("choices", choices)
-                .put("attackers", attackers)
-                .put("targets", targets)
-                .put("playerA_life", lifeA)
-                .put("playerB_life", lifeB)
-                .put("won", won)
-                .put("turns_taken", 1));
-
+        finishAndSave("MTGP_04", 1);
     }
 
     @Test
     public void test_MTGP_06_puzzle_llm_metrics() {
-        // Reset counters before run
-        httpPost("http://localhost:9000/api/mtg_llm/__test__/reset_counters", "{}");
-        String THIS_TEST = "test_MTGP_06_puzzle_llm_metrics";
-        System.out.println("[RUNNING] " + THIS_TEST);
-        org.junit.Assume.assumeTrue("Skipping " + THIS_TEST, shouldRun(THIS_TEST));
+        beginPuzzle("test_MTGP_06_puzzle_llm_metrics", 1);
 
         // Setup MTGP_06 puzzle scenario (see https://mtgpuzzles.com/puzzle/6)
         // PlayerA (active): 10 life, hand: Blazing Salvo
@@ -362,59 +281,13 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         } catch (InterruptedException e) {
         }
 
-        // Query metrics from magellmfast
-        JSONObject metrics = httpGetJson("http://localhost:9000/api/mtg_llm/__test__/metrics");
-        int actions = metrics.optInt("choose_from_all_actions", 0);
-        int choices = metrics.optInt("choose_from_choices", 0);
-        int attackers = metrics.optInt("choose_attackers", 0);
-        int targets = metrics.optInt("choose_targets", 0);
-
-        System.out.println("MTGP_06 metrics: " + metrics.toString());
-
-        // Assert at least one decision was made (skip when using local mageai agent
-        // that doesn't call external API)
-        if (!"mageai".equalsIgnoreCase(STRATEGY)) {
-            assertTrue("Expected at least one external decision call", (actions + choices + attackers + targets) > 0);
-        } else {
-            System.out.println("Skipping external decision assertion for strategy=mageai");
-        }
-
-        // Collect performance metrics
-        int lifeA = playerA.getLife();
-        int lifeB = playerB.getLife();
-        boolean won = lifeB <= 0;
-
-        System.out.println("Puzzle result: PlayerA life=" + lifeA + ", PlayerB life=" + lifeB + ", PlayerA won=" + won);
-
-        // Save metrics to file (for aggregator script)
-        String artifacts = System.getProperty("artifact.dir", "tests");
-        saveMetricsJson(artifacts + "/metrics.json", new JSONObject()
-                .put("puzzle_id", "MTGP_06")
-                .put("agent", ("mageai".equalsIgnoreCase(STRATEGY) ? "ComputerPlayer7" : "ComputerPlayer8"))
-                .put("strategy", STRATEGY)
-                .put("seed", SEED.isEmpty() ? JSONObject.NULL : Integer.parseInt(SEED))
-                .put("commit", COMMIT)
-                .put("lora_path", LORA_PATH.isEmpty() ? JSONObject.NULL : LORA_PATH)
-                .put("lora_hash", LORA_HASH.isEmpty() ? JSONObject.NULL : LORA_HASH)
-                .put("metadata", new JSONObject(METADATA))
-                .put("actions", actions)
-                .put("choices", choices)
-                .put("attackers", attackers)
-                .put("targets", targets)
-                .put("playerA_life", lifeA)
-                .put("playerB_life", lifeB)
-                .put("won", won)
-                .put("turns_taken", 1));
-
+        finishAndSave("MTGP_06", 1);
     }
 
     // Test: PS_STX1 (Possibility Storm - Strixhaven #01)
     @Test
     public void test_PS_STX1_puzzle_llm_metrics() {
-        httpPost("http://localhost:9000/api/mtg_llm/__test__/reset_counters", "{}");
-        String THIS_TEST = "test_PS_STX1_puzzle_llm_metrics";
-        System.out.println("[RUNNING] " + THIS_TEST);
-        org.junit.Assume.assumeTrue("Skipping " + THIS_TEST, shouldRun(THIS_TEST));
+        beginPuzzle("test_PS_STX1_puzzle_llm_metrics", 1);
 
         // Setup PS_STX1 (Win this turn)
         setLife(playerA, 20);
@@ -440,47 +313,13 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         } catch (InterruptedException e) {
         }
 
-        JSONObject metrics = httpGetJson("http://localhost:9000/api/mtg_llm/__test__/metrics");
-        int actions = metrics.optInt("choose_from_all_actions", 0);
-        int choices = metrics.optInt("choose_from_choices", 0);
-        int attackers = metrics.optInt("choose_attackers", 0);
-        int targets = metrics.optInt("choose_targets", 0);
-
-        if (!"mageai".equalsIgnoreCase(STRATEGY)) {
-            assertTrue("Expected at least one external decision call", (actions + choices + attackers + targets) > 0);
-        }
-
-        int lifeA = playerA.getLife();
-        int lifeB = playerB.getLife();
-        boolean won = lifeB <= 0;
-
-        String artifacts = System.getProperty("artifact.dir", "tests");
-        saveMetricsJson(artifacts + "/metrics.json", new JSONObject()
-                .put("puzzle_id", "PS_STX1")
-                .put("agent", ("mageai".equalsIgnoreCase(STRATEGY) ? "ComputerPlayer7" : "ComputerPlayer8"))
-                .put("strategy", STRATEGY)
-                .put("seed", SEED.isEmpty() ? JSONObject.NULL : Integer.parseInt(SEED))
-                .put("commit", COMMIT)
-                .put("lora_path", LORA_PATH.isEmpty() ? JSONObject.NULL : LORA_PATH)
-                .put("lora_hash", LORA_HASH.isEmpty() ? JSONObject.NULL : LORA_HASH)
-                .put("metadata", new JSONObject(METADATA))
-                .put("actions", actions)
-                .put("choices", choices)
-                .put("attackers", attackers)
-                .put("targets", targets)
-                .put("playerA_life", lifeA)
-                .put("playerB_life", lifeB)
-                .put("won", won)
-                .put("turns_taken", 1));
+        finishAndSave("PS_STX1", 1);
     }
 
     // Test: PS_RNA7 (Possibility Storm - Ravnica Allegiance #07)
     @Test
     public void test_PS_RNA7_puzzle_llm_metrics() {
-        httpPost("http://localhost:9000/api/mtg_llm/__test__/reset_counters", "{}");
-        String THIS_TEST = "test_PS_RNA7_puzzle_llm_metrics";
-        System.out.println("[RUNNING] " + THIS_TEST);
-        org.junit.Assume.assumeTrue("Skipping " + THIS_TEST, shouldRun(THIS_TEST));
+        beginPuzzle("test_PS_RNA7_puzzle_llm_metrics", 1);
 
         setLife(playerA, 20);
         setLife(playerB, 18);
@@ -506,47 +345,13 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         } catch (InterruptedException e) {
         }
 
-        JSONObject metrics = httpGetJson("http://localhost:9000/api/mtg_llm/__test__/metrics");
-        int actions = metrics.optInt("choose_from_all_actions", 0);
-        int choices = metrics.optInt("choose_from_choices", 0);
-        int attackers = metrics.optInt("choose_attackers", 0);
-        int targets = metrics.optInt("choose_targets", 0);
-
-        if (!"mageai".equalsIgnoreCase(STRATEGY)) {
-            assertTrue("Expected at least one external decision call", (actions + choices + attackers + targets) > 0);
-        }
-
-        int lifeA = playerA.getLife();
-        int lifeB = playerB.getLife();
-        boolean won = lifeB <= 0;
-
-        String artifacts = System.getProperty("artifact.dir", "tests");
-        saveMetricsJson(artifacts + "/metrics.json", new JSONObject()
-                .put("puzzle_id", "PS_RNA7")
-                .put("agent", ("mageai".equalsIgnoreCase(STRATEGY) ? "ComputerPlayer7" : "ComputerPlayer8"))
-                .put("strategy", STRATEGY)
-                .put("seed", SEED.isEmpty() ? JSONObject.NULL : Integer.parseInt(SEED))
-                .put("commit", COMMIT)
-                .put("lora_path", LORA_PATH.isEmpty() ? JSONObject.NULL : LORA_PATH)
-                .put("lora_hash", LORA_HASH.isEmpty() ? JSONObject.NULL : LORA_HASH)
-                .put("metadata", new JSONObject(METADATA))
-                .put("actions", actions)
-                .put("choices", choices)
-                .put("attackers", attackers)
-                .put("targets", targets)
-                .put("playerA_life", lifeA)
-                .put("playerB_life", lifeB)
-                .put("won", won)
-                .put("turns_taken", 1));
+        finishAndSave("PS_RNA7", 1);
     }
 
     // Test: PS_THB9 (Possibility Storm - Theros Beyond Death #09)
     @Test
     public void test_PS_THB9_puzzle_llm_metrics() {
-        httpPost("http://localhost:9000/api/mtg_llm/__test__/reset_counters", "{}");
-        String THIS_TEST = "test_PS_THB9_puzzle_llm_metrics";
-        System.out.println("[RUNNING] " + THIS_TEST);
-        org.junit.Assume.assumeTrue("Skipping " + THIS_TEST, shouldRun(THIS_TEST));
+        beginPuzzle("test_PS_THB9_puzzle_llm_metrics", 1);
 
         setLife(playerA, 2);
         setLife(playerB, 94);
@@ -576,47 +381,13 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         } catch (InterruptedException e) {
         }
 
-        JSONObject metrics = httpGetJson("http://localhost:9000/api/mtg_llm/__test__/metrics");
-        int actions = metrics.optInt("choose_from_all_actions", 0);
-        int choices = metrics.optInt("choose_from_choices", 0);
-        int attackers = metrics.optInt("choose_attackers", 0);
-        int targets = metrics.optInt("choose_targets", 0);
-
-        if (!"mageai".equalsIgnoreCase(STRATEGY)) {
-            assertTrue("Expected at least one external decision call", (actions + choices + attackers + targets) > 0);
-        }
-
-        int lifeA = playerA.getLife();
-        int lifeB = playerB.getLife();
-        boolean won = lifeB <= 0;
-
-        String artifacts = System.getProperty("artifact.dir", "tests");
-        saveMetricsJson(artifacts + "/metrics.json", new JSONObject()
-                .put("puzzle_id", "PS_THB9")
-                .put("agent", ("mageai".equalsIgnoreCase(STRATEGY) ? "ComputerPlayer7" : "ComputerPlayer8"))
-                .put("strategy", STRATEGY)
-                .put("seed", SEED.isEmpty() ? JSONObject.NULL : Integer.parseInt(SEED))
-                .put("commit", COMMIT)
-                .put("lora_path", LORA_PATH.isEmpty() ? JSONObject.NULL : LORA_PATH)
-                .put("lora_hash", LORA_HASH.isEmpty() ? JSONObject.NULL : LORA_HASH)
-                .put("metadata", new JSONObject(METADATA))
-                .put("actions", actions)
-                .put("choices", choices)
-                .put("attackers", attackers)
-                .put("targets", targets)
-                .put("playerA_life", lifeA)
-                .put("playerB_life", lifeB)
-                .put("won", won)
-                .put("turns_taken", 1));
+        finishAndSave("PS_THB9", 1);
     }
 
     // Test: PC_060215 (Perplexing Chimera 060215 - Burning Bright)
     @Test
     public void test_PC_060215_puzzle_llm_metrics() {
-        httpPost("http://localhost:9000/api/mtg_llm/__test__/reset_counters", "{}");
-        String THIS_TEST = "test_PC_060215_puzzle_llm_metrics";
-        System.out.println("[RUNNING] " + THIS_TEST);
-        org.junit.Assume.assumeTrue("Skipping " + THIS_TEST, shouldRun(THIS_TEST));
+        beginPuzzle("test_PC_060215_puzzle_llm_metrics", 1);
 
         setLife(playerA, 6);
         setLife(playerB, 8);
@@ -648,47 +419,13 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         } catch (InterruptedException e) {
         }
 
-        JSONObject metrics = httpGetJson("http://localhost:9000/api/mtg_llm/__test__/metrics");
-        int actions = metrics.optInt("choose_from_all_actions", 0);
-        int choices = metrics.optInt("choose_from_choices", 0);
-        int attackers = metrics.optInt("choose_attackers", 0);
-        int targets = metrics.optInt("choose_targets", 0);
-
-        if (!"mageai".equalsIgnoreCase(STRATEGY)) {
-            assertTrue("Expected at least one external decision call", (actions + choices + attackers + targets) > 0);
-        }
-
-        int lifeA = playerA.getLife();
-        int lifeB = playerB.getLife();
-        boolean won = lifeB <= 0;
-
-        String artifacts = System.getProperty("artifact.dir", "tests");
-        saveMetricsJson(artifacts + "/metrics.json", new JSONObject()
-                .put("puzzle_id", "PC_060215")
-                .put("agent", ("mageai".equalsIgnoreCase(STRATEGY) ? "ComputerPlayer7" : "ComputerPlayer8"))
-                .put("strategy", STRATEGY)
-                .put("seed", SEED.isEmpty() ? JSONObject.NULL : Integer.parseInt(SEED))
-                .put("commit", COMMIT)
-                .put("lora_path", LORA_PATH.isEmpty() ? JSONObject.NULL : LORA_PATH)
-                .put("lora_hash", LORA_HASH.isEmpty() ? JSONObject.NULL : LORA_HASH)
-                .put("metadata", new JSONObject(METADATA))
-                .put("actions", actions)
-                .put("choices", choices)
-                .put("attackers", attackers)
-                .put("targets", targets)
-                .put("playerA_life", lifeA)
-                .put("playerB_life", lifeB)
-                .put("won", won)
-                .put("turns_taken", 1));
+        finishAndSave("PC_060215", 1);
     }
 
     // Test: PC_063015 (Perplexing Chimera 063015 - Turning the Wurm)
     @Test
     public void test_PC_063015_puzzle_llm_metrics() {
-        httpPost("http://localhost:9000/api/mtg_llm/__test__/reset_counters", "{}");
-        String THIS_TEST = "test_PC_063015_puzzle_llm_metrics";
-        System.out.println("[RUNNING] " + THIS_TEST);
-        org.junit.Assume.assumeTrue("Skipping " + THIS_TEST, shouldRun(THIS_TEST));
+        beginPuzzle("test_PC_063015_puzzle_llm_metrics", 1);
 
         setLife(playerA, 5);
         setLife(playerB, 8);
@@ -719,47 +456,13 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         } catch (InterruptedException e) {
         }
 
-        JSONObject metrics = httpGetJson("http://localhost:9000/api/mtg_llm/__test__/metrics");
-        int actions = metrics.optInt("choose_from_all_actions", 0);
-        int choices = metrics.optInt("choose_from_choices", 0);
-        int attackers = metrics.optInt("choose_attackers", 0);
-        int targets = metrics.optInt("choose_targets", 0);
-
-        if (!"mageai".equalsIgnoreCase(STRATEGY)) {
-            assertTrue("Expected at least one external decision call", (actions + choices + attackers + targets) > 0);
-        }
-
-        int lifeA = playerA.getLife();
-        int lifeB = playerB.getLife();
-        boolean won = lifeB <= 0;
-
-        String artifacts = System.getProperty("artifact.dir", "tests");
-        saveMetricsJson(artifacts + "/metrics.json", new JSONObject()
-                .put("puzzle_id", "PC_063015")
-                .put("agent", ("mageai".equalsIgnoreCase(STRATEGY) ? "ComputerPlayer7" : "ComputerPlayer8"))
-                .put("strategy", STRATEGY)
-                .put("seed", SEED.isEmpty() ? JSONObject.NULL : Integer.parseInt(SEED))
-                .put("commit", COMMIT)
-                .put("lora_path", LORA_PATH.isEmpty() ? JSONObject.NULL : LORA_PATH)
-                .put("lora_hash", LORA_HASH.isEmpty() ? JSONObject.NULL : LORA_HASH)
-                .put("metadata", new JSONObject(METADATA))
-                .put("actions", actions)
-                .put("choices", choices)
-                .put("attackers", attackers)
-                .put("targets", targets)
-                .put("playerA_life", lifeA)
-                .put("playerB_life", lifeB)
-                .put("won", won)
-                .put("turns_taken", 1));
+        finishAndSave("PC_063015", 1);
     }
 
     // Test: PS_RIX10 (Possibility Storm - RIX Sunset Puzzle)
     @Test
     public void test_PS_RIX10_puzzle_llm_metrics() {
-        httpPost("http://localhost:9000/api/mtg_llm/__test__/reset_counters", "{}");
-        String THIS_TEST = "test_PS_RIX10_puzzle_llm_metrics";
-        System.out.println("[RUNNING] " + THIS_TEST);
-        org.junit.Assume.assumeTrue("Skipping " + THIS_TEST, shouldRun(THIS_TEST));
+        beginPuzzle("test_PS_RIX10_puzzle_llm_metrics", 1);
 
         setLife(playerA, 20);
         setLife(playerB, 12);
@@ -784,47 +487,13 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         } catch (InterruptedException e) {
         }
 
-        JSONObject metrics = httpGetJson("http://localhost:9000/api/mtg_llm/__test__/metrics");
-        int actions = metrics.optInt("choose_from_all_actions", 0);
-        int choices = metrics.optInt("choose_from_choices", 0);
-        int attackers = metrics.optInt("choose_attackers", 0);
-        int targets = metrics.optInt("choose_targets", 0);
-
-        if (!"mageai".equalsIgnoreCase(STRATEGY)) {
-            assertTrue("Expected at least one external decision call", (actions + choices + attackers + targets) > 0);
-        }
-
-        int lifeA = playerA.getLife();
-        int lifeB = playerB.getLife();
-        boolean won = lifeB <= 0;
-
-        String artifacts = System.getProperty("artifact.dir", "tests");
-        saveMetricsJson(artifacts + "/metrics.json", new JSONObject()
-                .put("puzzle_id", "PS_RIX10")
-                .put("agent", ("mageai".equalsIgnoreCase(STRATEGY) ? "ComputerPlayer7" : "ComputerPlayer8"))
-                .put("strategy", STRATEGY)
-                .put("seed", SEED.isEmpty() ? JSONObject.NULL : Integer.parseInt(SEED))
-                .put("commit", COMMIT)
-                .put("lora_path", LORA_PATH.isEmpty() ? JSONObject.NULL : LORA_PATH)
-                .put("lora_hash", LORA_HASH.isEmpty() ? JSONObject.NULL : LORA_HASH)
-                .put("metadata", new JSONObject(METADATA))
-                .put("actions", actions)
-                .put("choices", choices)
-                .put("attackers", attackers)
-                .put("targets", targets)
-                .put("playerA_life", lifeA)
-                .put("playerB_life", lifeB)
-                .put("won", won)
-                .put("turns_taken", 1));
+        finishAndSave("PS_RIX10", 1);
     }
 
     // Test: PS_MOM2 (Possibility Storm - March of the Machines #02)
     @Test
     public void test_PS_MOM2_puzzle_llm_metrics() {
-        httpPost("http://localhost:9000/api/mtg_llm/__test__/reset_counters", "{}");
-        String THIS_TEST = "test_PS_MOM2_puzzle_llm_metrics";
-        System.out.println("[RUNNING] " + THIS_TEST);
-        org.junit.Assume.assumeTrue("Skipping " + THIS_TEST, shouldRun(THIS_TEST));
+        beginPuzzle("test_PS_MOM2_puzzle_llm_metrics", 1);
 
         setLife(playerA, 20);
         setLife(playerB, 8);
@@ -847,47 +516,13 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         } catch (InterruptedException e) {
         }
 
-        JSONObject metrics = httpGetJson("http://localhost:9000/api/mtg_llm/__test__/metrics");
-        int actions = metrics.optInt("choose_from_all_actions", 0);
-        int choices = metrics.optInt("choose_from_choices", 0);
-        int attackers = metrics.optInt("choose_attackers", 0);
-        int targets = metrics.optInt("choose_targets", 0);
-
-        if (!"mageai".equalsIgnoreCase(STRATEGY)) {
-            assertTrue("Expected at least one external decision call", (actions + choices + attackers + targets) > 0);
-        }
-
-        int lifeA = playerA.getLife();
-        int lifeB = playerB.getLife();
-        boolean won = lifeB <= 0;
-
-        String artifacts = System.getProperty("artifact.dir", "tests");
-        saveMetricsJson(artifacts + "/metrics.json", new JSONObject()
-                .put("puzzle_id", "PS_MOM2")
-                .put("agent", ("mageai".equalsIgnoreCase(STRATEGY) ? "ComputerPlayer7" : "ComputerPlayer8"))
-                .put("strategy", STRATEGY)
-                .put("seed", SEED.isEmpty() ? JSONObject.NULL : Integer.parseInt(SEED))
-                .put("commit", COMMIT)
-                .put("lora_path", LORA_PATH.isEmpty() ? JSONObject.NULL : LORA_PATH)
-                .put("lora_hash", LORA_HASH.isEmpty() ? JSONObject.NULL : LORA_HASH)
-                .put("metadata", new JSONObject(METADATA))
-                .put("actions", actions)
-                .put("choices", choices)
-                .put("attackers", attackers)
-                .put("targets", targets)
-                .put("playerA_life", lifeA)
-                .put("playerB_life", lifeB)
-                .put("won", won)
-                .put("turns_taken", 1));
+        finishAndSave("PS_MOM2", 1);
     }
 
     // Test: PS_HOU1 (Possibility Storm - Hour of Devastation #01)
     @Test
     public void test_PS_HOU1_puzzle_llm_metrics() {
-        httpPost("http://localhost:9000/api/mtg_llm/__test__/reset_counters", "{}");
-        String THIS_TEST = "test_PS_HOU1_puzzle_llm_metrics";
-        System.out.println("[RUNNING] " + THIS_TEST);
-        org.junit.Assume.assumeTrue("Skipping " + THIS_TEST, shouldRun(THIS_TEST));
+        beginPuzzle("test_PS_HOU1_puzzle_llm_metrics", 1);
 
         setLife(playerA, 20);
         setLife(playerB, 10);
@@ -912,38 +547,7 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         } catch (InterruptedException e) {
         }
 
-        JSONObject metrics = httpGetJson("http://localhost:9000/api/mtg_llm/__test__/metrics");
-        int actions = metrics.optInt("choose_from_all_actions", 0);
-        int choices = metrics.optInt("choose_from_choices", 0);
-        int attackers = metrics.optInt("choose_attackers", 0);
-        int targets = metrics.optInt("choose_targets", 0);
-
-        if (!"mageai".equalsIgnoreCase(STRATEGY)) {
-            assertTrue("Expected at least one external decision call", (actions + choices + attackers + targets) > 0);
-        }
-
-        int lifeA = playerA.getLife();
-        int lifeB = playerB.getLife();
-        boolean won = lifeB <= 0;
-
-        String artifacts = System.getProperty("artifact.dir", "tests");
-        saveMetricsJson(artifacts + "/metrics.json", new JSONObject()
-                .put("puzzle_id", "PS_HOU1")
-                .put("agent", ("mageai".equalsIgnoreCase(STRATEGY) ? "ComputerPlayer7" : "ComputerPlayer8"))
-                .put("strategy", STRATEGY)
-                .put("seed", SEED.isEmpty() ? JSONObject.NULL : Integer.parseInt(SEED))
-                .put("commit", COMMIT)
-                .put("lora_path", LORA_PATH.isEmpty() ? JSONObject.NULL : LORA_PATH)
-                .put("lora_hash", LORA_HASH.isEmpty() ? JSONObject.NULL : LORA_HASH)
-                .put("metadata", new JSONObject(METADATA))
-                .put("actions", actions)
-                .put("choices", choices)
-                .put("attackers", attackers)
-                .put("targets", targets)
-                .put("playerA_life", lifeA)
-                .put("playerB_life", lifeB)
-                .put("won", won)
-                .put("turns_taken", 1));
+        finishAndSave("PS_HOU1", 1);
     }
 
     // Test: PS_EOE2 (Possibility Storm - Eldraine OOE2)
@@ -955,58 +559,20 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         // draws
         setLife(playerA, 20);
         setLife(playerB, 10);
-        String THIS_TEST = "test_PS_EOE2_puzzle_llm_metrics";
-        System.out.println("[RUNNING] " + THIS_TEST);
-        org.junit.Assume.assumeTrue("Skipping " + THIS_TEST, shouldRun(THIS_TEST));
-        setStrictChooseMode(false);
-        setStopAt(1, PhaseStep.END_TURN);
+        beginPuzzle("test_PS_EOE2_puzzle_llm_metrics", 1);
         execute();
         try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {
         }
 
-        JSONObject metrics = httpGetJson("http://localhost:9000/api/mtg_llm/__test__/metrics");
-        int actions = metrics.optInt("choose_from_all_actions", 0);
-        int choices = metrics.optInt("choose_from_choices", 0);
-        int attackers = metrics.optInt("choose_attackers", 0);
-        int targets = metrics.optInt("choose_targets", 0);
-
-        if (!"mageai".equalsIgnoreCase(STRATEGY)) {
-            assertTrue("Expected at least one external decision call", (actions + choices + attackers + targets) > 0);
-        }
-
-        int lifeA = playerA.getLife();
-        int lifeB = playerB.getLife();
-        boolean won = lifeB <= 0;
-
-        String artifacts = System.getProperty("artifact.dir", "tests");
-        saveMetricsJson(artifacts + "/metrics.json", new JSONObject()
-                .put("puzzle_id", "PS_EOE2")
-                .put("agent", ("mageai".equalsIgnoreCase(STRATEGY) ? "ComputerPlayer7" : "ComputerPlayer8"))
-                .put("strategy", STRATEGY)
-                .put("seed", SEED.isEmpty() ? JSONObject.NULL : Integer.parseInt(SEED))
-                .put("commit", COMMIT)
-                .put("lora_path", LORA_PATH.isEmpty() ? JSONObject.NULL : LORA_PATH)
-                .put("lora_hash", LORA_HASH.isEmpty() ? JSONObject.NULL : LORA_HASH)
-                .put("metadata", new JSONObject(METADATA))
-                .put("actions", actions)
-                .put("choices", choices)
-                .put("attackers", attackers)
-                .put("targets", targets)
-                .put("playerA_life", lifeA)
-                .put("playerB_life", lifeB)
-                .put("won", won)
-                .put("turns_taken", 1));
+        finishAndSave("PS_EOE2", 1);
     }
 
     // Test: PS_BRO3 (Possibility Storm - BRO3)
     @Test
     public void test_PS_BRO3_puzzle_llm_metrics() {
-        httpPost("http://localhost:9000/api/mtg_llm/__test__/reset_counters", "{}");
-        String THIS_TEST = "test_PS_BRO3_puzzle_llm_metrics";
-        System.out.println("[RUNNING] " + THIS_TEST);
-        org.junit.Assume.assumeTrue("Skipping " + THIS_TEST, shouldRun(THIS_TEST));
+        beginPuzzle("test_PS_BRO3_puzzle_llm_metrics", 1);
 
         setLife(playerA, 20);
         setLife(playerB, 20);
@@ -1020,38 +586,7 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         } catch (InterruptedException e) {
         }
 
-        JSONObject metrics = httpGetJson("http://localhost:9000/api/mtg_llm/__test__/metrics");
-        int actions = metrics.optInt("choose_from_all_actions", 0);
-        int choices = metrics.optInt("choose_from_choices", 0);
-        int attackers = metrics.optInt("choose_attackers", 0);
-        int targets = metrics.optInt("choose_targets", 0);
-
-        if (!"mageai".equalsIgnoreCase(STRATEGY)) {
-            assertTrue("Expected at least one external decision call", (actions + choices + attackers + targets) > 0);
-        }
-
-        int lifeA = playerA.getLife();
-        int lifeB = playerB.getLife();
-        boolean won = lifeB <= 0;
-
-        String artifacts = System.getProperty("artifact.dir", "tests");
-        saveMetricsJson(artifacts + "/metrics.json", new JSONObject()
-                .put("puzzle_id", "PS_BRO3")
-                .put("agent", ("mageai".equalsIgnoreCase(STRATEGY) ? "ComputerPlayer7" : "ComputerPlayer8"))
-                .put("strategy", STRATEGY)
-                .put("seed", SEED.isEmpty() ? JSONObject.NULL : Integer.parseInt(SEED))
-                .put("commit", COMMIT)
-                .put("lora_path", LORA_PATH.isEmpty() ? JSONObject.NULL : LORA_PATH)
-                .put("lora_hash", LORA_HASH.isEmpty() ? JSONObject.NULL : LORA_HASH)
-                .put("metadata", new JSONObject(METADATA))
-                .put("actions", actions)
-                .put("choices", choices)
-                .put("attackers", attackers)
-                .put("targets", targets)
-                .put("playerA_life", lifeA)
-                .put("playerB_life", lifeB)
-                .put("won", won)
-                .put("turns_taken", 1));
+        finishAndSave("PS_BRO3", 1);
     }
 
     // Helper to POST JSON to file (simple, not robust)
