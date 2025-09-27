@@ -284,6 +284,142 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         finishAndSave("MTGP_06", 1);
     }
 
+    @Test
+    public void test_MTGP_08_puzzle_llm_metrics() {
+        beginPuzzle("test_MTGP_08_puzzle_llm_metrics", 1);
+
+        // Setup MTGP_08 puzzle scenario (see https://mtgpuzzles.com/puzzle/8)
+        // PlayerA (active): 2 life, hand: Scar
+        // Battlefield: Dread Shade, Carnifex Demon (with 2 -1/-1 counters), Dread
+        // Shade, Swamp x3
+        // PlayerB: 10 life, battlefield: Ashling the Pilgrim, Cascade Bluffs x3, Shivan
+        // Reef x3
+
+        // Set up PlayerA
+        setLife(playerA, 2);
+        addCard(Zone.HAND, playerA, "Scar");
+        addCard(Zone.BATTLEFIELD, playerA, "Dread Shade");
+        addCard(Zone.BATTLEFIELD, playerA, "Carnifex Demon");
+        addCard(Zone.BATTLEFIELD, playerA, "Dread Shade");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp");
+
+        // Set up PlayerB
+        setLife(playerB, 10);
+        addCard(Zone.BATTLEFIELD, playerB, "Ashling the Pilgrim");
+        addCard(Zone.BATTLEFIELD, playerB, "Cascade Bluffs");
+        addCard(Zone.BATTLEFIELD, playerB, "Cascade Bluffs");
+        addCard(Zone.BATTLEFIELD, playerB, "Cascade Bluffs");
+        addCard(Zone.BATTLEFIELD, playerB, "Shivan Reef");
+        addCard(Zone.BATTLEFIELD, playerB, "Shivan Reef");
+        addCard(Zone.BATTLEFIELD, playerB, "Shivan Reef");
+
+        setStrictChooseMode(false);
+
+        // Run for one turn (puzzle specifies "Win this turn")
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("MTGP_08", 1);
+    }
+
+    @Test
+    public void test_MTGP_09_puzzle_llm_metrics() {
+        beginPuzzle("test_MTGP_09_puzzle_llm_metrics", 1);
+
+        // Setup MTGP_09 puzzle scenario (see https://mtgpuzzles.com/puzzle/9)
+        // PlayerA (active): 3 life, hand: Watery Grave; Talisman of Impulse; Mana Crypt
+        // Battlefield: Legacy Weapon, Nimbus Maze, City of Traitors, Fungal Reaches,
+        // River of Tears, Caves of Koilos
+        // PlayerB: -1 life, battlefield: Platinum Angel
+
+        // Set up PlayerA
+        setLife(playerA, 3);
+        addCard(Zone.HAND, playerA, "Watery Grave");
+        addCard(Zone.HAND, playerA, "Talisman of Impulse");
+        addCard(Zone.HAND, playerA, "Mana Crypt");
+        addCard(Zone.BATTLEFIELD, playerA, "Legacy Weapon");
+        addCard(Zone.BATTLEFIELD, playerA, "Nimbus Maze");
+        addCard(Zone.BATTLEFIELD, playerA, "City of Traitors");
+        addCard(Zone.BATTLEFIELD, playerA, "Fungal Reaches");
+        addCard(Zone.BATTLEFIELD, playerA, "River of Tears");
+        addCard(Zone.BATTLEFIELD, playerA, "Caves of Koilos");
+
+        // Set up PlayerB
+        setLife(playerB, -1);
+        addCard(Zone.BATTLEFIELD, playerB, "Platinum Angel");
+
+        setStrictChooseMode(false);
+
+        // Run for one turn (puzzle specifies "Win this turn")
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("MTGP_09", 1);
+    }
+
+    @Test
+    public void test_MTGP_05_puzzle_llm_metrics() {
+        beginPuzzle("test_MTGP_05_puzzle_llm_metrics", 1);
+
+        // Setup MTGP_05 puzzle scenario (see https://mtgpuzzles.com/puzzle/5)
+        // PlayerA (active): 6 life, hand: Electrostatic Bolt; Inner Calm, Outer
+        // Strength; Crash
+        // Library: Blessings of Nature (only card)
+        // Battlefield: Goblin Spy, Frontline Devastator, Forest x3, Mountain x3
+        // PlayerB: 6 life, battlefield: Butcher Ghoul, Guardian Automaton, Damping
+        // Sphere
+        // Turn 20, Upkeep phase
+
+        // Set up PlayerA
+        setLife(playerA, 6);
+        addCard(Zone.HAND, playerA, "Electrostatic Bolt");
+        addCard(Zone.HAND, playerA, "Inner Calm, Outer Strength");
+        addCard(Zone.HAND, playerA, "Crash");
+        addCard(Zone.LIBRARY, playerA, "Blessings of Nature");
+        addCard(Zone.BATTLEFIELD, playerA, "Goblin Spy");
+        addCard(Zone.BATTLEFIELD, playerA, "Frontline Devastator");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain");
+
+        // Set up PlayerB
+        setLife(playerB, 6);
+        addCard(Zone.BATTLEFIELD, playerB, "Butcher Ghoul");
+        addCard(Zone.BATTLEFIELD, playerB, "Guardian Automaton");
+        addCard(Zone.BATTLEFIELD, playerB, "Damping Sphere");
+
+        setStrictChooseMode(false);
+
+        // Run for one turn (puzzle specifies "Win this turn")
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("MTGP_05", 1);
+    }
+
     // Test: PS_STX1 (Possibility Storm - Strixhaven #01)
     @Test
     public void test_PS_STX1_puzzle_llm_metrics() {
@@ -314,6 +450,329 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         }
 
         finishAndSave("PS_STX1", 1);
+    }
+
+    @Test
+    public void test_PS_STX2_puzzle_llm_metrics() {
+        beginPuzzle("test_PS_STX2_puzzle_llm_metrics", 1);
+
+        // Setup PS_STX2 puzzle scenario (see
+        // https://i1.wp.com/www.possibilitystorm.com/wp-content/uploads/2021/05/173.-STX2-scaled.jpg)
+        // PlayerA (active): 20 life, hand: Plumb the Forbidden; Peer into the Abyss;
+        // Quandrix Command; Poison the Cup
+        // Library: 36x Opt cards
+        // Battlefield: Kasmina, Enigma Sage (4 loyalty), Garruk, Cursed Huntsman (5
+        // loyalty), Gingerbrute (with 6 +1/+1 counters), Lorescale Coatl (with 2 +1/+1
+        // counters), Eyetwitch, 4x Necroblossom Snarl, 3x Vineglimmer Snarl
+        // Exile: Mystic Reflection (Foretold)
+        // Sideboard: Expanded Anatomy, Environmental Sciences, Confront the Past
+        // PlayerB: 19 life, battlefield: Cubwarden, Eradicator Valkyrie, Chrome
+        // Replicator, Glorious Anthem
+
+        // Set up PlayerA
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Plumb the Forbidden");
+        addCard(Zone.HAND, playerA, "Peer into the Abyss");
+        addCard(Zone.HAND, playerA, "Quandrix Command");
+        addCard(Zone.HAND, playerA, "Poison the Cup");
+        // Add 36 Opt cards to library
+        for (int i = 0; i < 36; i++) {
+            addCard(Zone.LIBRARY, playerA, "Opt");
+        }
+        addCard(Zone.BATTLEFIELD, playerA, "Kasmina, Enigma Sage");
+        addCard(Zone.BATTLEFIELD, playerA, "Garruk, Cursed Huntsman");
+        addCard(Zone.BATTLEFIELD, playerA, "Gingerbrute");
+        addCard(Zone.BATTLEFIELD, playerA, "Lorescale Coatl");
+        addCard(Zone.BATTLEFIELD, playerA, "Eyetwitch");
+        addCard(Zone.BATTLEFIELD, playerA, "Necroblossom Snarl");
+        addCard(Zone.BATTLEFIELD, playerA, "Necroblossom Snarl");
+        addCard(Zone.BATTLEFIELD, playerA, "Necroblossom Snarl");
+        addCard(Zone.BATTLEFIELD, playerA, "Necroblossom Snarl");
+        addCard(Zone.BATTLEFIELD, playerA, "Vineglimmer Snarl");
+        addCard(Zone.BATTLEFIELD, playerA, "Vineglimmer Snarl");
+        addCard(Zone.BATTLEFIELD, playerA, "Vineglimmer Snarl");
+        addCard(Zone.EXILED, playerA, "Mystic Reflection");
+
+        // Set up PlayerB
+        setLife(playerB, 19);
+        addCard(Zone.BATTLEFIELD, playerB, "Cubwarden");
+        addCard(Zone.BATTLEFIELD, playerB, "Eradicator Valkyrie");
+        addCard(Zone.BATTLEFIELD, playerB, "Chrome Replicator");
+        addCard(Zone.BATTLEFIELD, playerB, "Glorious Anthem");
+
+        setStrictChooseMode(false);
+
+        // Run for one turn (puzzle specifies "Win this turn")
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PS_STX2", 1);
+    }
+
+    @Test
+    public void test_PS_STX3_puzzle_llm_metrics() {
+        beginPuzzle("test_PS_STX3_puzzle_llm_metrics", 1);
+
+        // Setup PS_STX3 puzzle scenario (see
+        // https://i2.wp.com/www.possibilitystorm.com/wp-content/uploads/2021/05/174.-STX3-scaled.jpg)
+        // PlayerA (active): 20 life, hand: Witherbloom Command; Valentin, Dean of the
+        // Vein; Cram Session; Bake into a Pie
+        // Battlefield: Eyetwitch, Accomplished Alchemist, Bushmeat Poacher, Swamp x4,
+        // Forest x3
+        // Sideboard: Expanded Anatomy, Environmental Sciences, Necrotic Fumes,
+        // Containment Breach, Pest Summoning
+        // PlayerB: 9 life, battlefield: 4/4 Giant Wizard token, Giant's Amulet
+        // (attached)
+
+        // Set up PlayerA
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Witherbloom Command");
+        addCard(Zone.HAND, playerA, "Valentin, Dean of the Vein");
+        addCard(Zone.HAND, playerA, "Cram Session");
+        addCard(Zone.HAND, playerA, "Bake into a Pie");
+        addCard(Zone.BATTLEFIELD, playerA, "Eyetwitch");
+        addCard(Zone.BATTLEFIELD, playerA, "Accomplished Alchemist");
+        addCard(Zone.BATTLEFIELD, playerA, "Bushmeat Poacher");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest");
+
+        // Set up PlayerB
+        setLife(playerB, 9);
+        // Add 4/4 Giant Wizard token
+        try {
+            addCard(Zone.BATTLEFIELD, playerB, "Giant Wizard Token");
+            addCard(Zone.BATTLEFIELD, playerB, "Giant's Amulet");
+            // TODO: Attach Giant's Amulet to the Giant Wizard token
+        } catch (Exception e) {
+            System.err.println("Giant Wizard Token not available, skipping PS_STX3: " + e.getMessage());
+            org.junit.Assume.assumeTrue("Giant Wizard Token missing", false);
+        }
+
+        setStrictChooseMode(false);
+
+        // Run for one turn (puzzle specifies "Win this turn")
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PS_STX3", 1);
+    }
+
+    @Test
+    public void test_PS_STX4_puzzle_llm_metrics() {
+        beginPuzzle("test_PS_STX4_puzzle_llm_metrics", 1);
+
+        // Setup PS_STX4 puzzle scenario (see
+        // https://i2.wp.com/www.possibilitystorm.com/wp-content/uploads/2021/06/175.-STX4-scaled.jpg)
+        // PlayerA (active): 1 life, hand: Silverquill Command; Killian, Ink Duelist;
+        // Heated Debate; Tome Shredder
+        // Library: 40x Opt cards
+        // Battlefield: Bonecrusher Giant, Blade Historian, Dogged Pursuit x3, Savai
+        // Triome x3, Furycalm Snarl x3
+        // PlayerB: 6 life, battlefield: Leyline Tyrant
+        // PlayerB has 7 red mana floating
+
+        // Set up PlayerA
+        setLife(playerA, 1);
+        addCard(Zone.HAND, playerA, "Silverquill Command");
+        addCard(Zone.HAND, playerA, "Killian, Ink Duelist");
+        addCard(Zone.HAND, playerA, "Heated Debate");
+        addCard(Zone.HAND, playerA, "Tome Shredder");
+        // Add 40 Opt cards to library
+        for (int i = 0; i < 40; i++) {
+            addCard(Zone.LIBRARY, playerA, "Opt");
+        }
+        addCard(Zone.BATTLEFIELD, playerA, "Bonecrusher Giant");
+        addCard(Zone.BATTLEFIELD, playerA, "Blade Historian");
+        addCard(Zone.BATTLEFIELD, playerA, "Dogged Pursuit");
+        addCard(Zone.BATTLEFIELD, playerA, "Dogged Pursuit");
+        addCard(Zone.BATTLEFIELD, playerA, "Dogged Pursuit");
+        addCard(Zone.BATTLEFIELD, playerA, "Savai Triome");
+        addCard(Zone.BATTLEFIELD, playerA, "Savai Triome");
+        addCard(Zone.BATTLEFIELD, playerA, "Savai Triome");
+        addCard(Zone.BATTLEFIELD, playerA, "Furycalm Snarl");
+        addCard(Zone.BATTLEFIELD, playerA, "Furycalm Snarl");
+        addCard(Zone.BATTLEFIELD, playerA, "Furycalm Snarl");
+
+        // Set up PlayerB
+        setLife(playerB, 6);
+        addCard(Zone.BATTLEFIELD, playerB, "Leyline Tyrant");
+
+        setStrictChooseMode(false);
+
+        // Run for one turn (puzzle specifies "Win this turn")
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PS_STX4", 1);
+    }
+
+    @Test
+    public void test_PS_RNA8_puzzle_llm_metrics() {
+        beginPuzzle("test_PS_RNA8_puzzle_llm_metrics", 1);
+
+        // Setup PS_RNA8 puzzle scenario (see
+        // http://www.possibilitystorm.com/wp-content/uploads/2019/03/105.-RNA8.jpg)
+        // PlayerA (active): 20 life, hand: Academy Journeymage; Prosperous Pirates;
+        // Island; Arcane Adaptation
+        // Library: 20x Angel of Grace
+        // Battlefield: Karn, Scion of Urza (2 loyalty), Merfolk Mistbinder, Eyes
+        // Everywhere, Breeding Pool x4, Island x4
+        // Exile: Glacial Fortress (with 1 silver counter), Deputy of Detention (with 1
+        // silver counter)
+        // PlayerB: 12 life, battlefield: Volley Veteran, Zhur-Taa Goblin, Karn, Scion
+        // of Urza (2 loyalty), Helm of the Host (attached to Volley Veteran)
+
+        // Set up PlayerA
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Academy Journeymage");
+        addCard(Zone.HAND, playerA, "Prosperous Pirates");
+        addCard(Zone.HAND, playerA, "Island");
+        addCard(Zone.HAND, playerA, "Arcane Adaptation");
+        // Add 20 Angel of Grace cards to library
+        for (int i = 0; i < 20; i++) {
+            addCard(Zone.LIBRARY, playerA, "Angel of Grace");
+        }
+        addCard(Zone.BATTLEFIELD, playerA, "Karn, Scion of Urza");
+        addCard(Zone.BATTLEFIELD, playerA, "Merfolk Mistbinder");
+        addCard(Zone.BATTLEFIELD, playerA, "Eyes Everywhere");
+        addCard(Zone.BATTLEFIELD, playerA, "Breeding Pool");
+        addCard(Zone.BATTLEFIELD, playerA, "Breeding Pool");
+        addCard(Zone.BATTLEFIELD, playerA, "Breeding Pool");
+        addCard(Zone.BATTLEFIELD, playerA, "Breeding Pool");
+        addCard(Zone.BATTLEFIELD, playerA, "Island");
+        addCard(Zone.BATTLEFIELD, playerA, "Island");
+        addCard(Zone.BATTLEFIELD, playerA, "Island");
+        addCard(Zone.BATTLEFIELD, playerA, "Island");
+        addCard(Zone.EXILED, playerA, "Glacial Fortress");
+        addCard(Zone.EXILED, playerA, "Deputy of Detention");
+
+        // Set up PlayerB
+        setLife(playerB, 12);
+        addCard(Zone.BATTLEFIELD, playerB, "Volley Veteran");
+        addCard(Zone.BATTLEFIELD, playerB, "Zhur-Taa Goblin");
+        addCard(Zone.BATTLEFIELD, playerB, "Karn, Scion of Urza");
+        addCard(Zone.BATTLEFIELD, playerB, "Helm of the Host");
+        // TODO: Attach Helm of the Host to Volley Veteran
+
+        setStrictChooseMode(false);
+
+        // Run for one turn (puzzle specifies "Win this turn")
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PS_RNA8", 1);
+    }
+
+    @Test
+    public void test_PS_RNA9_puzzle_llm_metrics() {
+        beginPuzzle("test_PS_RNA9_puzzle_llm_metrics", 1);
+
+        // Setup PS_RNA9 puzzle scenario (see
+        // http://www.possibilitystorm.com/wp-content/uploads/2019/03/106.RNA9_.jpg)
+        // PlayerA (active): 20 life, hand: Fiery Finish; Salvager of Secrets; Homarid
+        // Explorer; Mnemonic Betrayal; Thud
+        // Library: 40x Angel of Grace
+        // Battlefield: Goblin Electromancer, Fanatical Firebrand, Jaya Ballard (7
+        // loyalty), Watery Grave x4, Blood Crypt x4, Island x2
+        // PlayerB: 20 life, hand: Swamp
+        // Library: 8x Angel of Grace
+        // Graveyard: Drowned Secrets, Howling Golem, Homarid Explorer, Arclight
+        // Phoenix, Act of Treason, Millstone, Vicious Rumors, Screaming Shield, Act of
+        // Treason
+        // Battlefield: Fleet Swallower, The Haunt of Hightower, Omnispell Adept, Siren
+        // Stormtamer, Nightveil Predator, Wand of Vertebrae (tapped)
+        // PlayerB has 1 blue mana floating
+
+        // Set up PlayerA
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Fiery Finish");
+        addCard(Zone.HAND, playerA, "Salvager of Secrets");
+        addCard(Zone.HAND, playerA, "Homarid Explorer");
+        addCard(Zone.HAND, playerA, "Mnemonic Betrayal");
+        addCard(Zone.HAND, playerA, "Thud");
+        // Add 40 Angel of Grace cards to library
+        for (int i = 0; i < 40; i++) {
+            addCard(Zone.LIBRARY, playerA, "Angel of Grace");
+        }
+        addCard(Zone.BATTLEFIELD, playerA, "Goblin Electromancer");
+        addCard(Zone.BATTLEFIELD, playerA, "Fanatical Firebrand");
+        addCard(Zone.BATTLEFIELD, playerA, "Jaya Ballard");
+        addCard(Zone.BATTLEFIELD, playerA, "Watery Grave");
+        addCard(Zone.BATTLEFIELD, playerA, "Watery Grave");
+        addCard(Zone.BATTLEFIELD, playerA, "Watery Grave");
+        addCard(Zone.BATTLEFIELD, playerA, "Watery Grave");
+        addCard(Zone.BATTLEFIELD, playerA, "Blood Crypt");
+        addCard(Zone.BATTLEFIELD, playerA, "Blood Crypt");
+        addCard(Zone.BATTLEFIELD, playerA, "Blood Crypt");
+        addCard(Zone.BATTLEFIELD, playerA, "Blood Crypt");
+        addCard(Zone.BATTLEFIELD, playerA, "Island");
+        addCard(Zone.BATTLEFIELD, playerA, "Island");
+
+        // Set up PlayerB
+        setLife(playerB, 20);
+        addCard(Zone.HAND, playerB, "Swamp");
+        // Add 8 Angel of Grace cards to library
+        for (int i = 0; i < 8; i++) {
+            addCard(Zone.LIBRARY, playerB, "Angel of Grace");
+        }
+        addCard(Zone.GRAVEYARD, playerB, "Drowned Secrets");
+        addCard(Zone.GRAVEYARD, playerB, "Howling Golem");
+        addCard(Zone.GRAVEYARD, playerB, "Homarid Explorer");
+        addCard(Zone.GRAVEYARD, playerB, "Arclight Phoenix");
+        addCard(Zone.GRAVEYARD, playerB, "Act of Treason");
+        addCard(Zone.GRAVEYARD, playerB, "Millstone");
+        addCard(Zone.GRAVEYARD, playerB, "Vicious Rumors");
+        addCard(Zone.GRAVEYARD, playerB, "Screaming Shield");
+        addCard(Zone.GRAVEYARD, playerB, "Act of Treason");
+        addCard(Zone.BATTLEFIELD, playerB, "Fleet Swallower");
+        addCard(Zone.BATTLEFIELD, playerB, "The Haunt of Hightower");
+        addCard(Zone.BATTLEFIELD, playerB, "Omnispell Adept");
+        addCard(Zone.BATTLEFIELD, playerB, "Siren Stormtamer");
+        addCard(Zone.BATTLEFIELD, playerB, "Nightveil Predator");
+        addCard(Zone.BATTLEFIELD, playerB, "Wand of Vertebrae", 1, true); // tapped
+
+        setStrictChooseMode(false);
+
+        // Run for one turn (puzzle specifies "Win this turn")
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PS_RNA9", 1);
     }
 
     // Test: PS_RNA7 (Possibility Storm - Ravnica Allegiance #07)
@@ -382,6 +841,291 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         }
 
         finishAndSave("PS_THB9", 1);
+    }
+
+    @Test
+    public void test_PS_THB6_puzzle_llm_metrics() {
+        beginPuzzle("test_PS_THB6_puzzle_llm_metrics", 1);
+
+        // Setup PS_THB6 puzzle scenario (see
+        // https://i0.wp.com/www.possibilitystorm.com/wp-content/uploads/2020/02/149.-THB6-1-scaled.jpg)
+        // PlayerA (active): 20 life, hand: Assassin's Trophy; Unmoored Ego; Applied
+        // Biomancy; Underworld Dreams; Tyrant's Scorn
+        // Library: 30x Opt cards
+        // Battlefield: Ob Nixilis, the Hate-Twisted (2 loyalty), Nessian Boar, Thief of
+        // Sanity x2, Watery Grave x4, Breeding Pool x3
+        // PlayerB: 18 life, library: Pollenbright Druid (top card) + 12x Opt cards
+        // Battlefield: Silhana Wayfinder x2, Blightbeetle, Wavebreak Hippocamp
+
+        // Set up PlayerA
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Assassin's Trophy");
+        addCard(Zone.HAND, playerA, "Unmoored Ego");
+        addCard(Zone.HAND, playerA, "Applied Biomancy");
+        addCard(Zone.HAND, playerA, "Underworld Dreams");
+        addCard(Zone.HAND, playerA, "Tyrant's Scorn");
+        // Add 30 Opt cards to library
+        for (int i = 0; i < 30; i++) {
+            addCard(Zone.LIBRARY, playerA, "Opt");
+        }
+        addCard(Zone.BATTLEFIELD, playerA, "Ob Nixilis, the Hate-Twisted");
+        addCard(Zone.BATTLEFIELD, playerA, "Nessian Boar");
+        addCard(Zone.BATTLEFIELD, playerA, "Thief of Sanity");
+        addCard(Zone.BATTLEFIELD, playerA, "Thief of Sanity");
+        addCard(Zone.BATTLEFIELD, playerA, "Watery Grave");
+        addCard(Zone.BATTLEFIELD, playerA, "Watery Grave");
+        addCard(Zone.BATTLEFIELD, playerA, "Watery Grave");
+        addCard(Zone.BATTLEFIELD, playerA, "Watery Grave");
+        addCard(Zone.BATTLEFIELD, playerA, "Breeding Pool");
+        addCard(Zone.BATTLEFIELD, playerA, "Breeding Pool");
+        addCard(Zone.BATTLEFIELD, playerA, "Breeding Pool");
+
+        // Set up PlayerB
+        setLife(playerB, 18);
+        // Add Pollenbright Druid to top of library, then 12 Opt cards
+        addCard(Zone.LIBRARY, playerB, "Pollenbright Druid");
+        for (int i = 0; i < 12; i++) {
+            addCard(Zone.LIBRARY, playerB, "Opt");
+        }
+        addCard(Zone.BATTLEFIELD, playerB, "Silhana Wayfinder");
+        addCard(Zone.BATTLEFIELD, playerB, "Silhana Wayfinder");
+        addCard(Zone.BATTLEFIELD, playerB, "Blightbeetle");
+        addCard(Zone.BATTLEFIELD, playerB, "Wavebreak Hippocamp");
+
+        setStrictChooseMode(false);
+
+        // Run for one turn (puzzle specifies "Win this turn")
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PS_THB6", 1);
+    }
+
+    @Test
+    public void test_PS_THB7_puzzle_llm_metrics() {
+        beginPuzzle("test_PS_THB7_puzzle_llm_metrics", 100);
+
+        // Setup PS_THB7 puzzle scenario (see
+        // https://i2.wp.com/www.possibilitystorm.com/wp-content/uploads/2020/03/150.-THB7-scaled.jpg)
+        // PlayerA (active): 3 life, hand: Lazotep Plating; Slaying Fire; So Tiny;
+        // Shock; Gideon's Triumph; Aspect of Manticore
+        // Battlefield: The Akroan War (2 lore counters), Blood Aspirant, Flux
+        // Channeler, Naiad of Hidden Coves, Temple of Enlightenment x2, Sacred Foundry
+        // x2
+        // PlayerB: 11 life, battlefield: 3x Underworld Dreams, Ferocity of the Wilds,
+        // Goblin Assault Team, Temple Thief, Mire Triton, Dreadhorde Butcher
+        // It's opponent's turn (first main phase)
+
+        // Set up PlayerA
+        setLife(playerA, 3);
+        addCard(Zone.HAND, playerA, "Lazotep Plating");
+        addCard(Zone.HAND, playerA, "Slaying Fire");
+        addCard(Zone.HAND, playerA, "So Tiny");
+        addCard(Zone.HAND, playerA, "Shock");
+        addCard(Zone.HAND, playerA, "Gideon's Triumph");
+        addCard(Zone.HAND, playerA, "Aspect of Manticore");
+        addCard(Zone.BATTLEFIELD, playerA, "The Akroan War");
+        addCard(Zone.BATTLEFIELD, playerA, "Blood Aspirant");
+        addCard(Zone.BATTLEFIELD, playerA, "Flux Channeler");
+        addCard(Zone.BATTLEFIELD, playerA, "Naiad of Hidden Coves");
+        addCard(Zone.BATTLEFIELD, playerA, "Temple of Enlightenment");
+        addCard(Zone.BATTLEFIELD, playerA, "Temple of Enlightenment");
+        addCard(Zone.BATTLEFIELD, playerA, "Sacred Foundry");
+        addCard(Zone.BATTLEFIELD, playerA, "Sacred Foundry");
+
+        // Set up PlayerB
+        setLife(playerB, 11);
+        addCard(Zone.BATTLEFIELD, playerB, "Underworld Dreams");
+        addCard(Zone.BATTLEFIELD, playerB, "Underworld Dreams");
+        addCard(Zone.BATTLEFIELD, playerB, "Underworld Dreams");
+        addCard(Zone.BATTLEFIELD, playerB, "Ferocity of the Wilds");
+        addCard(Zone.BATTLEFIELD, playerB, "Goblin Assault Team");
+        addCard(Zone.BATTLEFIELD, playerB, "Temple Thief");
+        addCard(Zone.BATTLEFIELD, playerB, "Mire Triton");
+        addCard(Zone.BATTLEFIELD, playerB, "Dreadhorde Butcher");
+
+        setStrictChooseMode(false);
+
+        // Run for 100 turns (puzzle specifies "win before you lose")
+        setStopAt(100, PhaseStep.END_TURN);
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PS_THB7", 100);
+    }
+
+    @Test
+    public void test_PS_THB8_puzzle_llm_metrics() {
+        beginPuzzle("test_PS_THB8_puzzle_llm_metrics", 1);
+
+        // Setup PS_THB8 puzzle scenario (see
+        // https://i2.wp.com/www.possibilitystorm.com/wp-content/uploads/2020/03/151.-THB8-scaled.jpg)
+        // PlayerA (active): 20 life, hand: Bone Splinters; Gray Merchant of Asphodel;
+        // Mogis's Favor; Kaya's Ghostform; Massacre Girl
+        // Battlefield: Nightmare Shepherd x2, Nyx Lotus, Swamp x6
+        // PlayerB: 23 life, battlefield: Bishop of Wings, Angelic Guardian, Sunblade
+        // Angel
+
+        // Set up PlayerA
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Bone Splinters");
+        addCard(Zone.HAND, playerA, "Gray Merchant of Asphodel");
+        addCard(Zone.HAND, playerA, "Mogis's Favor");
+        addCard(Zone.HAND, playerA, "Kaya's Ghostform");
+        addCard(Zone.HAND, playerA, "Massacre Girl");
+        addCard(Zone.BATTLEFIELD, playerA, "Nightmare Shepherd");
+        addCard(Zone.BATTLEFIELD, playerA, "Nightmare Shepherd");
+        addCard(Zone.BATTLEFIELD, playerA, "Nyx Lotus");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp");
+
+        // Set up PlayerB
+        setLife(playerB, 23);
+        addCard(Zone.BATTLEFIELD, playerB, "Bishop of Wings");
+        addCard(Zone.BATTLEFIELD, playerB, "Angelic Guardian");
+        addCard(Zone.BATTLEFIELD, playerB, "Sunblade Angel");
+
+        setStrictChooseMode(false);
+
+        // Run for one turn (puzzle specifies "Win this turn")
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PS_THB8", 1);
+    }
+
+    @Test
+    public void test_PS_THB2_puzzle_llm_metrics() {
+        beginPuzzle("test_PS_THB2_puzzle_llm_metrics", 1);
+
+        // Setup PS_THB2 puzzle scenario (see
+        // https://i1.wp.com/www.possibilitystorm.com/wp-content/uploads/2020/01/145.-THB2-1-scaled.jpg)
+        // PlayerA (active): 1 life, hand: Nylea's Intervention; Faerie Guidemother;
+        // Wakeroot Elemental; Flicker of Fate
+        // Battlefield: Living Twister, Bronzehide Lion, Truefire Captain, Nyxbloom
+        // Ancient (exiled), Stomping Ground x4, Sacred Foundry x3
+        // PlayerB: 17 life, battlefield: Sphinx of Foresight, Deputy of Detention
+
+        // Set up PlayerA
+        setLife(playerA, 1);
+        addCard(Zone.HAND, playerA, "Nylea's Intervention");
+        addCard(Zone.HAND, playerA, "Faerie Guidemother");
+        addCard(Zone.HAND, playerA, "Wakeroot Elemental");
+        addCard(Zone.HAND, playerA, "Flicker of Fate");
+        addCard(Zone.BATTLEFIELD, playerA, "Living Twister");
+        addCard(Zone.BATTLEFIELD, playerA, "Bronzehide Lion");
+        addCard(Zone.BATTLEFIELD, playerA, "Truefire Captain");
+        addCard(Zone.BATTLEFIELD, playerA, "Stomping Ground");
+        addCard(Zone.BATTLEFIELD, playerA, "Stomping Ground");
+        addCard(Zone.BATTLEFIELD, playerA, "Stomping Ground");
+        addCard(Zone.BATTLEFIELD, playerA, "Stomping Ground");
+        addCard(Zone.BATTLEFIELD, playerA, "Sacred Foundry");
+        addCard(Zone.BATTLEFIELD, playerA, "Sacred Foundry");
+        addCard(Zone.BATTLEFIELD, playerA, "Sacred Foundry");
+        // Nyxbloom Ancient is exiled by opponent's Deputy of Detention
+
+        // Set up PlayerB
+        setLife(playerB, 17);
+        addCard(Zone.BATTLEFIELD, playerB, "Sphinx of Foresight");
+        addCard(Zone.BATTLEFIELD, playerB, "Deputy of Detention");
+
+        setStrictChooseMode(false);
+
+        // Run for one turn (puzzle specifies "Win this turn")
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PS_THB2", 1);
+    }
+
+    @Test
+    public void test_PS_THB3_puzzle_llm_metrics() {
+        beginPuzzle("test_PS_THB3_puzzle_llm_metrics", 1);
+
+        // Setup PS_THB3 puzzle scenario (see
+        // https://i0.wp.com/www.possibilitystorm.com/wp-content/uploads/2020/02/146.-THB3-1-scaled.jpg)
+        // PlayerA (active): 20 life, hand: Gingerbrute; Purphoros, Bronze-Blooded;
+        // Nyxborn Brute; Mire's Grasp; Omen of the Dead
+        // Library: 30x Opt cards
+        // Graveyard: Rotting Regisaur, Erebos, Bleak-Hearted, Kroxa, Titan of Death's
+        // Hunger
+        // Battlefield: Lazav, the Multifarious, Protean Thaumaturge, Bloodmist
+        // Infiltrator, The Royal Scions (3 loyalty), Blood Crypt x4, Watery Grave x4
+        // PlayerB: 17 life, battlefield: Cerulean Drake x2, Archon of Sun's Grace
+
+        // Set up PlayerA
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Gingerbrute");
+        addCard(Zone.HAND, playerA, "Purphoros, Bronze-Blooded");
+        addCard(Zone.HAND, playerA, "Nyxborn Brute");
+        addCard(Zone.HAND, playerA, "Mire's Grasp");
+        addCard(Zone.HAND, playerA, "Omen of the Dead");
+        // Add 30 Opt cards to library
+        for (int i = 0; i < 30; i++) {
+            addCard(Zone.LIBRARY, playerA, "Opt");
+        }
+        addCard(Zone.GRAVEYARD, playerA, "Rotting Regisaur");
+        addCard(Zone.GRAVEYARD, playerA, "Erebos, Bleak-Hearted");
+        addCard(Zone.GRAVEYARD, playerA, "Kroxa, Titan of Death's Hunger");
+        addCard(Zone.BATTLEFIELD, playerA, "Lazav, the Multifarious");
+        addCard(Zone.BATTLEFIELD, playerA, "Protean Thaumaturge");
+        addCard(Zone.BATTLEFIELD, playerA, "Bloodmist Infiltrator");
+        addCard(Zone.BATTLEFIELD, playerA, "The Royal Scions");
+        addCard(Zone.BATTLEFIELD, playerA, "Blood Crypt");
+        addCard(Zone.BATTLEFIELD, playerA, "Blood Crypt");
+        addCard(Zone.BATTLEFIELD, playerA, "Blood Crypt");
+        addCard(Zone.BATTLEFIELD, playerA, "Blood Crypt");
+        addCard(Zone.BATTLEFIELD, playerA, "Watery Grave");
+        addCard(Zone.BATTLEFIELD, playerA, "Watery Grave");
+        addCard(Zone.BATTLEFIELD, playerA, "Watery Grave");
+        addCard(Zone.BATTLEFIELD, playerA, "Watery Grave");
+
+        // Set up PlayerB
+        setLife(playerB, 17);
+        addCard(Zone.BATTLEFIELD, playerB, "Cerulean Drake");
+        addCard(Zone.BATTLEFIELD, playerB, "Cerulean Drake");
+        addCard(Zone.BATTLEFIELD, playerB, "Archon of Sun's Grace");
+
+        setStrictChooseMode(false);
+
+        // Run for one turn (puzzle specifies "Win this turn")
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PS_THB3", 1);
     }
 
     // Test: PC_060215 (Perplexing Chimera 060215 - Burning Bright)
@@ -517,6 +1261,230 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         }
 
         finishAndSave("PS_MOM2", 1);
+    }
+
+    @Test
+    public void test_PS_MOM3_puzzle_llm_metrics() {
+        beginPuzzle("test_PS_MOM3_puzzle_llm_metrics", 1);
+
+        // Setup PS_MOM3 puzzle scenario (see
+        // https://i2.wp.com/www.possibilitystorm.com/wp-content/uploads/2023/05/latest-scaled.jpg?ssl=1)
+        // PlayerA (active): 20 life, hand: Aspirant's Ascent; Lagrella, the Magpie;
+        // White Sun's Twilight; Bladehold War-Whip; Mysterious Limousine; Coming in Hot
+        // Library: 23x Opt cards
+        // Battlefield: In the Trenches, Veil of Assimilation, Tribute to the World
+        // Tree, Bitter Reunion, 2x 1/1 Soldier tokens, 4x Rockfall Vale, 4x Deserted
+        // Beach, King Darien XLVIII (exiled)
+        // PlayerB: 26 life, battlefield: Alabaster Host Intercessor, Paladin of
+        // Predation
+
+        // Set up PlayerA
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Aspirant's Ascent");
+        addCard(Zone.HAND, playerA, "Lagrella, the Magpie");
+        addCard(Zone.HAND, playerA, "White Sun's Twilight");
+        addCard(Zone.HAND, playerA, "Bladehold War-Whip");
+        addCard(Zone.HAND, playerA, "Mysterious Limousine");
+        addCard(Zone.HAND, playerA, "Coming in Hot");
+        // Add 23 Opt cards to library
+        for (int i = 0; i < 23; i++) {
+            addCard(Zone.LIBRARY, playerA, "Opt");
+        }
+        addCard(Zone.BATTLEFIELD, playerA, "In the Trenches");
+        addCard(Zone.BATTLEFIELD, playerA, "Veil of Assimilation");
+        addCard(Zone.BATTLEFIELD, playerA, "Tribute to the World Tree");
+        addCard(Zone.BATTLEFIELD, playerA, "Bitter Reunion");
+        // Add 2x 1/1 Soldier tokens
+        try {
+            addCard(Zone.BATTLEFIELD, playerA, "Soldier Token", 2);
+        } catch (Exception e) {
+            System.err.println("Soldier Token not available, skipping PS_MOM3: " + e.getMessage());
+            org.junit.Assume.assumeTrue("Soldier Token missing", false);
+        }
+        addCard(Zone.BATTLEFIELD, playerA, "Rockfall Vale");
+        addCard(Zone.BATTLEFIELD, playerA, "Rockfall Vale");
+        addCard(Zone.BATTLEFIELD, playerA, "Rockfall Vale");
+        addCard(Zone.BATTLEFIELD, playerA, "Rockfall Vale");
+        addCard(Zone.BATTLEFIELD, playerA, "Deserted Beach");
+        addCard(Zone.BATTLEFIELD, playerA, "Deserted Beach");
+        addCard(Zone.BATTLEFIELD, playerA, "Deserted Beach");
+        addCard(Zone.BATTLEFIELD, playerA, "Deserted Beach");
+        // King Darien is exiled by opponent's Alabaster Host Intercessor
+
+        // Set up PlayerB
+        setLife(playerB, 26);
+        addCard(Zone.BATTLEFIELD, playerB, "Alabaster Host Intercessor");
+        addCard(Zone.BATTLEFIELD, playerB, "Paladin of Predation");
+
+        setStrictChooseMode(false);
+
+        // Run for one turn (puzzle specifies "Win this turn")
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PS_MOM3", 1);
+    }
+
+    @Test
+    public void test_PS_MOM4_puzzle_llm_metrics() {
+        beginPuzzle("test_PS_MOM4_puzzle_llm_metrics", 1);
+
+        // Setup PS_MOM4 puzzle scenario (see
+        // https://twitter.com/mtgpuzzles/status/1663333448696868866/photo/1)
+        // PlayerA (active): 20 life, hand: Furnace Reins; Mirran Banesplitter; Voldaren
+        // Thrillseeker; Enduring Bondwarden; Boon-Bringer Valkyrie
+        // Battlefield: Trailblazing Historian, Mirror-Shield Hoplite, Plains x2,
+        // Mountain x2, Wind-Scarred Crag
+        // PlayerB: 14 life, battlefield: Incubator token (0/0 Phyrexian with 3 +1/+1
+        // counters)
+
+        // Set up PlayerA
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Furnace Reins");
+        addCard(Zone.HAND, playerA, "Mirran Banesplitter");
+        addCard(Zone.HAND, playerA, "Voldaren Thrillseeker");
+        addCard(Zone.HAND, playerA, "Enduring Bondwarden");
+        addCard(Zone.HAND, playerA, "Boon-Bringer Valkyrie");
+        addCard(Zone.BATTLEFIELD, playerA, "Trailblazing Historian");
+        addCard(Zone.BATTLEFIELD, playerA, "Mirror-Shield Hoplite");
+        addCard(Zone.BATTLEFIELD, playerA, "Plains");
+        addCard(Zone.BATTLEFIELD, playerA, "Plains");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain");
+        addCard(Zone.BATTLEFIELD, playerA, "Wind-Scarred Crag");
+
+        // Set up PlayerB
+        setLife(playerB, 14);
+        // Add Incubator token (0/0 Phyrexian with 3 +1/+1 counters)
+        try {
+            addCard(Zone.BATTLEFIELD, playerB, "Incubator Token");
+            // TODO: Add 3 +1/+1 counters to the token
+        } catch (Exception e) {
+            System.err.println("Incubator Token not available, skipping PS_MOM4: " + e.getMessage());
+            org.junit.Assume.assumeTrue("Incubator Token missing", false);
+        }
+
+        setStrictChooseMode(false);
+
+        // Run for one turn (puzzle specifies "Win this turn")
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PS_MOM4", 1);
+    }
+
+    @Test
+    public void test_PS_MOM5_puzzle_llm_metrics() {
+        beginPuzzle("test_PS_MOM5_puzzle_llm_metrics", 1);
+
+        // Setup PS_MOM5 puzzle scenario (see
+        // https://i0.wp.com/www.possibilitystorm.com/wp-content/uploads/2023/06/latest-scaled.jpg?ssl=1)
+        // PlayerA (active): 20 life, hand: Grafted Butcher; Ironhoof Boar; Knight of
+        // Dusk's Shadow; Volcanic Spite
+        // Library: 30x Opt cards
+        // Battlefield: 2x Etched Familiar, Swamp x2, Mountain x2
+        // PlayerB: 9 life, battlefield: Metropolis Reformer, Tomakul Honor Guard,
+        // Guardian of Ghirapur
+
+        // Set up PlayerA
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Grafted Butcher");
+        addCard(Zone.HAND, playerA, "Ironhoof Boar");
+        addCard(Zone.HAND, playerA, "Knight of Dusk's Shadow");
+        addCard(Zone.HAND, playerA, "Volcanic Spite");
+        // Add 30 Opt cards to library
+        for (int i = 0; i < 30; i++) {
+            addCard(Zone.LIBRARY, playerA, "Opt");
+        }
+        addCard(Zone.BATTLEFIELD, playerA, "Etched Familiar");
+        addCard(Zone.BATTLEFIELD, playerA, "Etched Familiar");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain");
+
+        // Set up PlayerB
+        setLife(playerB, 9);
+        addCard(Zone.BATTLEFIELD, playerB, "Metropolis Reformer");
+        addCard(Zone.BATTLEFIELD, playerB, "Tomakul Honor Guard");
+        addCard(Zone.BATTLEFIELD, playerB, "Guardian of Ghirapur");
+
+        setStrictChooseMode(false);
+
+        // Run for one turn (puzzle specifies "Win this turn")
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PS_MOM5", 1);
+    }
+
+    @Test
+    public void test_PS_MOM1_puzzle_llm_metrics() {
+        beginPuzzle("test_PS_MOM1_puzzle_llm_metrics", 1);
+
+        // Setup PS_MOM1 puzzle scenario (see
+        // https://twitter.com/mtgpuzzles/status/1648895487607554054/photo/1)
+        // PlayerA (active): 20 life, hand: Annihilating Glare; Boon-Bringer Valkyrie;
+        // Night Clubber
+        // Library: 20x Opt cards
+        // Battlefield: Drana and Linvala, Knight of Dusk's Shadow, Swamp x3, Shattered
+        // Sanctum x2
+        // PlayerB: 10 life, battlefield: Cutthroat Centurion x2, Mandible Justiciar
+
+        // Set up PlayerA
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Annihilating Glare");
+        addCard(Zone.HAND, playerA, "Boon-Bringer Valkyrie");
+        addCard(Zone.HAND, playerA, "Night Clubber");
+        // Add 20 Opt cards to library
+        for (int i = 0; i < 20; i++) {
+            addCard(Zone.LIBRARY, playerA, "Opt");
+        }
+        addCard(Zone.BATTLEFIELD, playerA, "Drana and Linvala");
+        addCard(Zone.BATTLEFIELD, playerA, "Knight of Dusk's Shadow");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp");
+        addCard(Zone.BATTLEFIELD, playerA, "Shattered Sanctum");
+        addCard(Zone.BATTLEFIELD, playerA, "Shattered Sanctum");
+
+        // Set up PlayerB
+        setLife(playerB, 10);
+        addCard(Zone.BATTLEFIELD, playerB, "Cutthroat Centurion");
+        addCard(Zone.BATTLEFIELD, playerB, "Cutthroat Centurion");
+        addCard(Zone.BATTLEFIELD, playerB, "Mandible Justiciar");
+
+        setStrictChooseMode(false);
+
+        // Run for one turn (puzzle specifies "Win this turn")
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PS_MOM1", 1);
     }
 
     // Test: PS_HOU1 (Possibility Storm - Hour of Devastation #01)
