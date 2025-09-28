@@ -1,30 +1,24 @@
 package org.mage.test.serverside.base;
 
 import mage.constants.PhaseStep;
-import mage.constants.Zone;
-import mage.game.permanent.Permanent;
 import org.json.JSONObject;
-import org.junit.Test;
-import org.junit.Assume;
 import java.util.Set;
-import java.util.HashSet;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertEquals;
 
 public class LLMPuzzlesBase extends CardTestPlayerBaseAI {
 
     // Read system properties for reproducible runs
-    private static final String STRATEGY = System.getProperty("strategy", "rl");
-    private static final String SEED = System.getProperty("seed", "");
-    private static final String LORA_PATH = System.getProperty("lora.path", "");
-    private static final String LORA_HASH = System.getProperty("lora.hash", "");
-    private static final String COMMIT = System.getProperty("commit", "");
-    private static final String METADATA = System.getProperty("metadata", "{}");
+    public static final String STRATEGY = System.getProperty("strategy", "rl");
+    public static final String SEED = System.getProperty("seed", "");
+    public static final String LORA_PATH = System.getProperty("lora.path", "");
+    public static final String LORA_HASH = System.getProperty("lora.hash", "");
+    public static final String COMMIT = System.getProperty("commit", "");
+    public static final String METADATA = System.getProperty("metadata", "{}");
 
     // Tests selection: provide a comma-separated list via -Dtests="test_A,test_B".
     // If empty, all tests run. This lets the runner invoke the full test class once
     // and each test decide whether to skip itself.
-    private static Set<String> getSelectedTests() {
+    public static Set<String> getSelectedTests() {
         String raw = System.getProperty("tests", "").trim();
         if (raw.isEmpty()) {
             return java.util.Collections.emptySet();
@@ -36,9 +30,9 @@ public class LLMPuzzlesBase extends CardTestPlayerBaseAI {
         return s;
     }
 
-    private static final java.util.Set<String> SELECTED_TESTS = getSelectedTests();
+    public static final java.util.Set<String> SELECTED_TESTS = getSelectedTests();
 
-    private static boolean shouldRun(String testName) {
+    public static boolean shouldRun(String testName) {
         // If no explicit selection provided, run everything.
         return SELECTED_TESTS.isEmpty() || SELECTED_TESTS.contains(testName);
     }
@@ -51,7 +45,7 @@ public class LLMPuzzlesBase extends CardTestPlayerBaseAI {
      * execute();
      * finishAndSave("ID", 1);
      */
-    private void beginPuzzle(String testName, int stopTurn) {
+    public void beginPuzzle(String testName, int stopTurn) {
         // Reset counters and gate execution based on -Dtests
         httpPost("http://localhost:9000/api/mtg_llm/__test__/reset_counters", "{}");
         System.out.println("[RUNNING] " + testName);
@@ -60,7 +54,7 @@ public class LLMPuzzlesBase extends CardTestPlayerBaseAI {
         setStopAt(stopTurn, PhaseStep.END_TURN);
     }
 
-    private void finishAndSave(String puzzleId, int turnsTaken) {
+    public void finishAndSave(String puzzleId, int turnsTaken) {
         // Query metrics from magellmfast
         JSONObject metrics = httpGetJson("http://localhost:9000/api/mtg_llm/__test__/metrics");
         int actions = metrics.optInt("choose_from_all_actions", 0);
@@ -108,9 +102,9 @@ public class LLMPuzzlesBase extends CardTestPlayerBaseAI {
     }
 
     // Concurrency-safe helper to POST JSON to file
-    private static final Object METRICS_FILE_LOCK = new Object();
+    public static final Object METRICS_FILE_LOCK = new Object();
 
-    private static void saveMetricsJson(String path, JSONObject obj) {
+    public static void saveMetricsJson(String path, JSONObject obj) {
         try {
             java.io.File f = new java.io.File(path);
             java.io.File parent = f.getParentFile();
@@ -128,7 +122,7 @@ public class LLMPuzzlesBase extends CardTestPlayerBaseAI {
     }
 
     // HTTP helpers (copied from LLMIntegrationSmokeTest)
-    private static void httpPost(String urlString, String body) {
+    public static void httpPost(String urlString, String body) {
         try {
             java.net.URL url = new java.net.URL(urlString);
             java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
@@ -150,7 +144,7 @@ public class LLMPuzzlesBase extends CardTestPlayerBaseAI {
         }
     }
 
-    private static JSONObject httpGetJson(String urlString) {
+    public static JSONObject httpGetJson(String urlString) {
         try {
             java.net.URL url = new java.net.URL(urlString);
             java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
