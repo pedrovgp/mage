@@ -10046,7 +10046,9 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         finishAndSave("PC_222816", 1);
     }
 
-    // Helper to POST JSON to file (simple, not robust)
+    // Concurrency-safe helper to POST JSON to file
+    private static final Object METRICS_FILE_LOCK = new Object();
+
     private static void saveMetricsJson(String path, JSONObject obj) {
         try {
             java.io.File f = new java.io.File(path);
@@ -10054,8 +10056,10 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
             if (parent != null && !parent.exists()) {
                 parent.mkdirs();
             }
-            try (java.io.FileWriter fw = new java.io.FileWriter(f, true)) {
-                fw.write(obj.toString() + System.lineSeparator());
+            synchronized (METRICS_FILE_LOCK) {
+                try (java.io.FileWriter fw = new java.io.FileWriter(f, true)) {
+                    fw.write(obj.toString() + System.lineSeparator());
+                }
             }
         } catch (Exception e) {
             System.err.println("Failed to save metrics: " + path + " (" + e.getMessage() + ")");
