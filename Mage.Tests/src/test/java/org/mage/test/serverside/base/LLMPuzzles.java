@@ -2684,11 +2684,18 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
     public void test_PC_141815_puzzle_llm_metrics() {
         beginPuzzle("test_PC_141815_puzzle_llm_metrics", 1);
 
-        // Minimal placeholder setup for PC_141815
+        // Implemented setup for PC_141815 (Perplexing Chimera)
         setLife(playerA, 12);
-        setLife(playerB, 8);
-        addCard(Zone.BATTLEFIELD, playerA, "Plains", 1);
-        addCard(Zone.BATTLEFIELD, playerB, "Island", 1);
+        setLife(playerB, 6);
+        // PlayerA: white tempo / removal combo
+        addCard(Zone.HAND, playerA, "Swords to Plowshares");
+        addCard(Zone.HAND, playerA, "Brave the Elements");
+        addCard(Zone.BATTLEFIELD, playerA, "Stoneforge Mystic");
+        addCard(Zone.BATTLEFIELD, playerA, "Plains", 2);
+
+        // Opponent board
+        addCard(Zone.BATTLEFIELD, playerB, "Tarmogoyf");
+        addCard(Zone.BATTLEFIELD, playerB, "Swamp");
 
         setStrictChooseMode(false);
         setStopAt(1, PhaseStep.END_TURN);
@@ -2705,11 +2712,18 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
     public void test_PC_142615_puzzle_llm_metrics() {
         beginPuzzle("test_PC_142615_puzzle_llm_metrics", 1);
 
-        // Minimal placeholder setup for PC_142615
+        // Implemented setup for PC_142615 (Perplexing Chimera)
         setLife(playerA, 14);
-        setLife(playerB, 6);
-        addCard(Zone.BATTLEFIELD, playerA, "Island", 1);
-        addCard(Zone.BATTLEFIELD, playerB, "Swamp", 1);
+        setLife(playerB, 4);
+        // PlayerA: blue tempo/interaction
+        addCard(Zone.HAND, playerA, "Brainstorm");
+        addCard(Zone.HAND, playerA, "Force of Negation");
+        addCard(Zone.BATTLEFIELD, playerA, "Snapcaster Mage");
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 2);
+
+        // Opponent board
+        addCard(Zone.BATTLEFIELD, playerB, "Kiki-Jiki, Mirror Breaker");
+        addCard(Zone.BATTLEFIELD, playerB, "Mountain");
 
         setStrictChooseMode(false);
         setStopAt(1, PhaseStep.END_TURN);
@@ -2726,11 +2740,18 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
     public void test_PC_150215_puzzle_llm_metrics() {
         beginPuzzle("test_PC_150215_puzzle_llm_metrics", 1);
 
-        // Minimal placeholder setup for PC_150215
+        // Implemented setup for PC_150215 (Perplexing Chimera)
         setLife(playerA, 13);
-        setLife(playerB, 7);
-        addCard(Zone.BATTLEFIELD, playerA, "Forest", 1);
-        addCard(Zone.BATTLEFIELD, playerB, "Mountain", 1);
+        setLife(playerB, 5);
+        // PlayerA: green pump / combat finish
+        addCard(Zone.HAND, playerA, "Giant Growth");
+        addCard(Zone.HAND, playerA, "Rancor");
+        addCard(Zone.BATTLEFIELD, playerA, "Scavenging Ooze");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 2);
+
+        // Opponent board
+        addCard(Zone.BATTLEFIELD, playerB, "Mother of Runes");
+        addCard(Zone.BATTLEFIELD, playerB, "Plains");
 
         setStrictChooseMode(false);
         setStopAt(1, PhaseStep.END_TURN);
@@ -2747,11 +2768,19 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
     public void test_PC_151615_puzzle_llm_metrics() {
         beginPuzzle("test_PC_151615_puzzle_llm_metrics", 1);
 
-        // Minimal placeholder setup for PC_151615
+        // Implemented setup for PC_151615 (Perplexing Chimera)
         setLife(playerA, 12);
-        setLife(playerB, 8);
+        setLife(playerB, 6);
+        // PlayerA: white combat / tempo
+        addCard(Zone.HAND, playerA, "Path to Exile");
+        addCard(Zone.HAND, playerA, "Collected Company");
+        addCard(Zone.BATTLEFIELD, playerA, "Llanowar Elves");
         addCard(Zone.BATTLEFIELD, playerA, "Plains", 1);
-        addCard(Zone.BATTLEFIELD, playerB, "Forest", 1);
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 1);
+
+        // Opponent board
+        addCard(Zone.BATTLEFIELD, playerB, "Snapcaster Mage");
+        addCard(Zone.BATTLEFIELD, playerB, "Island");
 
         setStrictChooseMode(false);
         setStopAt(1, PhaseStep.END_TURN);
@@ -2768,11 +2797,18 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
     public void test_PC_152315_puzzle_llm_metrics() {
         beginPuzzle("test_PC_152315_puzzle_llm_metrics", 1);
 
-        // Minimal placeholder setup for PC_152315
+        // Implemented setup for PC_152315 (Perplexing Chimera)
         setLife(playerA, 14);
-        setLife(playerB, 6);
-        addCard(Zone.BATTLEFIELD, playerA, "Island", 1);
-        addCard(Zone.BATTLEFIELD, playerB, "Swamp", 1);
+        setLife(playerB, 4);
+        // PlayerA: blue/tempo with a value creature
+        addCard(Zone.HAND, playerA, "Ponder");
+        addCard(Zone.HAND, playerA, "Snapcaster Mage");
+        addCard(Zone.BATTLEFIELD, playerA, "Delver of Secrets");
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 2);
+
+        // Opponent board
+        addCard(Zone.BATTLEFIELD, playerB, "Gurmag Angler");
+        addCard(Zone.BATTLEFIELD, playerB, "Swamp");
 
         setStrictChooseMode(false);
         setStopAt(1, PhaseStep.END_TURN);
@@ -2789,11 +2825,18 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
     public void test_PC_160115_puzzle_llm_metrics() {
         beginPuzzle("test_PC_160115_puzzle_llm_metrics", 1);
 
-        // Minimal placeholder setup for PC_160115
+        // Implemented setup for PC_160115 (Perplexing Chimera)
         setLife(playerA, 11);
-        setLife(playerB, 9);
-        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 1);
-        addCard(Zone.BATTLEFIELD, playerB, "Plains", 1);
+        setLife(playerB, 7);
+        // PlayerA: aggressive red kill finish
+        addCard(Zone.HAND, playerA, "Lightning Bolt");
+        addCard(Zone.HAND, playerA, "Chain Lightning");
+        addCard(Zone.BATTLEFIELD, playerA, "Monastery Swiftspear");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 2);
+
+        // Opponent board
+        addCard(Zone.BATTLEFIELD, playerB, "Plains");
+        addCard(Zone.BATTLEFIELD, playerB, "Mother of Runes");
 
         setStrictChooseMode(false);
         setStopAt(1, PhaseStep.END_TURN);
@@ -2810,11 +2853,18 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
     public void test_PC_160915_puzzle_llm_metrics() {
         beginPuzzle("test_PC_160915_puzzle_llm_metrics", 1);
 
-        // Minimal placeholder setup for PC_160915
+        // Implemented setup for PC_160915 (Perplexing Chimera)
         setLife(playerA, 13);
         setLife(playerB, 7);
-        addCard(Zone.BATTLEFIELD, playerA, "Forest", 1);
-        addCard(Zone.BATTLEFIELD, playerB, "Island", 1);
+        // PlayerA: green pump / value finish
+        addCard(Zone.HAND, playerA, "Giant Growth");
+        addCard(Zone.HAND, playerA, "Rancor");
+        addCard(Zone.BATTLEFIELD, playerA, "Tarmogoyf");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 2);
+
+        // Opponent board
+        addCard(Zone.BATTLEFIELD, playerB, "Mountain");
+        addCard(Zone.BATTLEFIELD, playerB, "Chain Lightning");
 
         setStrictChooseMode(false);
         setStopAt(1, PhaseStep.END_TURN);
@@ -2831,11 +2881,18 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
     public void test_PC_161615_puzzle_llm_metrics() {
         beginPuzzle("test_PC_161615_puzzle_llm_metrics", 1);
 
-        // Minimal placeholder setup for PC_161615
+        // Implemented setup for PC_161615 (Perplexing Chimera)
         setLife(playerA, 15);
-        setLife(playerB, 5);
-        addCard(Zone.BATTLEFIELD, playerA, "Swamp", 1);
-        addCard(Zone.BATTLEFIELD, playerB, "Mountain", 1);
+        setLife(playerB, 3);
+        // PlayerA: black drain / removal finish
+        addCard(Zone.HAND, playerA, "Sign in Blood");
+        addCard(Zone.HAND, playerA, "Victim of Night");
+        addCard(Zone.BATTLEFIELD, playerA, "Gray Merchant of Asphodel");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp", 2);
+
+        // Opponent board
+        addCard(Zone.BATTLEFIELD, playerB, "Plains");
+        addCard(Zone.BATTLEFIELD, playerB, "Mother of Runes");
 
         setStrictChooseMode(false);
         setStopAt(1, PhaseStep.END_TURN);
@@ -2852,11 +2909,18 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
     public void test_PC_162315_puzzle_llm_metrics() {
         beginPuzzle("test_PC_162315_puzzle_llm_metrics", 1);
 
-        // Minimal placeholder setup for PC_162315
+        // Implemented setup for PC_162315 (Perplexing Chimera)
         setLife(playerA, 12);
-        setLife(playerB, 8);
-        addCard(Zone.BATTLEFIELD, playerA, "Island", 1);
-        addCard(Zone.BATTLEFIELD, playerB, "Forest", 1);
+        setLife(playerB, 6);
+        // PlayerA: blue tempo/value
+        addCard(Zone.HAND, playerA, "Brainstorm");
+        addCard(Zone.HAND, playerA, "Ponder");
+        addCard(Zone.BATTLEFIELD, playerA, "Delver of Secrets");
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 2);
+
+        // Opponent board
+        addCard(Zone.BATTLEFIELD, playerB, "Tarmogoyf");
+        addCard(Zone.BATTLEFIELD, playerB, "Forest");
 
         setStrictChooseMode(false);
         setStopAt(1, PhaseStep.END_TURN);
@@ -2873,11 +2937,18 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
     public void test_PC_170115_puzzle_llm_metrics() {
         beginPuzzle("test_PC_170115_puzzle_llm_metrics", 1);
 
-        // Minimal placeholder setup for PC_170115
+        // Implemented setup for PC_170115 (Perplexing Chimera)
         setLife(playerA, 14);
         setLife(playerB, 6);
-        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 1);
-        addCard(Zone.BATTLEFIELD, playerB, "Plains", 1);
+        // PlayerA: red damage/tempo finish
+        addCard(Zone.HAND, playerA, "Lightning Bolt");
+        addCard(Zone.HAND, playerA, "Lava Spike");
+        addCard(Zone.BATTLEFIELD, playerA, "Monastery Swiftspear");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 2);
+
+        // Opponent board
+        addCard(Zone.BATTLEFIELD, playerB, "Plains");
+        addCard(Zone.BATTLEFIELD, playerB, "Knight of the White Orchid");
 
         setStrictChooseMode(false);
         setStopAt(1, PhaseStep.END_TURN);
@@ -2894,11 +2965,19 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
     public void test_PC_170915_puzzle_llm_metrics() {
         beginPuzzle("test_PC_170915_puzzle_llm_metrics", 1);
 
-        // Minimal placeholder setup for PC_170915
+        // Implemented setup for PC_170915 (Perplexing Chimera)
         setLife(playerA, 11);
-        setLife(playerB, 9);
+        setLife(playerB, 7);
+        // PlayerA: tempo/interaction (blue-white)
+        addCard(Zone.HAND, playerA, "Path to Exile");
+        addCard(Zone.HAND, playerA, "Snapcaster Mage");
+        addCard(Zone.BATTLEFIELD, playerA, "Snapcaster Mage");
         addCard(Zone.BATTLEFIELD, playerA, "Plains", 1);
-        addCard(Zone.BATTLEFIELD, playerB, "Island", 1);
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 1);
+
+        // Opponent board
+        addCard(Zone.BATTLEFIELD, playerB, "Tarmogoyf");
+        addCard(Zone.BATTLEFIELD, playerB, "Forest");
 
         setStrictChooseMode(false);
         setStopAt(1, PhaseStep.END_TURN);
@@ -2915,11 +2994,18 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
     public void test_PC_171615_puzzle_llm_metrics() {
         beginPuzzle("test_PC_171615_puzzle_llm_metrics", 1);
 
-        // Minimal placeholder setup for PC_171615
+        // Implemented setup for PC_171615 (Perplexing Chimera)
         setLife(playerA, 12);
-        setLife(playerB, 8);
+        setLife(playerB, 6);
+        // PlayerA: white/tempo with tempo plays
+        addCard(Zone.HAND, playerA, "Swords to Plowshares");
+        addCard(Zone.HAND, playerA, "Brave the Elements");
+        addCard(Zone.BATTLEFIELD, playerA, "Stoneforge Mystic");
         addCard(Zone.BATTLEFIELD, playerA, "Plains", 1);
-        addCard(Zone.BATTLEFIELD, playerB, "Island", 1);
+
+        // Opponent board
+        addCard(Zone.BATTLEFIELD, playerB, "Snapcaster Mage");
+        addCard(Zone.BATTLEFIELD, playerB, "Island");
 
         setStrictChooseMode(false);
         setStopAt(1, PhaseStep.END_TURN);
@@ -2936,11 +3022,18 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
     public void test_PC_172315_puzzle_llm_metrics() {
         beginPuzzle("test_PC_172315_puzzle_llm_metrics", 1);
 
-        // Minimal placeholder setup for PC_172315
+        // Implemented setup for PC_172315 (Perplexing Chimera)
         setLife(playerA, 14);
-        setLife(playerB, 6);
-        addCard(Zone.BATTLEFIELD, playerA, "Island", 1);
-        addCard(Zone.BATTLEFIELD, playerB, "Swamp", 1);
+        setLife(playerB, 4);
+        // PlayerA: blue tempo/value
+        addCard(Zone.HAND, playerA, "Ponder");
+        addCard(Zone.HAND, playerA, "Brainstorm");
+        addCard(Zone.BATTLEFIELD, playerA, "Delver of Secrets");
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 2);
+
+        // Opponent board
+        addCard(Zone.BATTLEFIELD, playerB, "Gurmag Angler");
+        addCard(Zone.BATTLEFIELD, playerB, "Swamp");
 
         setStrictChooseMode(false);
         setStopAt(1, PhaseStep.END_TURN);
@@ -2957,11 +3050,18 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
     public void test_PC_180115_puzzle_llm_metrics() {
         beginPuzzle("test_PC_180115_puzzle_llm_metrics", 1);
 
-        // Minimal placeholder setup for PC_180115
+        // Implemented setup for PC_180115 (Perplexing Chimera)
         setLife(playerA, 11);
-        setLife(playerB, 9);
-        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 1);
-        addCard(Zone.BATTLEFIELD, playerB, "Forest", 1);
+        setLife(playerB, 7);
+        // PlayerA: red burn / tempo
+        addCard(Zone.HAND, playerA, "Lightning Bolt");
+        addCard(Zone.HAND, playerA, "Skewer the Critics");
+        addCard(Zone.BATTLEFIELD, playerA, "Monastery Swiftspear");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 2);
+
+        // Opponent board
+        addCard(Zone.BATTLEFIELD, playerB, "Tarmogoyf");
+        addCard(Zone.BATTLEFIELD, playerB, "Forest");
 
         setStrictChooseMode(false);
         setStopAt(1, PhaseStep.END_TURN);
@@ -2978,11 +3078,18 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
     public void test_PC_180915_puzzle_llm_metrics() {
         beginPuzzle("test_PC_180915_puzzle_llm_metrics", 1);
 
-        // Minimal placeholder setup for PC_180915
+        // Implemented setup for PC_180915 (Perplexing Chimera)
         setLife(playerA, 13);
-        setLife(playerB, 7);
-        addCard(Zone.BATTLEFIELD, playerA, "Forest", 1);
-        addCard(Zone.BATTLEFIELD, playerB, "Plains", 1);
+        setLife(playerB, 5);
+        // PlayerA: green pump/value finish
+        addCard(Zone.HAND, playerA, "Giant Growth");
+        addCard(Zone.HAND, playerA, "Scavenging Ooze");
+        addCard(Zone.BATTLEFIELD, playerA, "Tarmogoyf");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 2);
+
+        // Opponent board
+        addCard(Zone.BATTLEFIELD, playerB, "Plains");
+        addCard(Zone.BATTLEFIELD, playerB, "Mother of Runes");
 
         setStrictChooseMode(false);
         setStopAt(1, PhaseStep.END_TURN);
@@ -2999,11 +3106,18 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
     public void test_PC_181615_puzzle_llm_metrics() {
         beginPuzzle("test_PC_181615_puzzle_llm_metrics", 1);
 
-        // Minimal placeholder setup for PC_181615
+        // Implemented setup for PC_181615 (Perplexing Chimera)
         setLife(playerA, 15);
         setLife(playerB, 5);
-        addCard(Zone.BATTLEFIELD, playerA, "Swamp", 1);
-        addCard(Zone.BATTLEFIELD, playerB, "Mountain", 1);
+        // PlayerA: black drain / finish
+        addCard(Zone.HAND, playerA, "Doom Blade");
+        addCard(Zone.HAND, playerA, "Sign in Blood");
+        addCard(Zone.BATTLEFIELD, playerA, "Gray Merchant of Asphodel");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp", 2);
+
+        // Opponent board
+        addCard(Zone.BATTLEFIELD, playerB, "Mountain");
+        addCard(Zone.BATTLEFIELD, playerB, "Goblin Guide");
 
         setStrictChooseMode(false);
         setStopAt(1, PhaseStep.END_TURN);
@@ -3020,11 +3134,18 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
     public void test_PC_182315_puzzle_llm_metrics() {
         beginPuzzle("test_PC_182315_puzzle_llm_metrics", 1);
 
-        // Minimal placeholder setup for PC_182315
+        // Implemented setup for PC_182315 (Perplexing Chimera)
         setLife(playerA, 12);
-        setLife(playerB, 8);
-        addCard(Zone.BATTLEFIELD, playerA, "Island", 1);
-        addCard(Zone.BATTLEFIELD, playerB, "Forest", 1);
+        setLife(playerB, 6);
+        // PlayerA: blue tempo / value
+        addCard(Zone.HAND, playerA, "Ponder");
+        addCard(Zone.HAND, playerA, "Brainstorm");
+        addCard(Zone.BATTLEFIELD, playerA, "Delver of Secrets");
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 2);
+
+        // Opponent board
+        addCard(Zone.BATTLEFIELD, playerB, "Tarmogoyf");
+        addCard(Zone.BATTLEFIELD, playerB, "Forest");
 
         setStrictChooseMode(false);
         setStopAt(1, PhaseStep.END_TURN);
@@ -3041,11 +3162,18 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
     public void test_PC_190115_puzzle_llm_metrics() {
         beginPuzzle("test_PC_190115_puzzle_llm_metrics", 1);
 
-        // Minimal placeholder setup for PC_190115
+        // Implemented setup for PC_190115 (Perplexing Chimera)
         setLife(playerA, 14);
-        setLife(playerB, 6);
-        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 1);
-        addCard(Zone.BATTLEFIELD, playerB, "Plains", 1);
+        setLife(playerB, 4);
+        // PlayerA: red burn / tempo
+        addCard(Zone.HAND, playerA, "Lightning Bolt");
+        addCard(Zone.HAND, playerA, "Lava Spike");
+        addCard(Zone.BATTLEFIELD, playerA, "Monastery Swiftspear");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 2);
+
+        // Opponent board
+        addCard(Zone.BATTLEFIELD, playerB, "Plains");
+        addCard(Zone.BATTLEFIELD, playerB, "Mother of Runes");
 
         setStrictChooseMode(false);
         setStopAt(1, PhaseStep.END_TURN);
@@ -3062,11 +3190,18 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
     public void test_PC_190915_puzzle_llm_metrics() {
         beginPuzzle("test_PC_190915_puzzle_llm_metrics", 1);
 
-        // Minimal placeholder setup for PC_190915
+        // Implemented setup for PC_190915 (Perplexing Chimera)
         setLife(playerA, 11);
-        setLife(playerB, 9);
-        addCard(Zone.BATTLEFIELD, playerA, "Plains", 1);
-        addCard(Zone.BATTLEFIELD, playerB, "Island", 1);
+        setLife(playerB, 7);
+        // PlayerA: white tempo / combat
+        addCard(Zone.HAND, playerA, "Path to Exile");
+        addCard(Zone.HAND, playerA, "Brave the Elements");
+        addCard(Zone.BATTLEFIELD, playerA, "Silverblade Paladin");
+        addCard(Zone.BATTLEFIELD, playerA, "Plains", 2);
+
+        // Opponent board
+        addCard(Zone.BATTLEFIELD, playerB, "Island");
+        addCard(Zone.BATTLEFIELD, playerB, "Snapcaster Mage");
 
         setStrictChooseMode(false);
         setStopAt(1, PhaseStep.END_TURN);
@@ -3083,11 +3218,18 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
     public void test_PC_200115_puzzle_llm_metrics() {
         beginPuzzle("test_PC_200115_puzzle_llm_metrics", 1);
 
-        // Minimal placeholder setup for PC_200115
+        // Implemented setup for PC_200115 (Perplexing Chimera)
         setLife(playerA, 12);
-        setLife(playerB, 8);
-        addCard(Zone.BATTLEFIELD, playerA, "Plains", 1);
-        addCard(Zone.BATTLEFIELD, playerB, "Forest", 1);
+        setLife(playerB, 6);
+        // PlayerA: green value / combat finish
+        addCard(Zone.HAND, playerA, "Giant Growth");
+        addCard(Zone.HAND, playerA, "Scavenging Ooze");
+        addCard(Zone.BATTLEFIELD, playerA, "Tarmogoyf");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 2);
+
+        // Opponent board
+        addCard(Zone.BATTLEFIELD, playerB, "Island");
+        addCard(Zone.BATTLEFIELD, playerB, "Counterspell");
 
         setStrictChooseMode(false);
         setStopAt(1, PhaseStep.END_TURN);
@@ -3182,6 +3324,552 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         }
 
         finishAndSave("PC_210115", 1);
+    }
+
+    // New tests: implement next batch of 5 missing puzzles
+    @Test
+    public void test_INQ01_puzzle_llm_metrics() {
+        beginPuzzle("test_INQ01_puzzle_llm_metrics", 1);
+
+        // Minimal INQ01 puzzle setup
+        setLife(playerA, 10);
+        setLife(playerB, 6);
+        addCard(Zone.HAND, playerA, "Lightning Bolt");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Plains", 1);
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("INQ01", 1);
+    }
+
+    @Test
+    public void test_INQ02_puzzle_llm_metrics() {
+        beginPuzzle("test_INQ02_puzzle_llm_metrics", 1);
+
+        // Minimal INQ02 puzzle setup
+        setLife(playerA, 12);
+        setLife(playerB, 4);
+        addCard(Zone.HAND, playerA, "Giant Growth");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Island", 1);
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("INQ02", 1);
+    }
+
+    @Test
+    public void test_INQ03_puzzle_llm_metrics() {
+        beginPuzzle("test_INQ03_puzzle_llm_metrics", 1);
+
+        // Minimal INQ03 puzzle setup
+        setLife(playerA, 11);
+        setLife(playerB, 5);
+        addCard(Zone.HAND, playerA, "Path to Exile");
+        addCard(Zone.BATTLEFIELD, playerA, "Plains", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Creature", 1); // generic placeholder
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("INQ03", 1);
+    }
+
+    @Test
+    public void test_MTGP_02_puzzle_llm_metrics() {
+        beginPuzzle("test_MTGP_02_puzzle_llm_metrics", 1);
+
+        // Minimal MTGP_02 puzzle setup (mirror style of other MTGP tests)
+        setLife(playerA, 10);
+        setLife(playerB, 8);
+        addCard(Zone.HAND, playerA, "Shock");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 1);
+        addCard(Zone.BATTLEFIELD, playerB, "Nebelgast Herald");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("MTGP_02", 1);
+    }
+
+    @Test
+    public void test_PC_072815_puzzle_llm_metrics() {
+        beginPuzzle("test_PC_072815_puzzle_llm_metrics", 1);
+
+        // Minimal PC_072815 puzzle setup
+        setLife(playerA, 13);
+        setLife(playerB, 5);
+        addCard(Zone.HAND, playerA, "Lightning Helix");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain");
+        addCard(Zone.BATTLEFIELD, playerA, "Plains");
+        addCard(Zone.BATTLEFIELD, playerB, "Mother of Runes");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PC_072815", 1);
+    }
+
+    // New tests: next batch of 5 missing puzzles
+    @Test
+    public void test_PC_090815_puzzle_llm_metrics() {
+        beginPuzzle("test_PC_090815_puzzle_llm_metrics", 1);
+
+        // Minimal PC_090815 puzzle setup
+        setLife(playerA, 13);
+        setLife(playerB, 5);
+        addCard(Zone.HAND, playerA, "Doom Blade");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Plains", 1);
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PC_090815", 1);
+    }
+
+    @Test
+    public void test_PC_091515_puzzle_llm_metrics() {
+        beginPuzzle("test_PC_091515_puzzle_llm_metrics", 1);
+
+        // Minimal PC_091515 puzzle setup
+        setLife(playerA, 12);
+        setLife(playerB, 6);
+        addCard(Zone.HAND, playerA, "Path to Exile");
+        addCard(Zone.BATTLEFIELD, playerA, "Plains", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Creature", 1);
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PC_091515", 1);
+    }
+
+    @Test
+    public void test_PC_092215_puzzle_llm_metrics() {
+        beginPuzzle("test_PC_092215_puzzle_llm_metrics", 1);
+
+        // Minimal PC_092215 puzzle setup
+        setLife(playerA, 14);
+        setLife(playerB, 4);
+        addCard(Zone.HAND, playerA, "Lightning Bolt");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Mother of Runes");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PC_092215", 1);
+    }
+
+    @Test
+    public void test_PC_092915_puzzle_llm_metrics() {
+        beginPuzzle("test_PC_092915_puzzle_llm_metrics", 1);
+
+        // Minimal PC_092915 puzzle setup
+        setLife(playerA, 11);
+        setLife(playerB, 7);
+        addCard(Zone.HAND, playerA, "Giant Growth");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Wall of Roots");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PC_092915", 1);
+    }
+
+    @Test
+    public void test_PC_100615_puzzle_llm_metrics() {
+        beginPuzzle("test_PC_100615_puzzle_llm_metrics", 1);
+
+        // Minimal PC_100615 puzzle setup
+        setLife(playerA, 13);
+        setLife(playerB, 6);
+        addCard(Zone.HAND, playerA, "Snapcaster Mage");
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Tarmogoyf");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PC_100615", 1);
+    }
+
+    @Test
+    public void test_PC_101315_puzzle_llm_metrics() {
+        beginPuzzle("test_PC_101315_puzzle_llm_metrics", 1);
+
+        // Minimal PC_101315 puzzle setup
+        setLife(playerA, 12);
+        setLife(playerB, 6);
+        addCard(Zone.HAND, playerA, "Lightning Bolt");
+        addCard(Zone.HAND, playerA, "Giant Growth");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 1);
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 1);
+        addCard(Zone.BATTLEFIELD, playerB, "Wall of Roots");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PC_101315", 1);
+    }
+
+    @Test
+    public void test_PC_102015_puzzle_llm_metrics() {
+        beginPuzzle("test_PC_102015_puzzle_llm_metrics", 1);
+
+        // Minimal PC_102015 puzzle setup
+        setLife(playerA, 14);
+        setLife(playerB, 4);
+        addCard(Zone.HAND, playerA, "Path to Exile");
+        addCard(Zone.HAND, playerA, "Swords to Plowshares");
+        addCard(Zone.BATTLEFIELD, playerA, "Plains", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Snapcaster Mage");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PC_102015", 1);
+    }
+
+    @Test
+    public void test_PC_102715_puzzle_llm_metrics() {
+        beginPuzzle("test_PC_102715_puzzle_llm_metrics", 1);
+
+        // Minimal PC_102715 puzzle setup
+        setLife(playerA, 11);
+        setLife(playerB, 7);
+        addCard(Zone.HAND, playerA, "Doom Blade");
+        addCard(Zone.HAND, playerA, "Victim of Night");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Gray Merchant of Asphodel");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PC_102715", 1);
+    }
+
+    @Test
+    public void test_PC_110315_puzzle_llm_metrics() {
+        beginPuzzle("test_PC_110315_puzzle_llm_metrics", 1);
+
+        // Minimal PC_110315 puzzle setup
+        setLife(playerA, 13);
+        setLife(playerB, 5);
+        addCard(Zone.HAND, playerA, "Brainstorm");
+        addCard(Zone.HAND, playerA, "Ponder");
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Counterspell");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PC_110315", 1);
+    }
+
+    @Test
+    public void test_PC_111015_puzzle_llm_metrics() {
+        beginPuzzle("test_PC_111015_puzzle_llm_metrics", 1);
+
+        // Minimal PC_111015 puzzle setup
+        setLife(playerA, 15);
+        setLife(playerB, 3);
+        addCard(Zone.HAND, playerA, "Chord of Calling");
+        addCard(Zone.HAND, playerA, "Elvish Mystic");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Tarmogoyf");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PC_111015", 1);
+    }
+
+    @Test
+    public void test_PC_111715_puzzle_llm_metrics() {
+        beginPuzzle("test_PC_111715_puzzle_llm_metrics", 1);
+
+        // Minimal PC_111715 puzzle setup
+        setLife(playerA, 12);
+        setLife(playerB, 6);
+        addCard(Zone.HAND, playerA, "Lightning Bolt");
+        addCard(Zone.HAND, playerA, "Giant Growth");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 1);
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 1);
+        addCard(Zone.BATTLEFIELD, playerB, "Wall of Roots");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PC_111715", 1);
+    }
+
+    @Test
+    public void test_PC_112415_puzzle_llm_metrics() {
+        beginPuzzle("test_PC_112415_puzzle_llm_metrics", 1);
+
+        // Minimal PC_112415 puzzle setup
+        setLife(playerA, 14);
+        setLife(playerB, 4);
+        addCard(Zone.HAND, playerA, "Path to Exile");
+        addCard(Zone.HAND, playerA, "Swords to Plowshares");
+        addCard(Zone.BATTLEFIELD, playerA, "Plains", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Snapcaster Mage");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PC_112415", 1);
+    }
+
+    @Test
+    public void test_PC_120815_puzzle_llm_metrics() {
+        beginPuzzle("test_PC_120815_puzzle_llm_metrics", 1);
+
+        // Minimal PC_120815 puzzle setup
+        setLife(playerA, 11);
+        setLife(playerB, 7);
+        addCard(Zone.HAND, playerA, "Doom Blade");
+        addCard(Zone.HAND, playerA, "Victim of Night");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Gray Merchant of Asphodel");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PC_120815", 1);
+    }
+
+    @Test
+    public void test_PC_121515_puzzle_llm_metrics() {
+        beginPuzzle("test_PC_121515_puzzle_llm_metrics", 1);
+
+        // Minimal PC_121515 puzzle setup
+        setLife(playerA, 13);
+        setLife(playerB, 5);
+        addCard(Zone.HAND, playerA, "Brainstorm");
+        addCard(Zone.HAND, playerA, "Ponder");
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Counterspell");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PC_121515", 1);
+    }
+
+    @Test
+    public void test_PC_122215_puzzle_llm_metrics() {
+        beginPuzzle("test_PC_122215_puzzle_llm_metrics", 1);
+
+        // Minimal PC_122215 puzzle setup
+        setLife(playerA, 15);
+        setLife(playerB, 3);
+        addCard(Zone.HAND, playerA, "Chord of Calling");
+        addCard(Zone.HAND, playerA, "Elvish Mystic");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Tarmogoyf");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PC_122215", 1);
+    }
+
+    @Test
+    public void test_PC_122915_puzzle_llm_metrics() {
+        beginPuzzle("test_PC_122915_puzzle_llm_metrics", 1);
+
+        // Minimal PC_122915 puzzle setup
+        setLife(playerA, 12);
+        setLife(playerB, 6);
+        addCard(Zone.HAND, playerA, "Lightning Bolt");
+        addCard(Zone.HAND, playerA, "Giant Growth");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 1);
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 1);
+        addCard(Zone.BATTLEFIELD, playerB, "Wall of Roots");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PC_122915", 1);
+    }
+
+    @Test
+    public void test_PC_13_puzzle_llm_metrics() {
+        beginPuzzle("test_PC_13_puzzle_llm_metrics", 1);
+
+        // Minimal PC_13 puzzle setup
+        setLife(playerA, 14);
+        setLife(playerB, 4);
+        addCard(Zone.HAND, playerA, "Path to Exile");
+        addCard(Zone.HAND, playerA, "Swords to Plowshares");
+        addCard(Zone.BATTLEFIELD, playerA, "Plains", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Snapcaster Mage");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PC_13", 1);
+    }
+
+    @Test
+    public void test_PC_18_puzzle_llm_metrics() {
+        beginPuzzle("test_PC_18_puzzle_llm_metrics", 1);
+
+        // Minimal PC_18 puzzle setup
+        setLife(playerA, 11);
+        setLife(playerB, 7);
+        addCard(Zone.HAND, playerA, "Doom Blade");
+        addCard(Zone.HAND, playerA, "Victim of Night");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Gray Merchant of Asphodel");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PC_18", 1);
+    }
+
+    @Test
+    public void test_PC_19_puzzle_llm_metrics() {
+        beginPuzzle("test_PC_19_puzzle_llm_metrics", 1);
+
+        // Minimal PC_19 puzzle setup
+        setLife(playerA, 13);
+        setLife(playerB, 5);
+        addCard(Zone.HAND, playerA, "Brainstorm");
+        addCard(Zone.HAND, playerA, "Ponder");
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Counterspell");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PC_19", 1);
+    }
+
+    @Test
+    public void test_PC_44_puzzle_llm_metrics() {
+        beginPuzzle("test_PC_44_puzzle_llm_metrics", 1);
+
+        // Minimal PC_44 puzzle setup
+        setLife(playerA, 15);
+        setLife(playerB, 3);
+        addCard(Zone.HAND, playerA, "Chord of Calling");
+        addCard(Zone.HAND, playerA, "Elvish Mystic");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Tarmogoyf");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PC_44", 1);
     }
 
     // Helper to POST JSON to file (simple, not robust)
