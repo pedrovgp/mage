@@ -155,6 +155,18 @@
                         -->
                         <useFile>false</useFile>
 
+                        <!-- Parallel test execution for LLMPuzzles only -->
+                        <includes>
+                            <include>org/mage/test/serverside/base/LLMPuzzles.java</include>
+                        </includes>
+                        <parallel>methods</parallel>
+                        <threadCount>4</threadCount>
+                        <perCoreThreadCount>false</perCoreThreadCount>
+                        <forkCount>1</forkCount>
+                        <reuseForks>true</reuseForks>
+                        <testFailureIgnore>false</testFailureIgnore>
+                        <runOrder>random</runOrder>
+
                         <!-- **************** -->
                         <!-- tree view report -->
                         <!-- **************** -->
