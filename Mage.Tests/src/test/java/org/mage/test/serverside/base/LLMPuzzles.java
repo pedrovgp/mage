@@ -224,6 +224,64 @@ public class LLMPuzzles extends LLMPuzzlesBase {
     }
 
     @Test
+    public void test_MTGP_02_puzzle_llm_metrics() {
+        // MTGP_02.pzl: MTG Puzzles #02 - It's a Trap!
+        // Goal: Survive until your next turn. It's your opponents turn and they have
+        // attacked with 5 Construct tokens! It's their declare blockers step, can you
+        // find a way to survive this turn? Don't forget about Throne of the
+        // God-Pharaoh!
+        // turn=1
+        // activeplayer=p1
+        // activephase=MAIN1
+        // activephaseadvance=COMBAT_DECLARE_BLOCKERS
+        // p0life=7
+        // p0landsplayed=0
+        // p0landsplayedlastturn=0
+        // p0hand=Arrow Volley Trap;Pitfall Trap;Inferno Trap
+        // p0battlefield=Viashino Fangtail;Rockslide
+        // Sorcerer;Mountain;Mountain;Plains;Plains
+        // p1life=20
+        // p1landsplayed=0
+        // p1landsplayedlastturn=0
+        // p1battlefield=Throne of the
+        // God-Pharaoh;T:c_4_4_a_construct;T:c_4_4_a_construct;T:c_4_4_a_construct;T:c_4_4_a_construct;T:c_4_4_a_construct
+
+        beginPuzzle("test_MTGP_02_puzzle_llm_metrics", 1);
+
+        // Set up PlayerA (p0 in .pzl)
+        setLife(playerA, 7);
+        addCard(Zone.HAND, playerA, "Arrow Volley Trap");
+        addCard(Zone.HAND, playerA, "Pitfall Trap");
+        addCard(Zone.HAND, playerA, "Inferno Trap");
+        addCard(Zone.BATTLEFIELD, playerA, "Viashino Fangtail");
+        addCard(Zone.BATTLEFIELD, playerA, "Rockslide Sorcerer");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain");
+        addCard(Zone.BATTLEFIELD, playerA, "Plains");
+        addCard(Zone.BATTLEFIELD, playerA, "Plains");
+
+        // Set up PlayerB (p1 in .pzl - attacking with 5 Construct tokens)
+        setLife(playerB, 20);
+        addCard(Zone.BATTLEFIELD, playerB, "Throne of the God-Pharaoh");
+        addCard(Zone.BATTLEFIELD, playerB, "Construct Token", 5); // 5 Construct tokens attacking
+
+        setStrictChooseMode(false);
+
+        // Set up combat state - PlayerB is attacking with constructs, in declare
+        // blockers step
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("MTGP_02", 1);
+    }
+
+    @Test
     public void test_MTGP_08_puzzle_llm_metrics() {
         beginPuzzle("test_MTGP_08_puzzle_llm_metrics", 1);
 
