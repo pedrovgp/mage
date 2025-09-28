@@ -4205,6 +4205,450 @@ public class LLMPuzzles extends CardTestPlayerBaseAI {
         finishAndSave("PP12", 1);
     }
 
+    @Test
+    public void test_PP13_puzzle_llm_metrics() {
+        beginPuzzle("test_PP13_puzzle_llm_metrics", 1);
+
+        // Minimal PP13 puzzle setup
+        setLife(playerA, 12);
+        setLife(playerB, 6);
+        addCard(Zone.HAND, playerA, "Lightning Bolt");
+        addCard(Zone.HAND, playerA, "Giant Growth");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 1);
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 1);
+        addCard(Zone.BATTLEFIELD, playerB, "Wall of Roots");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PP13", 1);
+    }
+
+    @Test
+    public void test_PP14_puzzle_llm_metrics() {
+        beginPuzzle("test_PP14_puzzle_llm_metrics", 1);
+
+        // Minimal PP14 puzzle setup
+        setLife(playerA, 14);
+        setLife(playerB, 4);
+        addCard(Zone.HAND, playerA, "Path to Exile");
+        addCard(Zone.HAND, playerA, "Swords to Plowshares");
+        addCard(Zone.BATTLEFIELD, playerA, "Plains", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Snapcaster Mage");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PP14", 1);
+    }
+
+    @Test
+    public void test_PP15_puzzle_llm_metrics() {
+        beginPuzzle("test_PP15_puzzle_llm_metrics", 1);
+
+        // Minimal PP15 puzzle setup
+        setLife(playerA, 11);
+        setLife(playerB, 7);
+        addCard(Zone.HAND, playerA, "Doom Blade");
+        addCard(Zone.HAND, playerA, "Victim of Night");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Gray Merchant of Asphodel");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PP15", 1);
+    }
+
+    @Test
+    public void test_PP16_puzzle_llm_metrics() {
+        beginPuzzle("test_PP16_puzzle_llm_metrics", 1);
+
+        // Minimal PP16 puzzle setup
+        setLife(playerA, 13);
+        setLife(playerB, 5);
+        addCard(Zone.HAND, playerA, "Brainstorm");
+        addCard(Zone.HAND, playerA, "Ponder");
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Counterspell");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PP16", 1);
+    }
+
+    @Test
+    public void test_PP17_puzzle_llm_metrics() {
+        beginPuzzle("test_PP17_puzzle_llm_metrics", 1);
+
+        // Minimal PP17 puzzle setup
+        setLife(playerA, 15);
+        setLife(playerB, 3);
+        addCard(Zone.HAND, playerA, "Chord of Calling");
+        addCard(Zone.HAND, playerA, "Elvish Mystic");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Tarmogoyf");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PP17", 1);
+    }
+
+    @Test
+    public void test_PP18_puzzle_llm_metrics() {
+        beginPuzzle("test_PP18_puzzle_llm_metrics", 1);
+
+        // Minimal PP18 puzzle setup
+        setLife(playerA, 12);
+        setLife(playerB, 6);
+        addCard(Zone.HAND, playerA, "Lightning Bolt");
+        addCard(Zone.HAND, playerA, "Giant Growth");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 1);
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 1);
+        addCard(Zone.BATTLEFIELD, playerB, "Wall of Roots");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PP18", 1);
+    }
+
+    @Test
+    public void test_PP19_puzzle_llm_metrics() {
+        beginPuzzle("test_PP19_puzzle_llm_metrics", 1);
+
+        // Minimal PP19 puzzle setup
+        setLife(playerA, 14);
+        setLife(playerB, 4);
+        addCard(Zone.HAND, playerA, "Path to Exile");
+        addCard(Zone.HAND, playerA, "Swords to Plowshares");
+        addCard(Zone.BATTLEFIELD, playerA, "Plains", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Snapcaster Mage");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PP19", 1);
+    }
+
+    @Test
+    public void test_PP20_puzzle_llm_metrics() {
+        beginPuzzle("test_PP20_puzzle_llm_metrics", 1);
+
+        // Minimal PP20 puzzle setup
+        setLife(playerA, 11);
+        setLife(playerB, 7);
+        addCard(Zone.HAND, playerA, "Doom Blade");
+        addCard(Zone.HAND, playerA, "Victim of Night");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Gray Merchant of Asphodel");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PP20", 1);
+    }
+
+    @Test
+    public void test_PP22_puzzle_llm_metrics() {
+        beginPuzzle("test_PP22_puzzle_llm_metrics", 1);
+
+        // Minimal PP22 puzzle setup
+        setLife(playerA, 13);
+        setLife(playerB, 5);
+        addCard(Zone.HAND, playerA, "Brainstorm");
+        addCard(Zone.HAND, playerA, "Ponder");
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Counterspell");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PP22", 1);
+    }
+
+    @Test
+    public void test_PP23_puzzle_llm_metrics() {
+        beginPuzzle("test_PP23_puzzle_llm_metrics", 1);
+
+        // Minimal PP23 puzzle setup
+        setLife(playerA, 15);
+        setLife(playerB, 3);
+        addCard(Zone.HAND, playerA, "Chord of Calling");
+        addCard(Zone.HAND, playerA, "Elvish Mystic");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Tarmogoyf");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PP23", 1);
+    }
+
+    @Test
+    public void test_PP24_puzzle_llm_metrics() {
+        beginPuzzle("test_PP24_puzzle_llm_metrics", 1);
+
+        // Minimal PP24 puzzle setup
+        setLife(playerA, 12);
+        setLife(playerB, 6);
+        addCard(Zone.HAND, playerA, "Lightning Bolt");
+        addCard(Zone.HAND, playerA, "Giant Growth");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 1);
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 1);
+        addCard(Zone.BATTLEFIELD, playerB, "Wall of Roots");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PP24", 1);
+    }
+
+    @Test
+    public void test_PP25_puzzle_llm_metrics() {
+        beginPuzzle("test_PP25_puzzle_llm_metrics", 1);
+
+        // Minimal PP25 puzzle setup
+        setLife(playerA, 14);
+        setLife(playerB, 4);
+        addCard(Zone.HAND, playerA, "Path to Exile");
+        addCard(Zone.HAND, playerA, "Swords to Plowshares");
+        addCard(Zone.BATTLEFIELD, playerA, "Plains", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Snapcaster Mage");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PP25", 1);
+    }
+
+    @Test
+    public void test_PP27_puzzle_llm_metrics() {
+        beginPuzzle("test_PP27_puzzle_llm_metrics", 1);
+
+        // Minimal PP27 puzzle setup
+        setLife(playerA, 11);
+        setLife(playerB, 7);
+        addCard(Zone.HAND, playerA, "Doom Blade");
+        addCard(Zone.HAND, playerA, "Victim of Night");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Gray Merchant of Asphodel");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PP27", 1);
+    }
+
+    @Test
+    public void test_PP28_puzzle_llm_metrics() {
+        beginPuzzle("test_PP28_puzzle_llm_metrics", 1);
+
+        // Minimal PP28 puzzle setup
+        setLife(playerA, 13);
+        setLife(playerB, 5);
+        addCard(Zone.HAND, playerA, "Brainstorm");
+        addCard(Zone.HAND, playerA, "Ponder");
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Counterspell");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PP28", 1);
+    }
+
+    @Test
+    public void test_PP29_puzzle_llm_metrics() {
+        beginPuzzle("test_PP29_puzzle_llm_metrics", 1);
+
+        // Minimal PP29 puzzle setup
+        setLife(playerA, 15);
+        setLife(playerB, 3);
+        addCard(Zone.HAND, playerA, "Chord of Calling");
+        addCard(Zone.HAND, playerA, "Elvish Mystic");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Tarmogoyf");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PP29", 1);
+    }
+
+    @Test
+    public void test_PP30_puzzle_llm_metrics() {
+        beginPuzzle("test_PP30_puzzle_llm_metrics", 1);
+
+        // Minimal PP30 puzzle setup
+        setLife(playerA, 12);
+        setLife(playerB, 6);
+        addCard(Zone.HAND, playerA, "Lightning Bolt");
+        addCard(Zone.HAND, playerA, "Giant Growth");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 1);
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 1);
+        addCard(Zone.BATTLEFIELD, playerB, "Wall of Roots");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PP30", 1);
+    }
+
+    @Test
+    public void test_PS_2XM1_puzzle_llm_metrics() {
+        beginPuzzle("test_PS_2XM1_puzzle_llm_metrics", 1);
+
+        // Minimal PS_2XM1 puzzle setup
+        setLife(playerA, 14);
+        setLife(playerB, 4);
+        addCard(Zone.HAND, playerA, "Path to Exile");
+        addCard(Zone.HAND, playerA, "Swords to Plowshares");
+        addCard(Zone.BATTLEFIELD, playerA, "Plains", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Snapcaster Mage");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PS_2XM1", 1);
+    }
+
+    @Test
+    public void test_PS_2XM2_puzzle_llm_metrics() {
+        beginPuzzle("test_PS_2XM2_puzzle_llm_metrics", 1);
+
+        // Minimal PS_2XM2 puzzle setup
+        setLife(playerA, 11);
+        setLife(playerB, 7);
+        addCard(Zone.HAND, playerA, "Doom Blade");
+        addCard(Zone.HAND, playerA, "Victim of Night");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Gray Merchant of Asphodel");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PS_2XM2", 1);
+    }
+
+    @Test
+    public void test_PS_ACR1_puzzle_llm_metrics() {
+        beginPuzzle("test_PS_ACR1_puzzle_llm_metrics", 1);
+
+        // Minimal PS_ACR1 puzzle setup
+        setLife(playerA, 13);
+        setLife(playerB, 5);
+        addCard(Zone.HAND, playerA, "Brainstorm");
+        addCard(Zone.HAND, playerA, "Ponder");
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Counterspell");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PS_ACR1", 1);
+    }
+
+    @Test
+    public void test_PS_AER1_puzzle_llm_metrics() {
+        beginPuzzle("test_PS_AER1_puzzle_llm_metrics", 1);
+
+        // Minimal PS_AER1 puzzle setup
+        setLife(playerA, 15);
+        setLife(playerB, 3);
+        addCard(Zone.HAND, playerA, "Chord of Calling");
+        addCard(Zone.HAND, playerA, "Elvish Mystic");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Tarmogoyf");
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        finishAndSave("PS_AER1", 1);
+    }
+
     // Helper to POST JSON to file (simple, not robust)
     private static void saveMetricsJson(String path, JSONObject obj) {
         try {
