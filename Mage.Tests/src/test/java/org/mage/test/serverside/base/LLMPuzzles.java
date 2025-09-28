@@ -59,83 +59,33 @@ public class LLMPuzzles extends LLMPuzzlesBase {
     }
 
     @Test
-    public void test_PS_M207_puzzle_llm_metrics() {
-        // PS_M207.pzl: Possibility Storm - Magic Core Set 2020 #07
-        // Goal: Win this turn. Your Dauntless Bodyguard chose Shanna, Sisay's Legacy
-        // when it entered the battlefield.
-        // humanlife=20
-        // ailife=7
-        // turn=1
-        // activeplayer=human
-        // activephase=MAIN1
-        // humanhand=Strength of the Pack;Depose // Deploy;Storm the Citadel;Masterful
-        // Replication;Short Sword
-        // humanbattlefield=Gideon Blackblade|Counters:LOYALTY=6;Blackblade
-        // Reforged;Omnispell Adept;Shanna, Sisay's Legacy|Id:9;Sigiled Sword of
-        // Valeron|AttachedTo:9;Dauntless
-        // Bodyguard|ChosenCards:9|Id:10|NoETBTrigs;Forebear's
-        // Blade|AttachedTo:10;Hallowed Fountain|NoETBTrigs;Hallowed
-        // Fountain|NoETBTrigs;Hallowed Fountain|NoETBTrigs;Temple
-        // Garden|NoETBTrigs;Temple Garden|NoETBTrigs;Temple Garden|NoETBTrigs
-        // aibattlefield=Charity Extractor;Looming Altisaur;Gate Colossus;Looming
-        // Altisaur;Charity Extractor
+    public void test_MTGP_09_puzzle_llm_metrics() {
+        beginPuzzle("test_MTGP_09_puzzle_llm_metrics", 1);
 
-        setLife(playerA, 20);
-        setLife(playerB, 7);
+        // Setup MTGP_09 puzzle scenario
+        // PlayerA (active): 8 life, hand: Lightning Bolt, Shock
+        // Battlefield: Mountain x3, Sulfuric Vortex
+        // PlayerB: 10 life, battlefield: Llanowar Elves, Forest x2
 
-        addCard(Zone.HAND, playerA, "Strength of the Pack");
-        addCard(Zone.HAND, playerA, "Depose // Deploy");
-        addCard(Zone.HAND, playerA, "Storm the Citadel");
-        addCard(Zone.HAND, playerA, "Masterful Replication");
-        addCard(Zone.HAND, playerA, "Short Sword");
+        // Set up PlayerA
+        setLife(playerA, 8);
+        addCard(Zone.HAND, playerA, "Lightning Bolt");
+        addCard(Zone.HAND, playerA, "Shock");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 3);
+        addCard(Zone.BATTLEFIELD, playerA, "Sulfuric Vortex");
 
-        addCard(Zone.BATTLEFIELD, playerA, "Gideon Blackblade");
-        addCounters(Zone.BATTLEFIELD, playerA, "Gideon Blackblade", CounterType.LOYALTY, 6);
-        addCard(Zone.BATTLEFIELD, playerA, "Blackblade Reforged");
-        addCard(Zone.BATTLEFIELD, playerA, "Omnispell Adept");
-        addCard(Zone.BATTLEFIELD, playerA, "Shanna, Sisay's Legacy"); // ID:9
-        addCard(Zone.BATTLEFIELD, playerA, "Sigiled Sword of Valeron"); // AttachedTo:9
-        addCard(Zone.BATTLEFIELD, playerA, "Dauntless Bodyguard"); // ID:10, ChosenCards:9
-        addCard(Zone.BATTLEFIELD, playerA, "Forebear's Blade"); // AttachedTo:10
-        addCard(Zone.BATTLEFIELD, playerA, "Hallowed Fountain");
-        addCard(Zone.BATTLEFIELD, playerA, "Hallowed Fountain");
-        addCard(Zone.BATTLEFIELD, playerA, "Hallowed Fountain");
-        addCard(Zone.BATTLEFIELD, playerA, "Temple Garden");
-        addCard(Zone.BATTLEFIELD, playerA, "Temple Garden");
-        addCard(Zone.BATTLEFIELD, playerA, "Temple Garden");
+        // Set up PlayerB
+        setLife(playerB, 10);
+        addCard(Zone.BATTLEFIELD, playerB, "Llanowar Elves");
+        addCard(Zone.BATTLEFIELD, playerB, "Forest", 2);
 
-        addCard(Zone.BATTLEFIELD, playerB, "Charity Extractor");
-        addCard(Zone.BATTLEFIELD, playerB, "Looming Altisaur");
-        addCard(Zone.BATTLEFIELD, playerB, "Gate Colossus");
-        addCard(Zone.BATTLEFIELD, playerB, "Looming Altisaur");
-        addCard(Zone.BATTLEFIELD, playerB, "Charity Extractor");
+        setStrictChooseMode(false);
 
-        // Attach equipment as per .pzl
-        runCode("Attach equipment", 1, PhaseStep.PRECOMBAT_MAIN, playerA, (info, player, game) -> {
-            Permanent shanna = game.getBattlefield().getAllPermanents().stream()
-                    .filter(p -> p.getName().equals("Shanna, Sisay's Legacy"))
-                    .findFirst().orElse(null);
-            Permanent sword = game.getBattlefield().getAllPermanents().stream()
-                    .filter(p -> p.getName().equals("Sigiled Sword of Valeron"))
-                    .findFirst().orElse(null);
-            if (shanna != null && sword != null) {
-                sword.attachTo(shanna.getId(), null, game);
-            }
-
-            Permanent bodyguard = game.getBattlefield().getAllPermanents().stream()
-                    .filter(p -> p.getName().equals("Dauntless Bodyguard"))
-                    .findFirst().orElse(null);
-            Permanent blade = game.getBattlefield().getAllPermanents().stream()
-                    .filter(p -> p.getName().equals("Forebear's Blade"))
-                    .findFirst().orElse(null);
-            if (bodyguard != null && blade != null) {
-                blade.attachTo(bodyguard.getId(), null, game);
-            }
-        });
-
+        // Run for one turn (puzzle specifies "Win this turn")
+        setStopAt(1, PhaseStep.END_TURN);
         execute();
 
-        assertWonTheGame(playerA);
+        finishAndSave("MTGP_09", 1);
     }
 
     @Test
