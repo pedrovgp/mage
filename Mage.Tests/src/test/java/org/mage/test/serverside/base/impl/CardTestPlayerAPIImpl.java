@@ -54,50 +54,6 @@ import static org.junit.Assert.assertTrue;
  */
 public abstract class CardTestPlayerAPIImpl extends MageTestPlayerBase implements CardTestAPI {
 
-    @Override
-    public void setPhase(mage.game.turn.Phase phase) {
-        if (currentGame != null && currentGame.getTurn() != null) {
-            currentGame.getTurn().setPhase(phase);
-        }
-    }
-
-    @Override
-    public void setPhaseByStep(mage.constants.PhaseStep step) {
-        if (currentGame != null && currentGame.getTurn() != null && step != null) {
-            // Map PhaseStep to Phase subclass
-            mage.game.turn.Phase phase = null;
-            switch (step) {
-                case UNTAP:
-                case UPKEEP:
-                case DRAW:
-                    phase = new mage.game.turn.BeginningPhase();
-                    break;
-                case PRECOMBAT_MAIN:
-                    phase = new mage.game.turn.PreCombatMainPhase();
-                    break;
-                case BEGIN_COMBAT:
-                case DECLARE_ATTACKERS:
-                case DECLARE_BLOCKERS:
-                case FIRST_COMBAT_DAMAGE:
-                case COMBAT_DAMAGE:
-                case END_COMBAT:
-                    phase = new mage.game.turn.CombatPhase();
-                    break;
-                case POSTCOMBAT_MAIN:
-                    phase = new mage.game.turn.PostCombatMainPhase();
-                    break;
-                case END_TURN:
-                case CLEANUP:
-                    phase = new mage.game.turn.EndPhase();
-                    break;
-                default:
-                    // fallback: BeginningPhase
-                    phase = new mage.game.turn.BeginningPhase();
-            }
-            currentGame.getTurn().setPhase(phase);
-        }
-    }
-    
     // DEBUG only, enable it to fast startup tests without database create (delete \db\ folder to force db recreate)
     private static final boolean FAST_SCAN_WITHOUT_DATABASE_CREATE = false;
 
