@@ -15,15 +15,31 @@ public class LLMPuzzles extends LLMPuzzlesBase {
 
     @Test
     public void test_MTGP_01_puzzle_llm_metrics() {
-        beginPuzzle("test_MTGP_01_puzzle_llm_metrics", 1);
+        // [metadata]
+        // Name:MTG Puzzles #01 - Gaining Experience
+        // URL:https://mtgpuzzles.com/puzzle/1
+        // Goal:Win
+        // Turns:1
+        // Difficulty:Medium
+        // Description:Defeat your opponent before their next turn. You currently have 0
+        // experience counters. Your opponent flashed in a Nebelgast Herald on your
+        // upkeep step, tapping your Mizzix of the Izmagnus. Can you find 4 damage to
+        // win?
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=5
+        // p0hand=Banners Raised;Electrickery;Temporary Insanity
+        // p0graveyard=Opt;Volcanic Spray
+        // p0battlefield=Mizzix of the Izmagnus|Tapped;Mountain;Mountain;Sulfur
+        // Falls|NoETBTrigs;Sulfur Falls|NoETBTrigs
+        // p1life=4
+        // p1landsplayed=0
+        // p1landsplayedlastturn=0
+        // p1battlefield=Nebelgast Herald;Treetop Ambusher
 
-        // Setup MTGP_01 puzzle scenario (see https://mtgpuzzles.com/puzzle/1)
-        // PlayerA (active): 5 life, hand: Banners Raised; Electrickery; Temporary
-        // Insanity
-        // Graveyard: Opt; Volcanic Spray
-        // Battlefield: Mizzix of the Izmagnus (Tapped), Mountain, Mountain, Sulfur
-        // Falls, Sulfur Falls
-        // PlayerB: 4 life, battlefield: Nebelgast Herald, Treetop Ambusher
+        beginPuzzle("test_MTGP_01_puzzle_llm_metrics", 1);
 
         // Set up PlayerA
         setLife(playerA, 5);
@@ -60,12 +76,32 @@ public class LLMPuzzles extends LLMPuzzlesBase {
 
     @Test
     public void test_MTGP_09_puzzle_llm_metrics() {
-        beginPuzzle("test_MTGP_09_puzzle_llm_metrics", 1);
+        // [metadata]
+        // Name:MTG Puzzles #09 - Aqua Regia
+        // URL:https://mtgpuzzles.com/puzzle/9
+        // Goal:Win
+        // Turns:1
+        // Difficulty:Easy
+        // Description:Win this turn. You've done the hard work of getting your opponent
+        // below 0, now to actually win the game! Can you rustle up enough mana for your
+        // ultimate weapon and win this turn? Your opponent's life total is -1 (yes it's
+        // negative). Fungal Reaches does not have any storage counters.
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=3
+        // p0landsplayed=0
+        // p0landsplayedlastturn=0
+        // p0hand=Watery Grave;Talisman of Impulse;Mana Crypt
+        // p0battlefield=Legacy Weapon;Nimbus Maze;City of Traitors;Fungal Reaches;River
+        // of Tears;Caves of Koilos
+        // p1life=-1
+        // p1landsplayed=0
+        // p1landsplayedlastturn=0
+        // p1battlefield=Platinum Angel
 
-        // Setup MTGP_09 puzzle scenario
-        // PlayerA (active): 8 life, hand: Lightning Bolt, Shock
-        // Battlefield: Mountain x3, Sulfuric Vortex
-        // PlayerB: 10 life, battlefield: Llanowar Elves, Forest x2
+        beginPuzzle("test_MTGP_09_puzzle_llm_metrics", 1);
 
         // Set up PlayerA
         setLife(playerA, 8);
@@ -90,14 +126,33 @@ public class LLMPuzzles extends LLMPuzzlesBase {
 
     @Test
     public void test_MTGP_04_puzzle_llm_metrics() {
-        beginPuzzle("test_MTGP_04_puzzle_llm_metrics", 1);
+        // [metadata]
+        // Name:MTG Puzzles #04 - Enrage Against the Machine
+        // URL:https://mtgpuzzles.com/puzzle/4
+        // Goal:Win before opponent's next turn
+        // Turns:1
+        // Difficulty:Very Hard
+        // Description:Win this turn. Your spirit-engrage tribal deck is not doing as
+        // well as you planned. Your opponent played a Jin-Gitaxias on their turn and
+        // you must find a way to win before its too late! The solution should not
+        // depend on how Jin-Gitaxias, Core Augur blocks.
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=5
+        // p0landsplayed=0
+        // p0landsplayedlastturn=0
+        // p0hand=Dark Withering;Tahngarth's Rage;Alms of the Vein
+        // p0battlefield=Frilled Deathspitter;Niblis of Dusk;Supreme
+        // Phantom;Pyrohemia;Mountain;Mountain;Mountain;Mountain;Mountain;Watery
+        // Grave|NoETBTrigs;Watery Grave|NoETBTrigs
+        // p1life=23
+        // p1landsplayed=0
+        // p1landsplayedlastturn=0
+        // p1battlefield=Jin-Gitaxias, Core Augur
 
-        // Setup MTGP_04 puzzle scenario (see https://mtgpuzzles.com/puzzle/4)
-        // PlayerA (active): 5 life, hand: Dark Withering; Tahngarth's Rage; Alms of the
-        // Vein
-        // Battlefield: Frilled Deathspitter, Niblis of Dusk, Supreme Phantom,
-        // Pyrohemia, Mountain x5, Watery Grave x2
-        // PlayerB: 23 life, battlefield: Jin-Gitaxias, Core Augur
+        beginPuzzle("test_MTGP_04_puzzle_llm_metrics", 1);
 
         // Set up PlayerA
         setLife(playerA, 5);
@@ -137,13 +192,34 @@ public class LLMPuzzles extends LLMPuzzlesBase {
 
     @Test
     public void test_MTGP_06_puzzle_llm_metrics() {
-        beginPuzzle("test_MTGP_06_puzzle_llm_metrics", 1);
+        // [metadata]
+        // Name:MTG Puzzles #06 - Lucky Number 13
+        // URL:https://mtgpuzzles.com/puzzle/6
+        // Goal:Win
+        // Turns:1
+        // Difficulty:Hard
+        // Description:Win this turn. It is your untap step and you and your opponent
+        // are dancing around 13 life. Can you find a way to win this turn? It's the
+        // beginning of your Untap Step. Assume the card you draw in your draw step is
+        // not necessary to solve this puzzle.
+        // [state]
+        // turn=1
+        // activeplayer=p1
+        // activephase=CLEANUP
+        // p0life=10
+        // p0landsplayed=0
+        // p0landsplayedlastturn=0
+        // p0hand=Blazing Salvo
+        // p0battlefield=Oreskos Sun Guide|Tapped;Nocturnal Feeder;Axis of
+        // Mortality;Triskaidekaphobia;Savai Triome|Tapped|NoETBTrigs;Savai
+        // Triome|Tapped|NoETBTrigs;Savai Triome|Tapped|NoETBTrigs
+        // p0library=Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt
+        // p1life=14
+        // p1landsplayed=0
+        // p1landsplayedlastturn=0
+        // p1battlefield=Bogardan Firefiend
 
-        // Setup MTGP_06 puzzle scenario (see https://mtgpuzzles.com/puzzle/6)
-        // PlayerA (active): 10 life, hand: Blazing Salvo
-        // Battlefield: Oreskos Sun Guide (tapped), Nocturnal Feeder, Axis of Mortality,
-        // Triskaidekaphobia, Savai Triome x3 (tapped)
-        // PlayerB: 14 life, battlefield: Bogardan Firefiend
+        beginPuzzle("test_MTGP_06_puzzle_llm_metrics", 1);
 
         // Set up PlayerA
         setLife(playerA, 10);
@@ -233,14 +309,35 @@ public class LLMPuzzles extends LLMPuzzlesBase {
 
     @Test
     public void test_MTGP_08_puzzle_llm_metrics() {
-        beginPuzzle("test_MTGP_08_puzzle_llm_metrics", 1);
+        // [metadata]
+        // Name:MTG Puzzles #08 - Counter Intelligence (*)
+        // URL:https://mtgpuzzles.com/puzzle/8
+        // Goal:Win
+        // Turns:1
+        // Difficulty:Medium
+        // Description:Win this turn. It's the eternal struggle between +1/+1 counters
+        // and -1/-1 counters, can you force your opponent's hand to secure the victory?
+        // Your opponent could activate Ashling at any point they have priority.
+        // # Needs AI support for Ashling the Pilgrim to work correctly (without human
+        // control).
+        // HumanControl:True
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=2
+        // p0landsplayed=0
+        // p0landsplayedlastturn=0
+        // p0hand=Scar
+        // p0battlefield=Dread Shade;Carnifex Demon|Counters:M1M1=2;Dread
+        // Shade;Swamp;Swamp;Swamp
+        // p1life=10
+        // p1landsplayed=0
+        // p1landsplayedlastturn=0
+        // p1battlefield=Ashling the Pilgrim;Cascade Bluffs;Cascade Bluffs;Cascade
+        // Bluffs;Shivan Reef;Shivan Reef;Shivan Reef
 
-        // Setup MTGP_08 puzzle scenario (see https://mtgpuzzles.com/puzzle/8)
-        // PlayerA (active): 2 life, hand: Scar
-        // Battlefield: Dread Shade, Carnifex Demon (with 2 -1/-1 counters), Dread
-        // Shade, Swamp x3
-        // PlayerB: 10 life, battlefield: Ashling the Pilgrim, Cascade Bluffs x3, Shivan
-        // Reef x3
+        beginPuzzle("test_MTGP_08_puzzle_llm_metrics", 1);
 
         // Set up PlayerA
         setLife(playerA, 2);
