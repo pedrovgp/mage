@@ -374,4 +374,72 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         finishAndSave("MTGP_08", 1);
     }
 
+    @Test
+    public void test_PC_051915_puzzle_llm_metrics() {
+        // [metadata]
+        // Name:Perplexing Chimera (GatheringMagic.com) 051915 - Weapon of Choice
+        // URL:http://www.gatheringmagic.com/seanuy-051915-perplexing-chimera-8-weapon-of-choice/
+        // Goal:Win
+        // Turns:1
+        // Difficulty:Hard
+        // Description:Win this turn.
+        // [state]
+        // ActivePlayer=Human
+        // ActivePhase=Main1
+        // HumanLife=5
+        // AILife=11
+        // humanhand=Flayer Husk; Darksteel Axe; Nameless Inversion
+        // humanbattlefield=Plains|Set:CHK; Plains|Set:CHK; Plains|Set:CHK;
+        // Plains|Set:CHK; Swamp|Set:CHK; Swamp|Set:CHK; Swamp|Set:CHK; Kor Duelist;
+        // Scavenger Drake; Moonlit Strider; Copper Carapace
+        // humangraveyard=Thief of Hope
+        // humanlibrary=
+        // aibattlefield=Mountain|Set:ZEN|Tapped; Mountain|Set:ZEN|Tapped;
+        // Mountain|Set:ZEN|Tapped; Mountain|Set:ZEN|Tapped; Forest|Set:ZEN|Tapped;
+        // Forest|Set:ZEN|Tapped; Forest|Set:ZEN|Tapped; Forest|Set:ZEN|Tapped;
+        // Bloodshot Trainee; Kozilek's Predator|Id:420; Kitesail|AttachedTo:420;
+        // Gorehorn Minotaurs|Counters:P1P1=2; Kavu Primarch|Counters:P1P1=4|Tapped
+        // aigraveyard=
+        // ailibrary=
+
+        beginPuzzle("test_PC_051915_puzzle_llm_metrics", 1);
+
+        // Set up PlayerA (Human)
+        setLife(playerA, 5);
+        addCard(Zone.HAND, playerA, "Flayer Husk");
+        addCard(Zone.HAND, playerA, "Darksteel Axe");
+        addCard(Zone.HAND, playerA, "Nameless Inversion");
+        addCard(Zone.BATTLEFIELD, playerA, "Plains", 4);
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp", 3);
+        addCard(Zone.BATTLEFIELD, playerA, "Kor Duelist");
+        addCard(Zone.BATTLEFIELD, playerA, "Scavenger Drake");
+        addCard(Zone.BATTLEFIELD, playerA, "Moonlit Strider");
+        addCard(Zone.BATTLEFIELD, playerA, "Copper Carapace");
+        addCard(Zone.GRAVEYARD, playerA, "Thief of Hope");
+
+        // Set up PlayerB (AI)
+        setLife(playerB, 11);
+        addCard(Zone.BATTLEFIELD, playerB, "Mountain", 4, true); // tapped
+        addCard(Zone.BATTLEFIELD, playerB, "Forest", 4, true); // tapped
+        addCard(Zone.BATTLEFIELD, playerB, "Bloodshot Trainee");
+        addCard(Zone.BATTLEFIELD, playerB, "Kozilek's Predator");
+        addCard(Zone.BATTLEFIELD, playerB, "Kitesail"); // attached to Kozilek's Predator
+        addCard(Zone.BATTLEFIELD, playerB, "Gorehorn Minotaurs");
+        addCard(Zone.BATTLEFIELD, playerB, "Kavu Primarch", 1, true); // tapped
+
+        setStrictChooseMode(false);
+
+        // Run for one turn (puzzle specifies "Win this turn")
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PC_051915", 1);
+    }
+
 }
