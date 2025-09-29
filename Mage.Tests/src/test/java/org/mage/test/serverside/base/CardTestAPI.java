@@ -25,6 +25,20 @@ public interface CardTestAPI {
     }
 
     /**
+     * Set the current phase of the game during a test.
+     *
+     * @param phase Phase object to set as current.
+     */
+    void setPhase(mage.game.turn.Phase phase);
+
+    /**
+     * Convenience method to set the phase by PhaseStep.
+     *
+     * @param step PhaseStep to set (e.g. CLEANUP).
+     */
+    void setPhaseByStep(mage.constants.PhaseStep step);
+
+    /**
      * Removes all cards from player's library from the game. Usually this
      * should be used once before initialization to form the library in certain
      * order.
