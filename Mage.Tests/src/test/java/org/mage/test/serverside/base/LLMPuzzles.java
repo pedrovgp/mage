@@ -219,7 +219,19 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         // p1landsplayedlastturn=0
         // p1battlefield=Bogardan Firefiend
 
+        // Puzzle starts at CLEANUP of p1 (playerB), so set up initial state accordingly
         beginPuzzle("test_MTGP_06_puzzle_llm_metrics", 1);
+
+        // Set phase to CLEANUP of playerB (activeplayer=p1, activephase=CLEANUP)
+        currentGame.getState().setActivePlayerId(playerB.getId());
+        // Use TurnMod to skip all steps until CLEANUP for the starting player (playerB)
+        mage.game.turn.TurnMods turnMods = currentGame.getState().getTurnMods();
+        java.util.UUID startingPlayerId = playerB.getId();
+        for (mage.constants.PhaseStep step : mage.constants.PhaseStep.values()) {
+            if (step != mage.constants.PhaseStep.CLEANUP) {
+                turnMods.add(new mage.game.turn.TurnMod(startingPlayerId).withSkipStep(step));
+            }
+        }
 
         // Set up PlayerA
         setLife(playerA, 10);
@@ -229,6 +241,7 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         addCard(Zone.BATTLEFIELD, playerA, "Axis of Mortality");
         addCard(Zone.BATTLEFIELD, playerA, "Triskaidekaphobia");
         addCard(Zone.BATTLEFIELD, playerA, "Savai Triome", 3, true); // three tapped copies
+        addCard(Zone.LIBRARY, playerA, "Opt", 30);
 
         // Set up PlayerB
         setLife(playerB, 14);
@@ -237,7 +250,7 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         setStrictChooseMode(false);
 
         // Run for one turn (puzzle specifies "Win this turn")
-        setStopAt(1, PhaseStep.END_TURN);
+        setStopAt(2, PhaseStep.END_TURN);
         execute();
 
         // Wait for async ops
@@ -440,6 +453,72 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         }
 
         finishAndSave("PC_051915", 1);
+    }
+
+    @Test
+    public void test_PC_44_puzzle_llm_metrics() {
+        // [metadata]
+        // Name:Perplexing Chimera #44 - Herald of Defeat
+        // URL:https://perplexingchimera.com/2015/03/18/44-herald-of-defeat/
+        // Goal:Win
+        // Turns:1
+        // [state]
+        // ActivePlayer=Human
+        // ActivePhase=Main1
+        // HumanLife=1
+        // AILife=33
+        // HumanPlay=Perilous Myr|Id:80; Grafted Exoskeleton|AttachedTo:80; Priests of
+        // Norn|Counters:M1M1=1; Mycosynth Fiend; Core Prowler|Id:6; Viridian Betrayers;
+        // Forest; Forest; Plains; Plains; Phyrexia's Core
+        // HumanHand=Seize the Initiative
+        // HumanLibrary=
+        // HumanGraveyard=
+        // AIPlay=Suture Priest|Id:83; Loxodon Wayfarer|Tapped; Mortis Dogs|Tapped;
+        // Victory's Herald|Tapped; Plains; Plains|Tapped; Plains|Tapped; Swamp;
+        // Swamp|Tapped; Swamp|Tapped; Darksteel Axe|AttachedTo:83; Arrest|AttachedTo:6
+        // AIGraveyard=
+
+        beginPuzzle("test_PC_44_puzzle_llm_metrics", 1);
+
+        // Set up PlayerA (Human)
+        setLife(playerA, 1);
+        addCard(Zone.HAND, playerA, "Seize the Initiative");
+        addCard(Zone.BATTLEFIELD, playerA, "Perilous Myr");
+        addCard(Zone.BATTLEFIELD, playerA, "Grafted Exoskeleton"); // attached to Perilous Myr
+        addCard(Zone.BATTLEFIELD, playerA, "Priests of Norn");
+        addCard(Zone.BATTLEFIELD, playerA, "Mycosynth Fiend");
+        addCard(Zone.BATTLEFIELD, playerA, "Core Prowler");
+        addCard(Zone.BATTLEFIELD, playerA, "Viridian Betrayers");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 2);
+        addCard(Zone.BATTLEFIELD, playerA, "Plains", 2);
+        addCard(Zone.BATTLEFIELD, playerA, "Phyrexia's Core");
+
+        // Set up PlayerB (AI)
+        setLife(playerB, 33);
+        addCard(Zone.BATTLEFIELD, playerB, "Suture Priest");
+        addCard(Zone.BATTLEFIELD, playerB, "Loxodon Wayfarer", 1, true); // tapped
+        addCard(Zone.BATTLEFIELD, playerB, "Mortis Dogs", 1, true); // tapped
+        addCard(Zone.BATTLEFIELD, playerB, "Victory's Herald", 1, true); // tapped
+        addCard(Zone.BATTLEFIELD, playerB, "Plains", 1);
+        addCard(Zone.BATTLEFIELD, playerB, "Plains", 2, true); // two tapped
+        addCard(Zone.BATTLEFIELD, playerB, "Swamp", 1);
+        addCard(Zone.BATTLEFIELD, playerB, "Swamp", 2, true); // two tapped
+        addCard(Zone.BATTLEFIELD, playerB, "Darksteel Axe"); // attached to Suture Priest
+        addCard(Zone.BATTLEFIELD, playerB, "Arrest"); // attached to Core Prowler
+
+        setStrictChooseMode(false);
+
+        // Run for one turn (puzzle specifies "Win this turn")
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PC_44", 1);
     }
 
 }
