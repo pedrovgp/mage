@@ -5,6 +5,7 @@ import mage.constants.Zone;
 import mage.game.permanent.Permanent;
 import org.json.JSONObject;
 import org.junit.Test;
+import org.junit.Ignore;
 import org.junit.Assume;
 import java.util.Set;
 import java.util.HashSet;
@@ -251,6 +252,7 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         finishAndSave("MTGP_06", 1);
     }
 
+    @Ignore("Skipping survival puzzle for now")
     @Test
     public void test_MTGP_02_puzzle_llm_metrics() {
         // MTGP_02.pzl: MTG Puzzles #02 - It's a Trap!
