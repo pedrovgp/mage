@@ -40,18 +40,50 @@ public class LLMPuzzlesBase extends CardTestPlayerBaseAI {
     /*
      * Test helpers to reduce repeated boilerplate across puzzle tests.
      * Usage in a test:
-     * beginPuzzle("test_ID_puzzle_llm_metrics", 1);
+     * setupPuzzle("test_ID_puzzle_llm_metrics", 1);
      * // test-specific setup...
      * execute();
      * finishAndSave("ID", 1);
      */
-    public void beginPuzzle(String testName, int stopTurn) {
+    /**
+     * New setup helper for puzzle tests.
+     *
+     * @param testName         test identifier (used for selection/logging)
+     * @param startingPlayerId player UUID that should be set as active for the
+     *                         puzzle
+     * @param startingStep     the PhaseStep where the puzzle starts (previous steps
+     *                         for the starting player will be skipped)
+     * @param stopTurn         the turn to stop the simulation at (passed to
+     *                         setStopAt)
+     */
+    public void setupPuzzle(String testName, java.util.UUID startingPlayerId, PhaseStep startingStep, int stopTurn) {
         // Reset counters and gate execution based on -Dtests
         httpPost("http://localhost:9000/api/mtg_llm/__test__/reset_counters", "{}");
         System.out.println("[RUNNING] " + testName);
         org.junit.Assume.assumeTrue("Skipping " + testName, shouldRun(testName));
         setStrictChooseMode(false);
+
+        // Ensure the game will treat the desired player as active at start
+        currentGame.getState().setActivePlayerId(startingPlayerId);
+
+        // Configure TurnMods to skip all steps before the startingStep for the starting
+        // player
+        mage.game.turn.TurnMods turnMods = currentGame.getState().getTurnMods();
+        for (PhaseStep step : PhaseStep.values()) {
+            if (step.isBefore(startingStep)) {
+                turnMods.add(new mage.game.turn.TurnMod(startingPlayerId).withSkipStep(step));
+            }
+        }
+
         setStopAt(stopTurn, PhaseStep.END_TURN);
+    }
+
+    /**
+     * Convenience overload that keeps previous tests working: defaults to playerA
+     * and PRECOMBAT_MAIN.
+     */
+    public void setupPuzzle(String testName, int stopTurn) {
+        setupPuzzle(testName, playerA.getId(), PhaseStep.PRECOMBAT_MAIN, stopTurn);
     }
 
     public void finishAndSave(String puzzleId, int turnsTaken) {

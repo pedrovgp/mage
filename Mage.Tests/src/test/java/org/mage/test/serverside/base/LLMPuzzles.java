@@ -39,7 +39,7 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         // p1landsplayedlastturn=0
         // p1battlefield=Nebelgast Herald;Treetop Ambusher
 
-        beginPuzzle("test_MTGP_01_puzzle_llm_metrics", 1);
+        setupPuzzle("test_MTGP_01_puzzle_llm_metrics", 1);
 
         // Set up PlayerA
         setLife(playerA, 5);
@@ -101,7 +101,7 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         // p1landsplayedlastturn=0
         // p1battlefield=Platinum Angel
 
-        beginPuzzle("test_MTGP_09_puzzle_llm_metrics", 1);
+        setupPuzzle("test_MTGP_09_puzzle_llm_metrics", 1);
 
         // Set up PlayerA
         setLife(playerA, 8);
@@ -152,7 +152,7 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         // p1landsplayedlastturn=0
         // p1battlefield=Jin-Gitaxias, Core Augur
 
-        beginPuzzle("test_MTGP_04_puzzle_llm_metrics", 1);
+        setupPuzzle("test_MTGP_04_puzzle_llm_metrics", 1);
 
         // Set up PlayerA
         setLife(playerA, 5);
@@ -220,18 +220,7 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         // p1battlefield=Bogardan Firefiend
 
         // Puzzle starts at CLEANUP of p1 (playerB), so set up initial state accordingly
-        beginPuzzle("test_MTGP_06_puzzle_llm_metrics", 1);
-
-        // Set phase to CLEANUP of playerB (activeplayer=p1, activephase=CLEANUP)
-        currentGame.getState().setActivePlayerId(playerB.getId());
-        // Use TurnMod to skip all steps until CLEANUP for the starting player (playerB)
-        mage.game.turn.TurnMods turnMods = currentGame.getState().getTurnMods();
-        java.util.UUID startingPlayerId = playerB.getId();
-        for (mage.constants.PhaseStep step : mage.constants.PhaseStep.values()) {
-            if (step != mage.constants.PhaseStep.CLEANUP) {
-                turnMods.add(new mage.game.turn.TurnMod(startingPlayerId).withSkipStep(step));
-            }
-        }
+        setupPuzzle("test_MTGP_06_puzzle_llm_metrics", playerB.getId(), PhaseStep.CLEANUP, 1);
 
         // Set up PlayerA
         setLife(playerA, 10);
@@ -285,7 +274,7 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         // p1battlefield=Throne of the
         // God-Pharaoh;T:c_4_4_a_construct;T:c_4_4_a_construct;T:c_4_4_a_construct;T:c_4_4_a_construct;T:c_4_4_a_construct
 
-        beginPuzzle("test_MTGP_02_puzzle_llm_metrics", 1);
+        setupPuzzle("test_MTGP_02_puzzle_llm_metrics", 1);
 
         // Set up PlayerA (p0 in .pzl)
         setLife(playerA, 7);
@@ -350,7 +339,7 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         // p1battlefield=Ashling the Pilgrim;Cascade Bluffs;Cascade Bluffs;Cascade
         // Bluffs;Shivan Reef;Shivan Reef;Shivan Reef
 
-        beginPuzzle("test_MTGP_08_puzzle_llm_metrics", 1);
+        setupPuzzle("test_MTGP_08_puzzle_llm_metrics", 1);
 
         // Set up PlayerA
         setLife(playerA, 2);
@@ -415,7 +404,7 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         // aigraveyard=
         // ailibrary=
 
-        beginPuzzle("test_PC_051915_puzzle_llm_metrics", 1);
+        setupPuzzle("test_PC_051915_puzzle_llm_metrics", 1);
 
         // Set up PlayerA (Human)
         setLife(playerA, 5);
@@ -478,7 +467,7 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         // Swamp|Tapped; Swamp|Tapped; Darksteel Axe|AttachedTo:83; Arrest|AttachedTo:6
         // AIGraveyard=
 
-        beginPuzzle("test_PC_44_puzzle_llm_metrics", 1);
+        setupPuzzle("test_PC_44_puzzle_llm_metrics", 1);
 
         // Set up PlayerA (Human)
         setLife(playerA, 1);
