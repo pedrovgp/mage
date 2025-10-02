@@ -220,7 +220,7 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         // p1battlefield=Bogardan Firefiend
 
         // Puzzle starts at CLEANUP of p1 (playerB), so set up initial state accordingly
-        setupPuzzle("test_MTGP_06_puzzle_llm_metrics", playerB.getId(), PhaseStep.CLEANUP, 1);
+        setupPuzzle("test_MTGP_06_puzzle_llm_metrics", playerB.getId(), PhaseStep.CLEANUP, 2);
 
         // Set up PlayerA
         setLife(playerA, 10);
@@ -274,7 +274,7 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         // p1battlefield=Throne of the
         // God-Pharaoh;T:c_4_4_a_construct;T:c_4_4_a_construct;T:c_4_4_a_construct;T:c_4_4_a_construct;T:c_4_4_a_construct
 
-        setupPuzzle("test_MTGP_02_puzzle_llm_metrics", 1);
+        setupPuzzle("test_MTGP_02_puzzle_llm_metrics", playerB.getId(), PhaseStep.DECLARE_BLOCKERS, 2);
 
         // Set up PlayerA (p0 in .pzl)
         setLife(playerA, 7);
@@ -297,7 +297,7 @@ public class LLMPuzzles extends LLMPuzzlesBase {
 
         // Set up combat state - PlayerB is attacking with constructs, in declare
         // blockers step
-        setStopAt(1, PhaseStep.END_TURN);
+        setStopAt(2, PhaseStep.END_TURN);
         execute();
 
         // Wait for async ops
