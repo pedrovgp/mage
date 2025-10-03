@@ -811,4 +811,60 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         finishAndSave("PS_WAR0a", 1);
     }
 
+    @Ignore("Test cannot find Gemrazer, altough the card is implemented")
+    @Test
+    public void test_PS_KHM4_puzzle_llm_metrics() {
+        // [metadata]
+        // Name:Possibility Storm - Kaldheim #04
+        // URL:https://i0.wp.com/www.possibilitystorm.com/wp-content/uploads/2021/02/168.-KHM4-scaled.jpg
+        // Goal:Win
+        // Turns:1
+        // Difficulty:Rare
+        // Description:Win this turn. Assume your opponent has no cards in hand. Your
+        // solution must account for all possible decisions the opponent could make!
+        // [state]
+        // humanlife=20
+        // ailife=6
+        // turn=1
+        // activeplayer=human
+        // activephase=MAIN1
+        // humanhand=Tergrid's Shadow;Gadrak, the Crown-Scourge;Tergrid, God of
+        // Fright;Minion's Return
+        // humanbattlefield=Goldspan Dragon;Labyrinth Raptor;Embereth
+        // Skyblazer;Snow-Covered Mountain|Set:KHM;Snow-Covered
+        // Mountain|Set:KHM;Snow-Covered Mountain|Set:KHM;Snow-Covered
+        // Swamp|Set:KHM;Snow-Covered Swamp|Set:KHM;Snow-Covered Swamp|Set:KHM
+        // aibattlefield=Starnheim Courser;Conclave Mentor;Gemrazer
+
+        setupPuzzle("test_PS_KHM4_puzzle_llm_metrics", 1);
+
+        // Set up PlayerA (Human)
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Tergrid's Shadow");
+        addCard(Zone.HAND, playerA, "Gadrak, the Crown-Scourge");
+        addCard(Zone.HAND, playerA, "Tergrid, God of Fright");
+        addCard(Zone.HAND, playerA, "Minion's Return");
+        addCard(Zone.BATTLEFIELD, playerA, "Goldspan Dragon");
+        addCard(Zone.BATTLEFIELD, playerA, "Labyrinth Raptor");
+        addCard(Zone.BATTLEFIELD, playerA, "Embereth Skyblazer");
+        addCard(Zone.BATTLEFIELD, playerA, "Snow-Covered Mountain", 3);
+        addCard(Zone.BATTLEFIELD, playerA, "Snow-Covered Swamp", 3);
+
+        // Set up PlayerB (AI)
+        setLife(playerB, 6);
+        addCard(Zone.BATTLEFIELD, playerB, "Starnheim Courser");
+        addCard(Zone.BATTLEFIELD, playerB, "Conclave Mentor");
+        addCard(Zone.BATTLEFIELD, playerB, "Gemrazer");
+
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PS_KHM4", 1);
+    }
+
 }
