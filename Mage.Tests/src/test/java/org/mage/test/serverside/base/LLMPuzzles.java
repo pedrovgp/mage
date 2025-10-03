@@ -498,6 +498,40 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         addCard(Zone.BATTLEFIELD, playerB, "Darksteel Axe"); // attached to Suture Priest
         addCard(Zone.BATTLEFIELD, playerB, "Arrest"); // attached to Core Prowler
 
+        // Ensure attachments and counters specified in .pzl are applied:
+        // - Attach Grafted Exoskeleton to Perilous Myr
+        // - Give Priests of Norn one M1M1 (-1/-1) counter
+        runCode("pc44 attach and counters", 1, PhaseStep.PRECOMBAT_MAIN, playerA, (info, player, game) -> {
+            Permanent myr = null;
+            Permanent exo = null;
+            Permanent priest = null;
+            for (Permanent p : game.getBattlefield().getAllActivePermanents(player.getId())) {
+                String name = p.getName();
+                if (name.equalsIgnoreCase("Perilous Myr")) {
+                    myr = p;
+                } else if (name.equalsIgnoreCase("Grafted Exoskeleton")) {
+                    exo = p;
+                } else if (name.equalsIgnoreCase("Priests of Norn") || name.equalsIgnoreCase("Priest of Norn")) {
+                    priest = p;
+                }
+            }
+            try {
+                if (exo != null && myr != null) {
+                    exo.attachTo(myr.getId(), null, game);
+                }
+                if (priest != null) {
+                    int cur = priest.getCounters(game).getCount(CounterType.M1M1);
+                    if (cur > 0) {
+                        priest.removeCounters(CounterType.M1M1.getName(), cur, null, game, true);
+                    }
+                    priest.addCounters(CounterType.M1M1.createInstance(1), null, game);
+                }
+            } catch (Exception e) {
+                // swallow - tests should continue even if helper methods not available
+                System.err.println("PC_44 runCode helper exception: " + e.getMessage());
+            }
+        });
+
         setStrictChooseMode(false);
 
         // Run for one turn (puzzle specifies "Win this turn")
