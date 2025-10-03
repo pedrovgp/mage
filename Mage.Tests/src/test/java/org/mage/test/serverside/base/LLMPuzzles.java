@@ -61,8 +61,6 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         addCard(Zone.BATTLEFIELD, playerB, "Nebelgast Herald");
         addCard(Zone.BATTLEFIELD, playerB, "Treetop Ambusher");
 
-        setStrictChooseMode(false);
-
         execute();
 
         // Wait for async ops
@@ -114,8 +112,6 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         setLife(playerB, 10);
         addCard(Zone.BATTLEFIELD, playerB, "Llanowar Elves");
         addCard(Zone.BATTLEFIELD, playerB, "Forest", 2);
-
-        setStrictChooseMode(false);
 
         execute();
 
@@ -172,8 +168,6 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         // Set up PlayerB
         setLife(playerB, 23);
         addCard(Zone.BATTLEFIELD, playerB, "Jin-Gitaxias, Core Augur");
-
-        setStrictChooseMode(false);
 
         execute();
 
@@ -232,8 +226,6 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         setLife(playerB, 14);
         addCard(Zone.BATTLEFIELD, playerB, "Bogardan Firefiend");
 
-        setStrictChooseMode(false);
-
         execute();
 
         // Wait for async ops
@@ -287,8 +279,6 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         setLife(playerB, 20);
         addCard(Zone.BATTLEFIELD, playerB, "Throne of the God-Pharaoh");
         addCard(Zone.BATTLEFIELD, playerB, "Construct Token", 5); // 5 Construct tokens attacking
-
-        setStrictChooseMode(false);
 
         execute();
 
@@ -353,8 +343,6 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         addCard(Zone.BATTLEFIELD, playerB, "Shivan Reef");
         addCard(Zone.BATTLEFIELD, playerB, "Shivan Reef");
 
-        setStrictChooseMode(false);
-
         execute();
 
         // Wait for async ops
@@ -418,8 +406,6 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         addCard(Zone.BATTLEFIELD, playerB, "Kitesail"); // attached to Kozilek's Predator
         addCard(Zone.BATTLEFIELD, playerB, "Gorehorn Minotaurs");
         addCard(Zone.BATTLEFIELD, playerB, "Kavu Primarch", 1, true); // tapped
-
-        setStrictChooseMode(false);
 
         execute();
 
@@ -516,8 +502,6 @@ public class LLMPuzzles extends LLMPuzzlesBase {
                 System.err.println("PC_44 runCode helper exception: " + e.getMessage());
             }
         });
-
-        setStrictChooseMode(false);
 
         execute();
 
@@ -626,8 +610,6 @@ public class LLMPuzzles extends LLMPuzzlesBase {
             }
         });
 
-        setStrictChooseMode(false);
-
         execute();
 
         // Wait for async ops
@@ -710,8 +692,6 @@ public class LLMPuzzles extends LLMPuzzlesBase {
                 System.err.println("PS_XLN5 runCode helper exception: " + e.getMessage());
             }
         });
-
-        setStrictChooseMode(false);
 
         execute();
 
@@ -819,8 +799,6 @@ public class LLMPuzzles extends LLMPuzzlesBase {
                         System.err.println("PS_WAR0a runCode helper exception: " + e.getMessage());
                     }
                 });
-
-        setStrictChooseMode(false);
 
         execute();
 

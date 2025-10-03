@@ -76,6 +76,8 @@ public class LLMPuzzlesBase extends CardTestPlayerBaseAI {
         }
 
         setStopAt(stopTurn, PhaseStep.END_TURN);
+        setStrictChooseMode(false);
+
     }
 
     /**
