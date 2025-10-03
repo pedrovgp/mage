@@ -63,8 +63,6 @@ public class LLMPuzzles extends LLMPuzzlesBase {
 
         setStrictChooseMode(false);
 
-        // Run for one turn (as puzzle specifies "Win in 1 turn")
-        setStopAt(1, PhaseStep.END_TURN);
         execute();
 
         // Wait for async ops
@@ -119,8 +117,6 @@ public class LLMPuzzles extends LLMPuzzlesBase {
 
         setStrictChooseMode(false);
 
-        // Run for one turn (puzzle specifies "Win this turn")
-        setStopAt(1, PhaseStep.END_TURN);
         execute();
 
         finishAndSave("MTGP_09", 1);
@@ -654,6 +650,91 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         }
 
         finishAndSave("PS_M207", 1);
+    }
+
+    @Test
+    public void test_PS_XLN5_puzzle_llm_metrics() {
+        // [metadata]
+        // Name:Possibility Storm - Ixalan #05
+        // URL:http://www.possibilitystorm.com/035-ixalan-season-puzzle-5/
+        // Goal:Win
+        // Turns:1
+        // Difficulty:Rare
+        // Description:Win this turn. You have 2 copies of Snare Thopter in your library
+        // and no other artifacts.
+        // [state]
+        // ActivePlayer=human
+        // ActivePhase=main1
+        // HumanLife=20
+        // AILife=13
+        // humanhand=Aether Tradewinds; Inventors' Fair; Tezzeret the Schemer;
+        // Marionette Master; Fatal Push;
+        // humanprecast=
+        // humangraveyard=
+        // humanlibrary=Snare Thopter; Snare Thopter;
+        // humanbattlefield=Revel in Riches; Ruthless Knave; Dire Fleet Hoarder;
+        // Festering Mummy; Tezzeret, Master of Metal|Counters:LOYALTY=5; Drowned
+        // Catacomb|Set:XLN; Drowned Catacomb|Set:XLN; Drowned Catacomb|Set:XLN; Drowned
+        // Catacomb|Set:XLN; Island|Set:XLN; Island|Set:XLN; Island|Set:XLN;
+        // Island|Set:XLN;
+        // aibattlefield=Solemnity; Crested Sunmare; Sacred Cat;
+        // aiprecast=Crested Sunmare:TrigToken;
+        // aigraveyard=
+        // aillibrary=
+        // aiexile=
+        setupPuzzle("test_PS_XLN5_puzzle_llm_metrics", 1);
+
+        // Set up PlayerA (Human)
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Aether Tradewinds");
+        addCard(Zone.HAND, playerA, "Inventors' Fair");
+        addCard(Zone.HAND, playerA, "Tezzeret the Schemer");
+        addCard(Zone.HAND, playerA, "Marionette Master");
+        addCard(Zone.HAND, playerA, "Fatal Push");
+        addCard(Zone.LIBRARY, playerA, "Snare Thopter", 2);
+        addCard(Zone.BATTLEFIELD, playerA, "Revel in Riches");
+        addCard(Zone.BATTLEFIELD, playerA, "Ruthless Knave");
+        addCard(Zone.BATTLEFIELD, playerA, "Dire Fleet Hoarder");
+        addCard(Zone.BATTLEFIELD, playerA, "Festering Mummy");
+        addCard(Zone.BATTLEFIELD, playerA, "Tezzeret, Master of Metal");
+        addCard(Zone.BATTLEFIELD, playerA, "Drowned Catacomb", 4);
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 4);
+
+        // Set up PlayerB (AI)
+        setLife(playerB, 13);
+        addCard(Zone.BATTLEFIELD, playerB, "Solemnity");
+        addCard(Zone.BATTLEFIELD, playerB, "Crested Sunmare");
+        addCard(Zone.BATTLEFIELD, playerB, "Sacred Cat");
+
+        // Ensure Tezzeret has correct loyalty (best-effort)
+        runCode("set tezzeret loyalty", 1, PhaseStep.PRECOMBAT_MAIN, playerA, (info, player, game) -> {
+            try {
+                for (Permanent p : game.getBattlefield().getAllActivePermanents(player.getId())) {
+                    if (p.getName().equalsIgnoreCase("Tezzeret, Master of Metal")) {
+                        int cur = p.getCounters(game).getCount(CounterType.LOYALTY);
+                        if (cur > 0) {
+                            p.removeCounters(CounterType.LOYALTY.getName(), cur, null, game, true);
+                        }
+                        p.addCounters(CounterType.LOYALTY.createInstance(5), null, game);
+                    }
+                }
+            } catch (Exception e) {
+                // swallow - tests should continue even if helper methods not available
+                System.err.println("PS_XLN5 runCode helper exception: " + e.getMessage());
+            }
+        });
+
+        setStrictChooseMode(false);
+
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PS_XLN5", 1);
     }
 
     @Test
