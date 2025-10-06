@@ -4,6 +4,7 @@ import mage.constants.PhaseStep;
 import mage.constants.Zone;
 import mage.game.permanent.Permanent;
 import mage.counters.CounterType;
+import mage.game.ExileZone;
 import org.json.JSONObject;
 import org.junit.Test;
 import org.junit.Ignore;
@@ -865,6 +866,113 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         }
 
         finishAndSave("PS_KHM4", 1);
+    }
+
+    @Test
+    public void test_PS_DOM5_puzzle_llm_metrics() {
+        // [metadata]
+        // Name:Possibility Storm - Dominaria #05
+        // URL:http://www.possibilitystorm.com/wp-content/uploads/2018/05/064.DOM5_.jpg
+        // Goal:Win
+        // Turns:1
+        // Difficulty:Uncommon
+        // Description:Win this turn. You have exiled Fatal Push and Mutiny with Karn.
+        // Assume any cards you could draw from your library are irrelevant. You already
+        // have the city's blessing at the start of the puzzle.
+        // [state]
+        // humanlife=20
+        // ailife=8
+        // turn=1
+        // activeplayer=human
+        // activephase=MAIN1
+        // humanhand=Relic Runner;Garna, the Bloodflame;Forebear's Blade;Karn, Scion of
+        // Urza
+        // humanlibrary=Song of Freyalise;Song of Freyalise;Song of Freyalise;Song of
+        // Freyalise;Song of Freyalise;Song of Freyalise;Song of Freyalise;Song of
+        // Freyalise;Song of Freyalise;Song of Freyalise
+        // humanbattlefield=Karn, Scion of Urza|Counters:LOYALTY=2;Weldfast
+        // Wingsmith;Storm Fleet Swashbuckler;Reckless Fireweaver;Underhanded
+        // Designs;Sulfur Falls|Set:DOM;Sulfur Falls|Set:DOM;Sulfur Falls|Set:DOM;Canyon
+        // Slough;Canyon Slough;Canyon Slough
+        // humanexile=Mutiny|Counters:SILVER=1;Fatal Push|Counters:SILVER=1
+        // aibattlefield=Aerial Responder;Aerial Responder;Bonded Horncrest
+
+        setupPuzzle("test_PS_DOM5_puzzle_llm_metrics", 1);
+
+        // Set up PlayerA (Human)
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Relic Runner");
+        addCard(Zone.HAND, playerA, "Garna, the Bloodflame");
+        addCard(Zone.HAND, playerA, "Forebear's Blade");
+        addCard(Zone.HAND, playerA, "Karn, Scion of Urza");
+        addCard(Zone.LIBRARY, playerA, "Song of Freyalise", 10);
+        addCard(Zone.BATTLEFIELD, playerA, "Karn, Scion of Urza");
+        addCard(Zone.BATTLEFIELD, playerA, "Weldfast Wingsmith");
+        addCard(Zone.BATTLEFIELD, playerA, "Storm Fleet Swashbuckler");
+        addCard(Zone.BATTLEFIELD, playerA, "Reckless Fireweaver");
+        addCard(Zone.BATTLEFIELD, playerA, "Underhanded Designs");
+        addCard(Zone.BATTLEFIELD, playerA, "Sulfur Falls", 3);
+        addCard(Zone.BATTLEFIELD, playerA, "Canyon Slough", 3);
+        // Exiled cards (best-effort)
+        addCard(Zone.EXILED, playerA, "Mutiny");
+        addCard(Zone.EXILED, playerA, "Fatal Push");
+        // Ensure exiled cards have SILVER counters (best-effort)
+        runCode("set exile silver counters", 1, PhaseStep.PRECOMBAT_MAIN, playerA, (info, player, game) -> {
+            try {
+                for (ExileZone ez : game.getExile().getExileZones()) {
+                    for (mage.cards.Card c : ez.getCards(game)) {
+                        String name = c.getName();
+                        if ("Mutiny".equalsIgnoreCase(name) || "Fatal Push".equalsIgnoreCase(name)) {
+                            try {
+                                // best-effort: attempt to set counters if API available on Card
+                                int cur = c.getCounters(game).getCount(CounterType.SILVER);
+                                if (cur > 0) {
+                                    c.removeCounters(CounterType.SILVER.getName(), cur, null, game, true);
+                                }
+                                c.addCounters(CounterType.SILVER.createInstance(1), null, game);
+                            } catch (Exception inner) {
+                                // some card implementations may not support counters in exile; ignore
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("PS_DOM5 exile counters helper exception: " + e.getMessage());
+            }
+        });
+
+        // Set up PlayerB (AI)
+        setLife(playerB, 8);
+        addCard(Zone.BATTLEFIELD, playerB, "Aerial Responder", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Bonded Horncrest");
+
+        // Ensure Karn has 2 loyalty (best-effort)
+        runCode("set karn loyalty", 1, PhaseStep.PRECOMBAT_MAIN, playerA, (info, player, game) -> {
+            try {
+                for (Permanent p : game.getBattlefield().getAllActivePermanents(player.getId())) {
+                    if (p.getName().equalsIgnoreCase("Karn, Scion of Urza")) {
+                        int cur = p.getCounters(game).getCount(CounterType.LOYALTY);
+                        if (cur > 0) {
+                            p.removeCounters(CounterType.LOYALTY.getName(), cur, null, game, true);
+                        }
+                        p.addCounters(CounterType.LOYALTY.createInstance(2), null, game);
+                    }
+                }
+            } catch (Exception e) {
+                // swallow - tests should continue even if helper methods not available
+                System.err.println("PS_DOM5 runCode helper exception: " + e.getMessage());
+            }
+        });
+
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PS_DOM5", 1);
     }
 
 }
