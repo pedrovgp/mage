@@ -975,4 +975,113 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         finishAndSave("PS_DOM5", 1);
     }
 
+    @Test
+    public void test_PP02_puzzle_llm_metrics() {
+        // [metadata]
+        // Name:Pauper Puzzles #02 - They See Me Rollin'
+        // URL:https://pauperpuzzles.wordpress.com/2017/01/18/2-they-see-me-rollin/
+        // Goal:Win
+        // Turns:1
+        // Difficulty:Medium
+        // [state]
+        // ActivePlayer=Human
+        // ActivePhase=Main1
+        // HumanLife=2
+        // AILife=8
+        // humanhand=Swamp;Jungle Hollow;Armadillo Cloak;Prey Upon;Shrink;Complete
+        // Disregard
+        // humanbattlefield=Swamp;Swamp;Forest;Forest;Forest;Orzhov Basilica;Pharika's
+        // Chosen;Putrid Leech;Pestilence
+        // aibattlefield=Ulamog's Crusher;Sea Gate Oracle
+
+        setupPuzzle("test_PP02_puzzle_llm_metrics", 1);
+
+        // Set up PlayerA (Human)
+        setLife(playerA, 2);
+        addCard(Zone.HAND, playerA, "Swamp");
+        addCard(Zone.HAND, playerA, "Jungle Hollow");
+        addCard(Zone.HAND, playerA, "Armadillo Cloak");
+        addCard(Zone.HAND, playerA, "Prey Upon");
+        addCard(Zone.HAND, playerA, "Shrink");
+        addCard(Zone.HAND, playerA, "Complete Disregard");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp", 2);
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 3);
+        addCard(Zone.BATTLEFIELD, playerA, "Orzhov Basilica");
+        addCard(Zone.BATTLEFIELD, playerA, "Pharika's Chosen");
+        addCard(Zone.BATTLEFIELD, playerA, "Putrid Leech");
+        addCard(Zone.BATTLEFIELD, playerA, "Pestilence");
+
+        // Set up PlayerB (AI)
+        setLife(playerB, 8);
+        addCard(Zone.BATTLEFIELD, playerB, "Ulamog's Crusher");
+        addCard(Zone.BATTLEFIELD, playerB, "Sea Gate Oracle");
+
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PP02", 1);
+    }
+
+    @Test
+    public void test_PS_BLB3_puzzle_llm_metrics() {
+        // [metadata]
+        // Name:Possibility Storm - Bloomburrow #03
+        // URL:https://i0.wp.com/www.possibilitystorm.com/wp-content/uploads/2024/08/latest-1-scaled.jpg?ssl=1
+        // Goal:Win
+        // Turns:1
+        // Difficulty:Rare
+        // Description:Win this turn. Assume any cards you or your opponent could draw
+        // are not relevant to the puzzle. Ensure your solution considers all possible
+        // opponent decisions. Good luck!
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=5
+        // p0hand=Bitter Reunion;Season of the Burrow;Harvestrite Host;For the Common
+        // Good
+        // p0library=Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt
+        // p0battlefield=Baylen, the Haymaker;Alchemist's Talent;Plains;Copperline
+        // Gorge;Copperline
+        // Gorge;T:c_a_treasure_sac;T:c_a_treasure_sac;T:c_a_treasure_sac;T:c_a_treasure_sac;T:c_a_treasure_sac
+        // p1life=12
+        // p1library=Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt;Opt
+        // p1battlefield=Vengeful Tracker
+
+        setupPuzzle("test_PS_BLB3_puzzle_llm_metrics", 1);
+
+        // Set up PlayerA (Human)
+        setLife(playerA, 5);
+        addCard(Zone.HAND, playerA, "Bitter Reunion");
+        addCard(Zone.HAND, playerA, "Season of the Burrow");
+        addCard(Zone.HAND, playerA, "Harvestrite Host");
+        addCard(Zone.HAND, playerA, "For the Common Good");
+        addCard(Zone.LIBRARY, playerA, "Opt", 20);
+        addCard(Zone.BATTLEFIELD, playerA, "Baylen, the Haymaker");
+        addCard(Zone.BATTLEFIELD, playerA, "Alchemist's Talent");
+        addCard(Zone.BATTLEFIELD, playerA, "Plains");
+        addCard(Zone.BATTLEFIELD, playerA, "Copperline Gorge", 2);
+        new mage.game.permanent.token.TreasureToken().putOntoBattlefield(5, currentGame, null, playerA.getId());
+
+        // Set up PlayerB (AI)
+        setLife(playerB, 12);
+        addCard(Zone.LIBRARY, playerB, "Opt", 20);
+        addCard(Zone.BATTLEFIELD, playerB, "Vengeful Tracker");
+
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PS_BLB3", 1);
+    }
+
 }
