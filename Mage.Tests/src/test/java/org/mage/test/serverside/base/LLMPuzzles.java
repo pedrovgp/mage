@@ -1200,4 +1200,73 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         finishAndSave("PS_BLB3", 1);
     }
 
+    @Test
+    public void test_pv_custom_attack() {
+        // custom validation: White Knight should be able to win against 2 life
+        setupPuzzle("test_pv_custom_attack", 1);
+
+        // Set up PlayerA
+        setLife(playerA, 20);
+        addCard(Zone.BATTLEFIELD, playerA, "White Knight");
+
+        // Set up PlayerB
+        setLife(playerB, 2);
+
+        execute();
+
+        finishAndSave("pv_custom_attack", 1);
+    }
+
+    @Test
+    public void test_pv_custom_token_attack() {
+        // custom validation: a Myr token attacking should win vs 1 life
+        setupPuzzle("test_pv_custom_token_attack", 1);
+
+        // Set up PlayerA
+        setLife(playerA, 20);
+        new mage.game.permanent.token.MyrToken().putOntoBattlefield(1, currentGame, null, playerA.getId());
+
+        // Set up PlayerB
+        setLife(playerB, 1);
+
+        execute();
+
+        finishAndSave("pv_custom_token_attack", 1);
+    }
+
+    @Test
+    public void test_pv_custom_token_sacrifice() {
+        // custom validation: Germ token with Mortarpod attached sacrifices / attacks to
+        // win vs 1 life
+        setupPuzzle("test_pv_custom_token_sacrifice", 1);
+
+        // Set up PlayerA
+        setLife(playerA, 20);
+        addCard(Zone.BATTLEFIELD, playerA, "Mortarpod");
+        new mage.game.permanent.token.MyrToken().putOntoBattlefield(1, currentGame, null, playerA.getId());
+        // Attach Mortarpod to the Myr token
+        runCode("attach mortarpod to myr token", 1, PhaseStep.PRECOMBAT_MAIN, playerA, (info, player, game) -> {
+            Permanent mortarpod = null;
+            Permanent myr = null;
+            for (Permanent p : game.getBattlefield().getAllActivePermanents(player.getId())) {
+                String name = p.getName();
+                if (name.equalsIgnoreCase("Mortarpod")) {
+                    mortarpod = p;
+                } else if (name.equalsIgnoreCase("Myr Token")) {
+                    myr = p;
+                }
+            }
+            if (mortarpod != null && myr != null) {
+                mortarpod.addAttachment(myr.getId(), null, game);
+            }
+        });
+
+        // Set up PlayerB
+        setLife(playerB, 1);
+
+        execute();
+
+        finishAndSave("pv_custom_token_sacrifice", 1);
+    }
+
 }
