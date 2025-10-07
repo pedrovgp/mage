@@ -1262,7 +1262,7 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         });
 
         // Set up PlayerB
-        setLife(playerB, 1);
+        setLife(playerB, 2);
 
         execute();
 
