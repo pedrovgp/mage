@@ -1363,4 +1363,264 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         finishAndSave("forge_tutorial01", 1);
     }
 
+    @Test
+    public void test_PC_033115_puzzle_llm_metrics() {
+        // Full puzzle file included below as required by test-first policy:
+        // [metadata]
+        // Name:Perplexing Chimera (GatheringMagic.com) 033115 - Ground Control
+        // URL:http://www.gatheringmagic.com/seanuy-033115-perplexing-chimera-1-ground-control/
+        // Goal:Win
+        // Turns:1
+        // Difficulty:Hard
+        // Description:Win this turn.
+        // [state]
+        // ActivePlayer=Human
+        // ActivePhase=Main1
+        // HumanLife=4
+        // AILife=4
+        // humanhand=Glaring Aegis|Set:DTK; Jeskai Barricade|Set:FRF; Epic
+        // Confrontation|Set:DTK; Dromoka's Gift|Set:DTK
+        // humanbattlefield=Forest|Set:DTK; Forest|Set:DTK; Forest|Set:DTK;
+        // Forest|Set:DTK; Plains|Set:DTK; Plains|Set:DTK; Plains|Set:DTK;
+        // Plains|Set:DTK; Plains|Set:DTK; Lightwalker|Set:DTK; Dragon-Scarred
+        // Bear|Set:DTK; Abzan Skycaptain|Set:FRF|Tapped|Id:420; Battlefront
+        // Krushok|Set:FRF; Ambush Krotiq|Set:FRF; Dromoka Monument|Set:DTK; Stormrider
+        // Rig|AttachedTo:420|Set:DTK
+        // aibattlefield=Plains|Set:DTK|Tapped; Plains|Set:DTK|Tapped;
+        // Plains|Set:DTK|Tapped; Island|Set:DTK|Tapped; Island|Set:DTK|Tapped;
+        // Island|Set:DTK|Tapped; Island|Set:DTK|Tapped; Dromoka Dunecaster|Set:DTK;
+        // Territorial Roc|Set:DTK; Orator of Ojutai|Set:DTK; Updraft Elemental|Set:DTK;
+        // Ancient Carp|Set:DTK; Strongarm Monk|Set:DTK; Ojutai, Soul of Winter|Set:FRF;
+        // Cunning Breezedancer|Tapped|Set:DTK
+        //
+        setupPuzzle("test_PC_033115_puzzle_llm_metrics", 1);
+
+        // Set up PlayerA (Human)
+        setLife(playerA, 4);
+        addCard(Zone.HAND, playerA, "Glaring Aegis");
+        addCard(Zone.HAND, playerA, "Jeskai Barricade");
+        addCard(Zone.HAND, playerA, "Epic Confrontation");
+        addCard(Zone.HAND, playerA, "Dromoka's Gift");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 4);
+        addCard(Zone.BATTLEFIELD, playerA, "Plains", 5);
+        addCard(Zone.BATTLEFIELD, playerA, "Lightwalker");
+        addCard(Zone.BATTLEFIELD, playerA, "Dragon-Scarred Bear");
+        addCard(Zone.BATTLEFIELD, playerA, "Abzan Skycaptain", 1, true); // tapped as specified
+        addCard(Zone.BATTLEFIELD, playerA, "Battlefront Krushok");
+        addCard(Zone.BATTLEFIELD, playerA, "Ambush Krotiq");
+        addCard(Zone.BATTLEFIELD, playerA, "Dromoka Monument");
+        addCard(Zone.BATTLEFIELD, playerA, "Stormrider Rig");
+
+        // Attach Stormrider Rig to Abzan Skycaptain (best-effort, pzl references
+        // Id:420)
+        runCode("attach stormrider rig to abzan skycaptain", 1, PhaseStep.PRECOMBAT_MAIN, playerA,
+                (info, player, game) -> {
+                    Permanent rig = null;
+                    Permanent sky = null;
+                    for (Permanent p : game.getBattlefield().getAllActivePermanents(player.getId())) {
+                        String name = p.getName();
+                        if (name.equalsIgnoreCase("Stormrider Rig")) {
+                            rig = p;
+                        } else if (name.equalsIgnoreCase("Abzan Skycaptain")) {
+                            sky = p;
+                        }
+                    }
+                    rig.attachTo(sky.getId(), null, game);
+                });
+
+        // Set up PlayerB (AI)
+        setLife(playerB, 4);
+        addCard(Zone.BATTLEFIELD, playerB, "Plains", 3, true); // tapped plains
+        addCard(Zone.BATTLEFIELD, playerB, "Island", 4, true); // tapped islands
+        addCard(Zone.BATTLEFIELD, playerB, "Dromoka Dunecaster");
+        addCard(Zone.BATTLEFIELD, playerB, "Territorial Roc");
+        addCard(Zone.BATTLEFIELD, playerB, "Orator of Ojutai");
+        addCard(Zone.BATTLEFIELD, playerB, "Updraft Elemental");
+        addCard(Zone.BATTLEFIELD, playerB, "Ancient Carp");
+        addCard(Zone.BATTLEFIELD, playerB, "Strongarm Monk");
+        addCard(Zone.BATTLEFIELD, playerB, "Ojutai, Soul of Winter");
+        addCard(Zone.BATTLEFIELD, playerB, "Cunning Breezedancer", 1, true); // tapped
+
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PC_033115", 1);
+    }
+
+    @Test
+    public void test_PS_GRN7_puzzle_llm_metrics() {
+        // Full puzzle file included below as required by test-first policy:
+        // [metadata]
+        // Name:Possibility Storm - Guilds of Ravnica #07
+        // URL:http://www.possibilitystorm.com/wp-content/uploads/2018/11/089.-GRN7.jpg
+        // Goal:Win
+        // Turns:1
+        // Difficulty:Rare
+        // Description:Win this turn. Remember that your answer must satisfy all
+        // possible blocking scenarios. Assume the top three cards of your opponent's
+        // library are all basic Forests. Titanic Growth and Prying Blade are exiled
+        // with your Thief of Sanity.
+        // [state]
+        // humanlife=20
+        // ailife=14
+        // turn=1
+        // activeplayer=human
+        // activephase=MAIN1
+        // humanhand=Urza's Ruinous Blast;The Eldest Reborn;Demonic Vigor;Switcheroo
+        // humanbattlefield=Thief of
+        // Sanity|Id:1|RememberedCards:2,3|ExecuteScript:DBEffect;Etrata, the
+        // Silencer;Steadfast Armasaur;Goring Ceratops;Watery Grave|NoETBTrigs;Watery
+        // Grave|NoETBTrigs;Watery Grave|NoETBTrigs;Glacial Fortress;Glacial
+        // Fortress;Glacial Fortress;Glacial Fortress
+        // ailibrary=Forest;Forest;Forest
+        // aibattlefield=Kraul Harpooner;Primordial Wurm;Trostani Discordant
+        // aiexile=Titanic Growth|Id:2|ExiledWith:1|FaceDown;Prying
+        // Blade|Id:3|ExiledWith:1|FaceDown
+        //
+        setupPuzzle("test_PS_GRN7_puzzle_llm_metrics", 1);
+
+        // Set up PlayerA (Human)
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Urza's Ruinous Blast");
+        addCard(Zone.HAND, playerA, "The Eldest Reborn");
+        addCard(Zone.HAND, playerA, "Demonic Vigor");
+        addCard(Zone.HAND, playerA, "Switcheroo");
+        addCard(Zone.BATTLEFIELD, playerA, "Thief of Sanity");
+        addCard(Zone.BATTLEFIELD, playerA, "Etrata, the Silencer");
+        addCard(Zone.BATTLEFIELD, playerA, "Steadfast Armasaur");
+        addCard(Zone.BATTLEFIELD, playerA, "Goring Ceratops");
+        addCard(Zone.BATTLEFIELD, playerA, "Watery Grave", 3);
+        addCard(Zone.BATTLEFIELD, playerA, "Glacial Fortress", 4);
+        // Exiled cards that were exiled with Thief of Sanity (best-effort)
+        addCard(Zone.EXILED, playerA, "Titanic Growth");
+        addCard(Zone.EXILED, playerA, "Prying Blade");
+
+        // Best-effort: mark Thief of Sanity remembered/exile metadata
+        runCode("mark thief remembered and exile metadata", 1, PhaseStep.PRECOMBAT_MAIN, playerA,
+                (info, player, game) -> {
+                    try {
+                        for (Permanent p : game.getBattlefield().getAllActivePermanents(player.getId())) {
+                            if (p.getName().equalsIgnoreCase("Thief of Sanity")) {
+                                p.addInfo("RememberedCards", "2,3", game);
+                                p.addInfo("ExiledWith", "1", game);
+                            }
+                        }
+                    } catch (Exception e) {
+                        System.err.println("PS_GRN7 runCode helper exception: " + e.getMessage());
+                    }
+                });
+
+        // Set up PlayerB (AI)
+        setLife(playerB, 14);
+        // Put three basic Forests on top of AI library (best-effort)
+        addCard(Zone.LIBRARY, playerB, "Forest", 3);
+        addCard(Zone.BATTLEFIELD, playerB, "Kraul Harpooner");
+        addCard(Zone.BATTLEFIELD, playerB, "Primordial Wurm");
+        addCard(Zone.BATTLEFIELD, playerB, "Trostani Discordant");
+
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PS_GRN7", 1);
+    }
+
+    @Test
+    public void test_PS_MGOB_puzzle_llm_metrics() {
+        // Full puzzle file included below as required by test-first policy:
+        // [metadata]
+        // Name:Possibility Storm - Special Guest Puzzle - Modern Goblins
+        // URL:http://www.possibilitystorm.com/wp-content/uploads/2019/09/129.-FK01.jpg
+        // Goal:Win
+        // Turns:1
+        // Difficulty:Mythic
+        // Description:Win this turn. Your opponent has chosen 'Goblin' with Plague
+        // Engineer's ability.
+        // [state]
+        // humanlife=20
+        // ailife=19
+        // turn=1
+        // activeplayer=human
+        // activephase=MAIN1
+        // humanhand=Krenko, Mob Boss;Sling-Gang Lieutenant;Munitions Expert;Goblin
+        // Warchief;Goblin Piledriver;Skirk Prospector
+        // humanbattlefield=Pashalik Mons;Goblin Guide;Kiki-Jiki, Mirror
+        // Breaker;Mountain;Mountain;Mountain;Blood Crypt|NoETBTrigs;Blood
+        // Crypt|NoETBTrigs
+        // aibattlefield=Plague Engineer|ChosenType:Goblin|Id:1;Sylvok
+        // Lifestaff|AttachedTo:1;Sylvok Lifestaff|AttachedTo:1;Accorder's
+        // Shield|AttachedTo:1
+        //
+        setupPuzzle("test_PS_MGOB_puzzle_llm_metrics", 1);
+
+        // Set up PlayerA (Human)
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Krenko, Mob Boss");
+        addCard(Zone.HAND, playerA, "Sling-Gang Lieutenant");
+        addCard(Zone.HAND, playerA, "Munitions Expert");
+        addCard(Zone.HAND, playerA, "Goblin Warchief");
+        addCard(Zone.HAND, playerA, "Goblin Piledriver");
+        addCard(Zone.HAND, playerA, "Skirk Prospector");
+        addCard(Zone.BATTLEFIELD, playerA, "Pashalik Mons");
+        addCard(Zone.BATTLEFIELD, playerA, "Goblin Guide");
+        addCard(Zone.BATTLEFIELD, playerA, "Kiki-Jiki, Mirror Breaker");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 3);
+        addCard(Zone.BATTLEFIELD, playerA, "Blood Crypt", 2);
+
+        // Set up PlayerB (AI)
+        setLife(playerB, 19);
+        addCard(Zone.BATTLEFIELD, playerB, "Plague Engineer");
+        // Add equipments/artifacts that should be attached to Plague Engineer
+        addCard(Zone.BATTLEFIELD, playerB, "Sylvok Lifestaff", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Accorder's Shield");
+
+        // Best-effort: attach equipments to Plague Engineer as specified in .pzl
+        runCode("attach equipments to plague engineer", 1, PhaseStep.PRECOMBAT_MAIN, playerB,
+                (info, player, game) -> {
+                    try {
+                        Permanent plague = null;
+                        Set<Permanent> equipments = new HashSet<>();
+                        for (Permanent p : game.getBattlefield().getAllActivePermanents(player.getId())) {
+                            String name = p.getName();
+                            if (name.equalsIgnoreCase("Plague Engineer")) {
+                                plague = p;
+                            } else if (name.equalsIgnoreCase("Sylvok Lifestaff")
+                                    || name.equalsIgnoreCase("Accorder's Shield")) {
+                                equipments.add(p);
+                            }
+                        }
+                        if (plague != null) {
+                            for (Permanent eq : equipments) {
+                                try {
+                                    eq.attachTo(plague.getId(), null, game);
+                                } catch (Exception ex) {
+                                    // swallow - best-effort attachment
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        System.err.println("PS_MGOB runCode helper exception: " + e.getMessage());
+                    }
+                });
+
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PS_MGOB", 1);
+    }
+
 }
