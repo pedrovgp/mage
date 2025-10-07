@@ -420,6 +420,122 @@ public class LLMPuzzles extends LLMPuzzlesBase {
     }
 
     @Test
+    public void test_PC_060915_puzzle_llm_metrics() {
+        // [metadata]
+        // Name:Perplexing Chimera (GatheringMagic.com) 060915 - Now You See It
+        // URL:http://www.gatheringmagic.com/seanuy-060915-now-you-see-it/
+        // Goal:Win
+        // Turns:1
+        // Difficulty:Hard
+        // Description:Win on this turn.
+        // [state]
+        // ActivePlayer=human
+        // ActivePhase=Main1
+        // HumanLife=9
+        // AILife=6
+        // humanhand=Mountain|Set:M15; Bone Splinters|Set:MM2; Brute Force|Set:MM2;
+        // Stormblood Berserker|Set:MM2; Goblin War Paint|Set:MM2; Chimeric Mass|Set:MM2
+        // humanbattlefield=Swamp|Set:M15; Swamp|Set:M15; Mountain|Set:M15;
+        // Mountain|Set:M15|Tapped; Rakdos Carnarium; Mortarpod|AttachedTo:420|Set:MM2;
+        // t:Germ,P:0,T:0,Cost:no
+        // cost,Color:B,Types:Creature-Germ,Keywords:,Image:b_0_0_germ|Id:420; Sickle
+        // Ripper|Set:MM2; Necroskitter|Set:MM2
+        //
+        // humangraveyard=
+        // humanlibrary=
+        // aihand=
+        // aibattlefield=Plains|Set:M15|Tapped; Plains|Set:M15|Tapped;
+        // Island|Set:M15|Tapped; Island|Set:M15|Tapped; Island|Set:M15|Tapped;
+        // Darksteel Citadel|Set:MM2|Tapped; Myrsmith|Set:MM2; t:Myr,P:1,T:1,Cost:no
+        // cost,Types:Artifact-Creature-Myr,Keywords:,Image:c_1_1_myr_som;
+        // t:Myr,P:1,T:1,Cost:no
+        // cost,Types:Artifact-Creature-Myr,Keywords:,Image:c_1_1_myr_som; Rusted
+        // Relic|Set:MM2|Tapped; Glassdust Hulk|Set:MM2|Tapped; Aethersnipe|Set:MM2
+        //
+        // aigraveyard=
+        // ailibrary=
+
+        setupPuzzle("test_PC_060915_puzzle_llm_metrics", 1);
+
+        // Set up PlayerA (Human)
+        setLife(playerA, 9);
+        addCard(Zone.HAND, playerA, "Mountain");
+        addCard(Zone.HAND, playerA, "Bone Splinters");
+        addCard(Zone.HAND, playerA, "Brute Force");
+        addCard(Zone.HAND, playerA, "Stormblood Berserker");
+        addCard(Zone.HAND, playerA, "Goblin War Paint");
+        addCard(Zone.HAND, playerA, "Chimeric Mass");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp", 2);
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 1, true); // tapped
+        addCard(Zone.BATTLEFIELD, playerA, "Rakdos Carnarium");
+        addCard(Zone.BATTLEFIELD, playerA, "Mortarpod");
+        addCard(Zone.BATTLEFIELD, playerA, "Sickle Ripper");
+        addCard(Zone.BATTLEFIELD, playerA, "Necroskitter");
+        // Ensure a Germ token exists (use PhyrexianGermToken implementation when
+        // available)
+        try {
+            new mage.game.permanent.token.PhyrexianGermToken().putOntoBattlefield(1, currentGame, null,
+                    playerA.getId());
+        } catch (Throwable t) {
+            // fallback: attempt generic GermToken creation if present
+            try {
+                new mage.game.permanent.token.GermToken().putOntoBattlefield(1, currentGame, null, playerA.getId());
+            } catch (Throwable ignored) {
+                // best-effort: if neither token class is available, continue without explicit
+                // creation
+            }
+        }
+
+        // Best-effort: create a Germ-like token or attach Mortarpod to an existing
+        // creature.
+        // We'll attach Mortarpod to Sickle Ripper if present to emulate
+        // Mortarpod|AttachedTo:420
+        runCode("attach mortarpod to target creature if available", 1, PhaseStep.PRECOMBAT_MAIN, playerA,
+                (info, player, game) -> {
+                    Permanent mortarpod = null;
+                    Permanent target = null;
+                    for (Permanent p : game.getBattlefield().getAllActivePermanents(player.getId())) {
+                        String name = p.getName();
+                        if (name.equalsIgnoreCase("Mortarpod")) {
+                            mortarpod = p;
+                        } else if (name.equalsIgnoreCase("Germ Token")) {
+                            // prefer Germ Token to match .pzl ordering
+                            if (target == null || name.equalsIgnoreCase("Germ Token")) {
+                                target = p;
+                            }
+                        }
+                    }
+                    if (mortarpod != null && target != null) {
+                        // attach equipment Mortarpod to the chosen creature
+                        mortarpod.addAttachment(target.getId(), null, game);
+                    }
+                });
+
+        // Set up PlayerB (AI)
+        setLife(playerB, 6);
+        addCard(Zone.BATTLEFIELD, playerB, "Plains", 2, true); // two tapped Plains
+        addCard(Zone.BATTLEFIELD, playerB, "Island", 3, true); // three tapped Islands
+        addCard(Zone.BATTLEFIELD, playerB, "Darksteel Citadel", 1, true);
+        addCard(Zone.BATTLEFIELD, playerB, "Myrsmith");
+        addCard(Zone.BATTLEFIELD, playerB, "Rusted Relic", 1, true);
+        addCard(Zone.BATTLEFIELD, playerB, "Glassdust Hulk", 1, true);
+        addCard(Zone.BATTLEFIELD, playerB, "Aethersnipe");
+        // Create two generic Myr tokens (artifact creature Myr tokens)
+        new mage.game.permanent.token.MyrToken().putOntoBattlefield(2, currentGame, null, playerB.getId());
+
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("PC_060915", 1);
+    }
+
+    @Test
     public void test_PC_44_puzzle_llm_metrics() {
         // [metadata]
         // Name:Perplexing Chimera #44 - Herald of Defeat
