@@ -1269,4 +1269,98 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         finishAndSave("pv_custom_token_sacrifice", 1);
     }
 
+    @Test
+    public void test_forge_tutorial01_puzzle_llm_metrics() {
+        // Full puzzle file included below as required by test-first policy:
+        // [metadata]
+        //
+        // Name:Forge Puzzle Tutorial #01 - Bypass Operation
+        // URL:https://www.cardforge.org
+        //
+        // Goal:Win
+        //
+        // Turns:1
+        //
+        // Difficulty:Easy
+        //
+        // Description:Most Magic puzzles will require you to win by reducing your
+        // opponent's life total to zero. The most common way of doing this involves
+        // dealing damage to your opponent with one or more attacking creatures. As a
+        // result, you should look for any evasive abilities on the table - abilities
+        // like Flying, Shadow, Horsemanship, and even Trample can help you out.\n\nIn
+        // this puzzle, you have a clear source of damage in your hand. But you don't
+        // have the mana to cast it, and it wouldn't be enough to defeat your opponent
+        // by itself in any case. That means that you've got to attack in some way. With
+        // this in mind, how do you get past your opponent's blockers?
+        // [state]
+        //
+        // humanlife=7
+        // ailife=5
+        //
+        // activeplayer=human
+        //
+        // activephase=MAIN1
+        //
+        // humanhand=Unstable Mutation|Set:4ED; Turn // Burn
+        //
+        // humanlibrary=
+        //
+        // humangraveyard=
+        //
+        // humanbattlefield=Knight of Dawn|Set:TMP; Vedalken Mastermind|Set:10E;
+        // Mausoleum Guard|Set:ISD; Silver Knight|Set:SCG; Giant Crab|Set:TMP;
+        // Island|Set:ISD; Island|Set:ISD; Island|Set:ISD; Island|Set:ISD;
+        // Island|Set:ISD; Plains|Set:ISD; Plains|Set:ISD; Plains|Set:ISD;
+        // Plains|Set:ISD; Crumbling Vestige|Set:OGW
+        // humanexile=
+        //
+        // humancommand=
+        //
+        // aihand=
+        //
+        // ailibrary=
+        //
+        // aigraveyard=
+        //
+        // aibattlefield=Sylvan Caryatid|Set:THS; Willbender|Set:LGN; Minotaur
+        // Sureshot|Set:AKH; Steamcore Weird|Set:GPT; Giant Spider|Set:8ED; Assembled
+        // Alphas|Set:EMN
+        // aiexile=
+        // aicommand=
+        //
+        setupPuzzle("test_forge_tutorial01_puzzle_llm_metrics", 1);
+
+        // Set up PlayerA (Human)
+        setLife(playerA, 7);
+        addCard(Zone.HAND, playerA, "Unstable Mutation");
+        addCard(Zone.HAND, playerA, "Turn // Burn");
+        addCard(Zone.BATTLEFIELD, playerA, "Knight of Dawn");
+        addCard(Zone.BATTLEFIELD, playerA, "Vedalken Mastermind");
+        addCard(Zone.BATTLEFIELD, playerA, "Mausoleum Guard");
+        addCard(Zone.BATTLEFIELD, playerA, "Silver Knight");
+        addCard(Zone.BATTLEFIELD, playerA, "Giant Crab");
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 6);
+        addCard(Zone.BATTLEFIELD, playerA, "Plains", 4);
+        addCard(Zone.BATTLEFIELD, playerA, "Crumbling Vestige");
+
+        // Set up PlayerB (AI)
+        setLife(playerB, 5);
+        addCard(Zone.BATTLEFIELD, playerB, "Sylvan Caryatid");
+        addCard(Zone.BATTLEFIELD, playerB, "Willbender");
+        addCard(Zone.BATTLEFIELD, playerB, "Minotaur Sureshot");
+        addCard(Zone.BATTLEFIELD, playerB, "Steamcore Weird");
+        addCard(Zone.BATTLEFIELD, playerB, "Giant Spider");
+        addCard(Zone.BATTLEFIELD, playerB, "Assembled Alphas");
+
+        execute();
+
+        // Wait for async ops
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        finishAndSave("forge_tutorial01", 1);
+    }
+
 }
