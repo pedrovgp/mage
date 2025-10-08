@@ -1,8 +1,11 @@
 package org.mage.test.serverside.base;
 
+import mage.abilities.effects.common.ExileFaceDownYouMayPlayAsLongAsExiledTargetEffect;
+import mage.constants.CastManaAdjustment;
 import mage.constants.PhaseStep;
 import mage.constants.Zone;
 import mage.game.permanent.Permanent;
+import mage.target.targetpointer.FixedTarget;
 import mage.counters.CounterType;
 import mage.game.ExileZone;
 import org.json.JSONObject;
@@ -1496,24 +1499,6 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         addCard(Zone.BATTLEFIELD, playerA, "Goring Ceratops");
         addCard(Zone.BATTLEFIELD, playerA, "Watery Grave", 3);
         addCard(Zone.BATTLEFIELD, playerA, "Glacial Fortress", 4);
-        // Exiled cards that were exiled with Thief of Sanity (best-effort)
-        addCard(Zone.EXILED, playerA, "Titanic Growth");
-        addCard(Zone.EXILED, playerA, "Prying Blade");
-
-        // Best-effort: mark Thief of Sanity remembered/exile metadata
-        runCode("mark thief remembered and exile metadata", 1, PhaseStep.PRECOMBAT_MAIN, playerA,
-                (info, player, game) -> {
-                    try {
-                        for (Permanent p : game.getBattlefield().getAllActivePermanents(player.getId())) {
-                            if (p.getName().equalsIgnoreCase("Thief of Sanity")) {
-                                p.addInfo("RememberedCards", "2,3", game);
-                                p.addInfo("ExiledWith", "1", game);
-                            }
-                        }
-                    } catch (Exception e) {
-                        System.err.println("PS_GRN7 runCode helper exception: " + e.getMessage());
-                    }
-                });
 
         // Set up PlayerB (AI)
         setLife(playerB, 14);
@@ -1522,6 +1507,26 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         addCard(Zone.BATTLEFIELD, playerB, "Kraul Harpooner");
         addCard(Zone.BATTLEFIELD, playerB, "Primordial Wurm");
         addCard(Zone.BATTLEFIELD, playerB, "Trostani Discordant");
+        // Exiled cards that were exiled with Thief of Sanity (best-effort)
+        addCard(Zone.EXILED, playerB, "Titanic Growth");
+        addCard(Zone.EXILED, playerB, "Prying Blade");
+
+        // Best-effort: mark Thief of Sanity remembered/exile metadata
+        runCode("mark thief remembered and exile metadata", 1, PhaseStep.PRECOMBAT_MAIN, playerA,
+                (info, player, game) -> {
+                    for (Permanent p : game.getBattlefield().getAllActivePermanents(player.getId())) {
+                        if (p.getName().equalsIgnoreCase("Thief of Sanity")) {
+                            p.addInfo("RememberedCards", "2,3", game);
+                            p.addInfo("ExiledWith", "1", game);
+                        } else if (p.getName().equalsIgnoreCase("Titanic Growth") ||
+                                p.getName().equalsIgnoreCase("Prying Blade")) {
+                            new ExileFaceDownYouMayPlayAsLongAsExiledTargetEffect(true,
+                                    CastManaAdjustment.AS_THOUGH_ANY_MANA_TYPE)
+                                    .setTargetPointer(new FixedTarget(p, game))
+                                    .apply(game);
+                        }
+                    }
+                });
 
         execute();
 
@@ -1586,29 +1591,21 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         // Best-effort: attach equipments to Plague Engineer as specified in .pzl
         runCode("attach equipments to plague engineer", 1, PhaseStep.PRECOMBAT_MAIN, playerB,
                 (info, player, game) -> {
-                    try {
-                        Permanent plague = null;
-                        Set<Permanent> equipments = new HashSet<>();
-                        for (Permanent p : game.getBattlefield().getAllActivePermanents(player.getId())) {
-                            String name = p.getName();
-                            if (name.equalsIgnoreCase("Plague Engineer")) {
-                                plague = p;
-                            } else if (name.equalsIgnoreCase("Sylvok Lifestaff")
-                                    || name.equalsIgnoreCase("Accorder's Shield")) {
-                                equipments.add(p);
-                            }
+                    Permanent plague = null;
+                    Set<Permanent> equipments = new HashSet<>();
+                    for (Permanent p : game.getBattlefield().getAllActivePermanents(player.getId())) {
+                        String name = p.getName();
+                        if (name.equalsIgnoreCase("Plague Engineer")) {
+                            plague = p;
+                        } else if (name.equalsIgnoreCase("Sylvok Lifestaff")
+                                || name.equalsIgnoreCase("Accorder's Shield")) {
+                            equipments.add(p);
                         }
-                        if (plague != null) {
-                            for (Permanent eq : equipments) {
-                                try {
-                                    eq.attachTo(plague.getId(), null, game);
-                                } catch (Exception ex) {
-                                    // swallow - best-effort attachment
-                                }
-                            }
+                    }
+                    if (plague != null) {
+                        for (Permanent eq : equipments) {
+                            eq.attachTo(plague.getId(), null, game);
                         }
-                    } catch (Exception e) {
-                        System.err.println("PS_MGOB runCode helper exception: " + e.getMessage());
                     }
                 });
 
