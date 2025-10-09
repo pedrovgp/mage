@@ -1,13 +1,19 @@
 package org.mage.test.serverside.base;
 
+import mage.abilities.common.SimpleStaticAbility;
 import mage.abilities.effects.common.ExileFaceDownYouMayPlayAsLongAsExiledTargetEffect;
+import mage.abilities.effects.common.continuous.BoostAllEffect;
+import mage.abilities.effects.common.ChooseCreatureTypeEffect;
 import mage.constants.CastManaAdjustment;
+import mage.constants.Duration;
 import mage.constants.PhaseStep;
+import mage.constants.SubType;
 import mage.constants.Zone;
 import mage.game.permanent.Permanent;
 import mage.target.targetpointer.FixedTarget;
 import mage.counters.CounterType;
 import mage.game.ExileZone;
+import mage.util.CardUtil;
 import org.json.JSONObject;
 import org.junit.Test;
 import org.junit.Ignore;
@@ -1523,7 +1529,7 @@ public class LLMPuzzles extends LLMPuzzlesBase {
                             new ExileFaceDownYouMayPlayAsLongAsExiledTargetEffect(true,
                                     CastManaAdjustment.AS_THOUGH_ANY_MANA_TYPE)
                                     .setTargetPointer(new FixedTarget(p, game))
-                                    .apply(game);
+                                    .apply(game, null);
                         }
                     }
                 });
@@ -1588,8 +1594,11 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         addCard(Zone.BATTLEFIELD, playerB, "Sylvok Lifestaff", 2);
         addCard(Zone.BATTLEFIELD, playerB, "Accorder's Shield");
 
-        // Best-effort: attach equipments to Plague Engineer as specified in .pzl
-        runCode("attach equipments to plague engineer", 1, PhaseStep.PRECOMBAT_MAIN, playerB,
+        // Set up Plague Engineer's creature type choice (Approach 1)
+        setChoice(playerB, "Goblin");
+
+        // Best-effort: attach equipments to Plague Engineer and verify chosen type
+        runCode("attach equipments and set plague engineer chosen type", 1, PhaseStep.PRECOMBAT_MAIN, playerB,
                 (info, player, game) -> {
                     Permanent plague = null;
                     Set<Permanent> equipments = new HashSet<>();
@@ -1603,13 +1612,28 @@ public class LLMPuzzles extends LLMPuzzlesBase {
                         }
                     }
                     if (plague != null) {
+                        // Attach equipments
                         for (Permanent eq : equipments) {
                             eq.attachTo(plague.getId(), null, game);
+                        }
+
+                        // Verify and ensure the chosen creature type is set
+                        SubType chosenType = ChooseCreatureTypeEffect.getChosenCreatureType(plague.getId(), game);
+                        if (chosenType == null) {
+                            // Manually set if needed
+                            game.getState().setValue(plague.getId() + "_type", SubType.GOBLIN);
+                            plague.addInfo("chosen type", CardUtil.addToolTipMarkTags("Chosen type: Goblin"), game);
                         }
                     }
                 });
 
+        // REMOVE COMMENT TO TEST Add test Goblin creature to verify Plague Engineer's
+        // effect
+        // addCard(Zone.BATTLEFIELD, playerA, "Goblin Piker"); // 2/1 Goblin for testing
         execute();
+        // REMOVE COMMENT TO TEST Verify that the 2/1 Goblin creature was destroyed by
+        // Plague Engineer's effect after execution
+        // assertGraveyardCount(playerA, "Goblin Piker", 1);
 
         // Wait for async ops
         try {
