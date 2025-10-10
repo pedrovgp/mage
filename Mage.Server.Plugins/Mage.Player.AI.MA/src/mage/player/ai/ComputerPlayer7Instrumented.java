@@ -9,19 +9,13 @@ import mage.game.Game;
 import mage.target.TargetCard;
 import org.apache.log4j.Logger;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.json.JSONObject;
 
 /**
  * ComputerPlayer7 instrumented for trajectory logging to support RL training.
@@ -34,14 +28,12 @@ public class ComputerPlayer7Instrumented extends ComputerPlayer7 {
 
     private static final Logger logger = Logger.getLogger(ComputerPlayer7Instrumented.class);
 
-    // HTTP client configuration
-    private static final HttpClient httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(5))
-            .build();
+    // HTTP client configuration using LlmDecisionClient
+    private static final LlmDecisionClient decisionClient = new LlmDecisionClient(
+            System.getProperty("magellmfast.url", "http://localhost:8000"));
 
-    private static final String MAGELLMFAST_BASE_URL = System.getProperty("magellmfast.url", "http://localhost:8000");
-    private static final String LOG_TRAJECTORY_ENDPOINT = MAGELLMFAST_BASE_URL + "/v1/log_trajectory";
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+    // Decision handler for centralized payload generation
+    private static final DecisionHandler decisionHandler = new DecisionHandler(decisionClient);
 
     // Performance tracking
     private long totalLoggingTime = 0;
@@ -252,61 +244,17 @@ public class ComputerPlayer7Instrumented extends ComputerPlayer7 {
     private void logTrajectoryData(Game game, String decisionType, Object availableActions,
             Map<String, Object> chosenAction, Ability sourceAbility) {
         try {
-            // Build trajectory data payload
-            Map<String, Object> payload = new HashMap<>();
-
-            // Basic game context
-            payload.put("gameId", game.getId().toString());
-            payload.put("matchId", null); // Game interface doesn't have matchId directly
-            payload.put("decisionType", decisionType);
-            payload.put("turnNumber", game.getTurnNum());
-            payload.put("phaseType", game.getTurnPhaseType() != null ? game.getTurnPhaseType().toString() : "UNKNOWN");
-            payload.put("stepType", game.getTurnStepType() != null ? game.getTurnStepType().toString() : "UNKNOWN");
-
-            // Game state (simplified)
-            Map<String, Object> gameState = new HashMap<>();
-            gameState.put("activePlayerId", game.getActivePlayerId().toString());
-            gameState.put("priorityPlayerId", game.getPriorityPlayerId().toString());
-            gameState.put("stackSize", game.getStack().size());
-            gameState.put("gameOver", game.checkIfGameIsOver());
-            payload.put("gameState", gameState);
-
-            // Current player state (simplified)
-            Map<String, Object> currentPlayer = new HashMap<>();
-            currentPlayer.put("id", this.getId().toString());
-            currentPlayer.put("name", this.getName());
-            currentPlayer.put("life", this.getLife());
-            currentPlayer.put("handSize", this.getHand().size());
-            currentPlayer.put("librarySize", this.getLibrary().size());
-            currentPlayer.put("graveyardSize", this.getGraveyard().size());
-            payload.put("currentPlayer", currentPlayer);
-
-            // Opponent player state (simplified - just first opponent)
-            Map<String, Object> opponentPlayer = new HashMap<>();
-            UUID opponentId = game.getOpponents(this.getId()).iterator().next();
-            mage.players.Player opponent = game.getPlayer(opponentId);
-            if (opponent != null) {
-                opponentPlayer.put("id", opponent.getId().toString());
-                opponentPlayer.put("name", opponent.getName());
-                opponentPlayer.put("life", opponent.getLife());
-                opponentPlayer.put("handSize", opponent.getHand().size());
-                opponentPlayer.put("librarySize", opponent.getLibrary().size());
-                opponentPlayer.put("graveyardSize", opponent.getGraveyard().size());
-            }
-            payload.put("opponentPlayer", opponentPlayer);
-
-            // Available actions and chosen action
-            payload.put("availableActions", availableActions);
-            payload.put("chosenAction", chosenAction);
-
-            // Additional context
+            // Build additional context
             Map<String, Object> additionalContext = new HashMap<>();
             if (sourceAbility != null) {
                 additionalContext.put("sourceAbility", sourceAbility.toString());
                 additionalContext.put("sourceId", sourceAbility.getSourceId().toString());
             }
             additionalContext.put("loggedAt", System.currentTimeMillis());
-            payload.put("additionalContext", additionalContext);
+
+            // Use DecisionHandler to build the trajectory payload centrally
+            JSONObject payload = decisionHandler.buildTrajectoryPayload(
+                    game, this, decisionType, availableActions, chosenAction, additionalContext);
 
             // Send HTTP request asynchronously to avoid blocking game
             sendTrajectoryDataAsync(payload);
@@ -319,28 +267,23 @@ public class ComputerPlayer7Instrumented extends ComputerPlayer7 {
     /**
      * Send trajectory data asynchronously to avoid blocking the game.
      */
-    private void sendTrajectoryDataAsync(Map<String, Object> payload) {
+    private void sendTrajectoryDataAsync(JSONObject payload) {
         // Use a separate thread to avoid blocking game execution
         Thread.ofVirtual().start(() -> {
             try {
-                String jsonPayload = objectMapper.writeValueAsString(payload);
+                // Create a DecisionPayload for the trajectory logging endpoint
+                DecisionPayload decisionPayload = new DecisionPayload("/v1/log_trajectory", payload);
 
-                HttpRequest request = HttpRequest.newBuilder()
-                        .uri(URI.create(LOG_TRAJECTORY_ENDPOINT))
-                        .header("Content-Type", "application/json")
-                        .timeout(Duration.ofSeconds(3))
-                        .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
-                        .build();
+                // Send the request using LlmDecisionClient
+                DecisionResult result = decisionClient.requestDecision(decisionPayload);
 
-                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-                if (response.statusCode() != 200) {
-                    logger.warn("Trajectory logging failed with status: " + response.statusCode());
+                // Log success/failure based on the result
+                if (result.getReason().equals("server_error") || result.getReason().equals("exception")) {
+                    logger.warn("Trajectory logging failed: " + result.getReason());
+                } else {
+                    logger.debug("Trajectory logged successfully");
                 }
 
-            } catch (IOException | InterruptedException e) {
-                logger.debug("Trajectory logging request failed: " + e.getMessage());
-                // Don't spam logs with network errors
             } catch (Exception e) {
                 logger.warn("Unexpected error in trajectory logging: " + e.getMessage());
             }

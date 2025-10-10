@@ -33,6 +33,7 @@ import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -135,6 +136,72 @@ public class DecisionHandler {
         } catch (Exception e) {
             logger.error("Failed to handle target decision", e);
             return new DecisionResult(0, null, "fallback_to_first_target");
+        }
+    }
+
+    /**
+     * Build trajectory logging payload for RL training data collection.
+     * This is used by ComputerPlayer7Instrumented to log decision trajectories.
+     */
+    public JSONObject buildTrajectoryPayload(Game game, Player currentPlayer, String decisionType,
+            Object availableActions, Map<String, Object> chosenAction, Map<String, Object> additionalContext) {
+        try {
+            JSONObject payload = new JSONObject();
+
+            // Basic request context
+            payload.put("request_id", java.util.UUID.randomUUID().toString());
+            payload.put("gameId", game.getId().toString());
+            payload.put("matchId", null); // Game interface doesn't have matchId directly
+
+            // Decision context
+            payload.put("decisionType", decisionType);
+
+            // Full game state and game over status
+            JSONObject gameData = new JSONObject();
+            gameData.put("id", game.getId().toString());
+            gameData.put("numPlayers", game.getNumPlayers());
+            gameData.put("startingLife", game.getStartingLife());
+            gameData.put("currentTurn", game.getTurnNum());
+            gameData.put("activePlayerId",
+                    game.getActivePlayerId() != null ? game.getActivePlayerId().toString() : null);
+            gameData.put("priorityPlayerId",
+                    game.getPriorityPlayerId() != null ? game.getPriorityPlayerId().toString() : null);
+            payload.put("game", gameData);
+            payload.put("gameIsOver", game.checkIfGameIsOver());
+
+            // Available actions and chosen action
+            Object availableActionsJson = convertObjectToJson(availableActions);
+            Object chosenActionJson = convertObjectToJson(chosenAction);
+            Object additionalContextJson = convertObjectToJson(additionalContext);
+
+            if (availableActionsJson instanceof JSONObject) {
+                payload.put("availableActions", (JSONObject) availableActionsJson);
+            } else if (availableActionsJson instanceof JSONArray) {
+                payload.put("availableActions", (JSONArray) availableActionsJson);
+            } else {
+                payload.put("availableActions", availableActionsJson.toString());
+            }
+
+            if (chosenActionJson instanceof JSONObject) {
+                payload.put("chosenAction", (JSONObject) chosenActionJson);
+            } else if (chosenActionJson instanceof JSONArray) {
+                payload.put("chosenAction", (JSONArray) chosenActionJson);
+            } else {
+                payload.put("chosenAction", chosenActionJson.toString());
+            }
+
+            if (additionalContextJson instanceof JSONObject) {
+                payload.put("additionalContext", (JSONObject) additionalContextJson);
+            } else if (additionalContextJson instanceof JSONArray) {
+                payload.put("additionalContext", (JSONArray) additionalContextJson);
+            } else {
+                payload.put("additionalContext", additionalContextJson.toString());
+            }
+
+            return payload;
+        } catch (Exception e) {
+            logger.error("Failed to build trajectory payload", e);
+            return new JSONObject().put("error", "Failed to build trajectory payload: " + e.getMessage());
         }
     }
 
