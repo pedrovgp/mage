@@ -175,25 +175,25 @@ public class DecisionHandler {
             Object additionalContextJson = convertObjectToJson(additionalContext);
 
             if (availableActionsJson instanceof JSONObject) {
-                payload.put("availableActions", (JSONObject) availableActionsJson);
+                payload.put("availableActions", availableActionsJson);
             } else if (availableActionsJson instanceof JSONArray) {
-                payload.put("availableActions", (JSONArray) availableActionsJson);
+                payload.put("availableActions", availableActionsJson);
             } else {
                 payload.put("availableActions", availableActionsJson.toString());
             }
 
             if (chosenActionJson instanceof JSONObject) {
-                payload.put("chosenAction", (JSONObject) chosenActionJson);
+                payload.put("chosenAction", chosenActionJson);
             } else if (chosenActionJson instanceof JSONArray) {
-                payload.put("chosenAction", (JSONArray) chosenActionJson);
+                payload.put("chosenAction", chosenActionJson);
             } else {
                 payload.put("chosenAction", chosenActionJson.toString());
             }
 
             if (additionalContextJson instanceof JSONObject) {
-                payload.put("additionalContext", (JSONObject) additionalContextJson);
+                payload.put("additionalContext", additionalContextJson);
             } else if (additionalContextJson instanceof JSONArray) {
-                payload.put("additionalContext", (JSONArray) additionalContextJson);
+                payload.put("additionalContext", additionalContextJson);
             } else {
                 payload.put("additionalContext", additionalContextJson.toString());
             }
