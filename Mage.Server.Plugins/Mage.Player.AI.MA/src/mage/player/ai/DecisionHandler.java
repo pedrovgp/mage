@@ -151,7 +151,7 @@ public class DecisionHandler {
             // Basic request context
             payload.put("request_id", java.util.UUID.randomUUID().toString());
             payload.put("gameId", game.getId().toString());
-            payload.put("matchId", null); // Game interface doesn't have matchId directly
+            payload.put("matchId", (Object) null); // Game interface doesn't have matchId directly
 
             // Decision context
             payload.put("decisionType", decisionType);
@@ -175,25 +175,25 @@ public class DecisionHandler {
             Object additionalContextJson = convertObjectToJson(additionalContext);
 
             if (availableActionsJson instanceof JSONObject) {
-                payload.put("availableActions", availableActionsJson);
+                payload.put("availableActions", (JSONObject) availableActionsJson);
             } else if (availableActionsJson instanceof JSONArray) {
-                payload.put("availableActions", availableActionsJson);
+                payload.put("availableActions", (JSONArray) availableActionsJson);
             } else {
                 payload.put("availableActions", availableActionsJson.toString());
             }
 
             if (chosenActionJson instanceof JSONObject) {
-                payload.put("chosenAction", chosenActionJson);
+                payload.put("chosenAction", (JSONObject) chosenActionJson);
             } else if (chosenActionJson instanceof JSONArray) {
-                payload.put("chosenAction", chosenActionJson);
+                payload.put("chosenAction", (JSONArray) chosenActionJson);
             } else {
                 payload.put("chosenAction", chosenActionJson.toString());
             }
 
             if (additionalContextJson instanceof JSONObject) {
-                payload.put("additionalContext", additionalContextJson);
+                payload.put("additionalContext", (JSONObject) additionalContextJson);
             } else if (additionalContextJson instanceof JSONArray) {
-                payload.put("additionalContext", additionalContextJson);
+                payload.put("additionalContext", (JSONArray) additionalContextJson);
             } else {
                 payload.put("additionalContext", additionalContextJson.toString());
             }
