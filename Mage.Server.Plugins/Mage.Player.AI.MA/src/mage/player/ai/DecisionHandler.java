@@ -146,57 +146,20 @@ public class DecisionHandler {
     public JSONObject buildTrajectoryPayload(Game game, Player currentPlayer, String decisionType,
             Object availableActions, Map<String, Object> chosenAction, Map<String, Object> additionalContext) {
         try {
-            JSONObject payload = new JSONObject();
+            // Start with DecisionBase fields using existing buildBasePayload method
+            JSONObject payload = buildBasePayload(game, currentPlayer, null);
 
-            // Basic request context
-            payload.put("request_id", java.util.UUID.randomUUID().toString());
-            payload.put("gameId", game.getId().toString());
-            payload.put("matchId", (Object) null); // Game interface doesn't have matchId directly
-
-            // Decision context
+            // Add trajectory-specific fields
             payload.put("decisionType", decisionType);
 
             // Full game state and game over status
             JSONObject gameData = new JSONObject();
-            gameData.put("id", game.getId().toString());
-            gameData.put("numPlayers", game.getNumPlayers());
-            gameData.put("startingLife", game.getStartingLife());
-            gameData.put("currentTurn", game.getTurnNum());
-            gameData.put("activePlayerId",
-                    game.getActivePlayerId() != null ? game.getActivePlayerId().toString() : null);
-            gameData.put("priorityPlayerId",
-                    game.getPriorityPlayerId() != null ? game.getPriorityPlayerId().toString() : null);
-            payload.put("game", gameData);
             payload.put("gameIsOver", game.checkIfGameIsOver());
 
-            // Available actions and chosen action
-            Object availableActionsJson = convertObjectToJson(availableActions);
-            Object chosenActionJson = convertObjectToJson(chosenAction);
-            Object additionalContextJson = convertObjectToJson(additionalContext);
-
-            if (availableActionsJson instanceof JSONObject) {
-                payload.put("availableActions", (JSONObject) availableActionsJson);
-            } else if (availableActionsJson instanceof JSONArray) {
-                payload.put("availableActions", (JSONArray) availableActionsJson);
-            } else {
-                payload.put("availableActions", availableActionsJson.toString());
-            }
-
-            if (chosenActionJson instanceof JSONObject) {
-                payload.put("chosenAction", (JSONObject) chosenActionJson);
-            } else if (chosenActionJson instanceof JSONArray) {
-                payload.put("chosenAction", (JSONArray) chosenActionJson);
-            } else {
-                payload.put("chosenAction", chosenActionJson.toString());
-            }
-
-            if (additionalContextJson instanceof JSONObject) {
-                payload.put("additionalContext", (JSONObject) additionalContextJson);
-            } else if (additionalContextJson instanceof JSONArray) {
-                payload.put("additionalContext", (JSONArray) additionalContextJson);
-            } else {
-                payload.put("additionalContext", additionalContextJson.toString());
-            }
+            // Available actions, chosen action, and additional context using helper
+            putJsonField(payload, "availableActions", convertObjectToJson(availableActions));
+            putJsonField(payload, "chosenAction", convertObjectToJson(chosenAction));
+            putJsonField(payload, "additionalContext", convertObjectToJson(additionalContext));
 
             return payload;
         } catch (Exception e) {
@@ -367,6 +330,19 @@ public class DecisionHandler {
             logger.error("Error converting object to JSON: " + obj.getClass().getName(), e);
             return new JSONObject().put("error", "Failed to convert " + obj.getClass().getName() + " to JSON")
                     .put("message", e.getMessage().replace("\"", "\\\""));
+        }
+    }
+
+    /**
+     * Helper method to put JSON fields with proper type handling
+     */
+    private void putJsonField(JSONObject payload, String fieldName, Object jsonValue) {
+        if (jsonValue instanceof JSONObject) {
+            payload.put(fieldName, (JSONObject) jsonValue);
+        } else if (jsonValue instanceof JSONArray) {
+            payload.put(fieldName, (JSONArray) jsonValue);
+        } else {
+            payload.put(fieldName, jsonValue.toString());
         }
     }
 
