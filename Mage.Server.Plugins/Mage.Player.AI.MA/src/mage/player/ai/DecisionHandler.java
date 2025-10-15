@@ -44,6 +44,15 @@ import java.util.UUID;
 public class DecisionHandler {
     private static final Logger logger = Logger.getLogger(DecisionHandler.class);
 
+    // Endpoint constants aligned with magellmfast routes (with /api/mtg_llm prefix
+    // from main.py)
+    private static final String ENDPOINT_CHOOSE_FROM_ALL_ACTIONS = "/api/mtg_llm/choose_from_all_actions";
+    private static final String ENDPOINT_CHOOSE_ATTACKERS = "/api/mtg_llm/choose_attackers";
+    private static final String ENDPOINT_CHOOSE_FROM_CHOICES = "/api/mtg_llm/choose_from_choices";
+    private static final String ENDPOINT_CHOOSE_TARGETS = "/api/mtg_llm/choose_targets";
+    private static final String ENDPOINT_CHOOSE_TARGET_AMOUNT = "/api/mtg_llm/chooseTargetAmount";
+    private static final String ENDPOINT_LOG_TRAJECTORY = "/api/mtg_llm/v1/log_trajectory";
+
     private final LlmDecisionClient client;
     private final ObjectMapper objectMapper;
 
@@ -57,23 +66,20 @@ public class DecisionHandler {
         this.objectMapper = createConfiguredObjectMapper();
     }
 
+    // ================================================================================
+    // HANDLER METHODS (aligned with routes.py endpoints)
+    // ================================================================================
+
     /**
      * Handle action selection decisions (choosing from list of abilities)
      */
     public DecisionResult handleAction(Game game, Player currentPlayer, List<Ability> allActions, String strategy) {
-        try {
-            JSONObject payload = buildBasePayload(game, currentPlayer, strategy);
-            payload.put("allActions", convertObjectToJson(allActions));
+        JSONObject payload = buildChooseFromAllActionsPayload(game, currentPlayer, allActions, strategy);
+        DecisionPayload dp = new DecisionPayload(ENDPOINT_CHOOSE_FROM_ALL_ACTIONS, payload);
+        DecisionResult result = client.requestDecision(dp);
 
-            DecisionPayload dp = new DecisionPayload("/api/mtg_llm/choose_from_all_actions/", payload);
-            DecisionResult result = client.requestDecision(dp);
-
-            logDecision("ACTION", allActions.size(), result);
-            return result;
-        } catch (Exception e) {
-            logger.error("Failed to handle action decision", e);
-            return new DecisionResult(0, null, "fallback_to_first_action");
-        }
+        logDecision("ACTION", allActions.size(), result);
+        return result;
     }
 
     /**
@@ -81,21 +87,13 @@ public class DecisionHandler {
      */
     public DecisionResult handleChoice(Game game, Player currentPlayer, Outcome outcome,
             Choice choice, String[] allChoices, String strategy) {
-        try {
-            JSONObject payload = buildBasePayload(game, currentPlayer, strategy);
-            payload.put("outcome", convertObjectToJson(outcome));
-            payload.put("choice", convertObjectToJson(choice));
-            payload.put("allChoices", convertObjectToJson(allChoices));
+        JSONObject payload = buildChooseFromChoicesPayload(game, currentPlayer, outcome, choice, allChoices,
+                strategy);
+        DecisionPayload dp = new DecisionPayload(ENDPOINT_CHOOSE_FROM_CHOICES, payload);
+        DecisionResult result = client.requestDecision(dp);
 
-            DecisionPayload dp = new DecisionPayload("/api/mtg_llm/choose_from_choices/", payload);
-            DecisionResult result = client.requestDecision(dp);
-
-            logDecision("CHOICE", allChoices.length, result);
-            return result;
-        } catch (Exception e) {
-            logger.error("Failed to handle choice decision", e);
-            return new DecisionResult(0, null, "fallback_to_first_choice");
-        }
+        logDecision("CHOICE", allChoices.length, result);
+        return result;
     }
 
     /**
@@ -104,20 +102,13 @@ public class DecisionHandler {
     public DecisionResult handleAttackers(Game game, Player currentPlayer,
             List<Permanent> possibleAttackers,
             List<Permanent> possibleBlockers, String strategy) {
-        try {
-            JSONObject payload = buildBasePayload(game, currentPlayer, strategy);
-            payload.put("possibleAttackers", convertObjectToJson(possibleAttackers));
-            payload.put("possibleBlockers", convertObjectToJson(possibleBlockers));
+        JSONObject payload = buildChooseAttackersPayload(game, currentPlayer, possibleAttackers, possibleBlockers,
+                strategy);
+        DecisionPayload dp = new DecisionPayload(ENDPOINT_CHOOSE_ATTACKERS, payload);
+        DecisionResult result = client.requestDecision(dp);
 
-            DecisionPayload dp = new DecisionPayload("/api/mtg_llm/choose_attackers/", payload);
-            DecisionResult result = client.requestDecision(dp);
-
-            logDecision("ATTACKERS", possibleAttackers.size(), result);
-            return result;
-        } catch (Exception e) {
-            logger.error("Failed to handle attacker decision", e);
-            return new DecisionResult(null, List.of(), "fallback_no_attackers");
-        }
+        logDecision("ATTACKERS", possibleAttackers.size(), result);
+        return result;
     }
 
     /**
@@ -125,18 +116,95 @@ public class DecisionHandler {
      */
     public DecisionResult handleTargets(Game game, Player currentPlayer, Outcome outcome,
             String[] allChoices, String strategy) {
-        try {
-            JSONObject payload = buildTargetPayload(game, currentPlayer, outcome, allChoices, strategy);
+        // Create a dummy choice object since the endpoint requires it
+        Choice choice = new mage.choices.ChoiceImpl(true);
+        choice.setMessage("Choose target");
 
-            DecisionPayload dp = new DecisionPayload("/api/mtg_llm/choose_targets/", payload);
-            DecisionResult result = client.requestDecision(dp);
+        JSONObject payload = buildChooseFromChoicesPayload(game, currentPlayer, outcome, choice, allChoices,
+                strategy);
+        DecisionPayload dp = new DecisionPayload(ENDPOINT_CHOOSE_TARGETS, payload);
+        DecisionResult result = client.requestDecision(dp);
 
-            logDecision("TARGET", allChoices.length, result);
-            return result;
-        } catch (Exception e) {
-            logger.error("Failed to handle target decision", e);
-            return new DecisionResult(0, null, "fallback_to_first_target");
-        }
+        logDecision("TARGET", allChoices.length, result);
+        return result;
+    }
+
+    /**
+     * Handle target amount selection decisions (chooseTargetAmount endpoint)
+     */
+    public DecisionResult handleChooseTargetAmount(Game game, Player currentPlayer,
+            List<String> targetIds, int minAmount, int maxAmount, String strategy) {
+        JSONObject payload = buildChooseTargetAmountPayload(game, currentPlayer, targetIds, minAmount, maxAmount,
+                strategy);
+        DecisionPayload dp = new DecisionPayload(ENDPOINT_CHOOSE_TARGET_AMOUNT, payload);
+        DecisionResult result = client.requestDecision(dp);
+
+        logDecision("TARGET_AMOUNT", targetIds.size(), result);
+        return result;
+    }
+
+    /**
+     * Handle trajectory logging for RL training data collection
+     */
+    public DecisionResult handleLogTrajectory(Game game, Player currentPlayer, String decisionType,
+            Object availableActions, Map<String, Object> chosenAction, Map<String, Object> additionalContext,
+            String strategy) {
+        JSONObject payload = buildTrajectoryPayload(game, currentPlayer, decisionType, availableActions,
+                chosenAction, additionalContext);
+        DecisionPayload dp = new DecisionPayload(ENDPOINT_LOG_TRAJECTORY, payload);
+        DecisionResult result = client.requestDecision(dp);
+
+        logDecision("TRAJECTORY_LOG", 1, result);
+        return result;
+    }
+
+    // ================================================================================
+    // SCHEMA-SPECIFIC PAYLOAD BUILDERS (aligned with schemas.py)
+    // ================================================================================
+
+    /**
+     * Build payload for ChooseFromAllActionsCreate schema
+     */
+    private JSONObject buildChooseFromAllActionsPayload(Game game, Player currentPlayer, List<Ability> allActions,
+            String strategy) {
+        JSONObject payload = buildDecisionBasePayload(game, currentPlayer, strategy);
+        payload.put("allActions", convertObjectToJson(allActions));
+        return payload;
+    }
+
+    /**
+     * Build payload for ChooseAttackersCreate schema
+     */
+    private JSONObject buildChooseAttackersPayload(Game game, Player currentPlayer,
+            List<Permanent> possibleAttackers, List<Permanent> possibleBlockers, String strategy) {
+        JSONObject payload = buildDecisionBasePayload(game, currentPlayer, strategy);
+        payload.put("possibleAttackers", convertObjectToJson(possibleAttackers));
+        payload.put("possibleBlockers", convertObjectToJson(possibleBlockers));
+        return payload;
+    }
+
+    /**
+     * Build payload for ChooseFromChoicesCreate schema
+     */
+    private JSONObject buildChooseFromChoicesPayload(Game game, Player currentPlayer, Outcome outcome,
+            Choice choice, String[] allChoices, String strategy) {
+        JSONObject payload = buildDecisionBasePayload(game, currentPlayer, strategy);
+        payload.put("outcome", convertObjectToJson(outcome));
+        payload.put("choice", convertObjectToJson(choice));
+        payload.put("allChoices", convertObjectToJson(allChoices));
+        return payload;
+    }
+
+    /**
+     * Build payload for ChooseTargetAmountCreate schema
+     */
+    private JSONObject buildChooseTargetAmountPayload(Game game, Player currentPlayer,
+            List<String> targetIds, int minAmount, int maxAmount, String strategy) {
+        JSONObject payload = buildBaseRequestPayload(game, currentPlayer, strategy);
+        payload.put("targetIds", convertObjectToJson(targetIds));
+        payload.put("minAmount", minAmount);
+        payload.put("maxAmount", maxAmount);
+        return payload;
     }
 
     /**
@@ -145,12 +213,13 @@ public class DecisionHandler {
      */
     public JSONObject buildTrajectoryPayload(Game game, Player currentPlayer, String decisionType,
             Object availableActions, Map<String, Object> chosenAction, Map<String, Object> additionalContext) {
-        // Start with DecisionBase fields using existing buildBasePayload method
-        JSONObject payload = buildBasePayload(game, currentPlayer, null);
+        // Start with DecisionBase fields
+        JSONObject payload = buildDecisionBasePayload(game, currentPlayer, null);
 
-        // Add trajectory-specific fields
+        // Add trajectory-specific fields (LogTrajectoryCreate schema)
         payload.put("decisionType", decisionType);
         payload.put("gameIsOver", game.checkIfGameIsOver());
+        payload.put("game", convertObjectToJson(game));
 
         // Available actions, chosen action, and additional context using helper
         putJsonField(payload, "availableActions", convertObjectToJson(availableActions));
@@ -160,110 +229,38 @@ public class DecisionHandler {
         return payload;
     }
 
+    // ================================================================================
+    // HELPER METHODS FOR PAYLOAD BUILDING
+    // ================================================================================
+
     /**
-     * Build base payload with common game state and player information
+     * Build DecisionBase payload with common fields for decision schemas
      */
-    private JSONObject buildBasePayload(Game game, Player currentPlayer, String strategy) {
-        JSONObject payload = new JSONObject();
+    private JSONObject buildDecisionBasePayload(Game game, Player currentPlayer, String strategy) {
+        JSONObject payload = buildBaseRequestPayload(game, currentPlayer, strategy);
 
-        // Add game cards
+        // Add DecisionBase-specific fields
         payload.put("gameCards", convertObjectToJson(game.getCards()));
-
-        // Add game state
-        GameState gameState = game.getState();
-        payload.put("gameState", convertObjectToJson(gameState));
-
-        // Add current player
+        payload.put("gameState", convertObjectToJson(game.getState()));
         payload.put("currentPlayer", convertObjectToJson(currentPlayer));
-
-        // Add opponent player
-        Player opponentPlayer = findOpponent(game, currentPlayer);
-        payload.put("opponentPlayer", convertObjectToJson(opponentPlayer));
-
-        // Add game view (simplified for now)
-        payload.put("gameView", new JSONObject());
-
-        // Add strategy and IDs
-        payload.put("strategy", strategy);
-        payload.put("game_id", getGameId(game));
-        payload.put("match_id", getMatchId(game));
+        payload.put("opponentPlayer", convertObjectToJson(findOpponent(game, currentPlayer)));
+        payload.put("gameView", new JSONObject()); // Simplified for now
 
         return payload;
     }
 
     /**
-     * Build specialized payload for target selection
+     * Build BaseRequest payload with common fields for all request schemas
      */
-    private JSONObject buildTargetPayload(Game game, Player currentPlayer, Outcome outcome,
-            String[] allChoices, String strategy) {
-        try {
-            JSONObject payload = new JSONObject();
+    private JSONObject buildBaseRequestPayload(Game game, Player currentPlayer, String strategy) {
+        JSONObject payload = new JSONObject();
 
-            // Build game cards
-            JSONArray gameCards = new JSONArray();
-            for (Card card : game.getCards()) {
-                JSONObject cardObj = new JSONObject();
-                cardObj.put("id", card.getId().toString());
-                cardObj.put("name", card.getName());
-                cardObj.put("type", card.getCardType().toString());
-                gameCards.put(cardObj);
-            }
-            payload.put("gameCards", gameCards);
+        // Add BaseRequest fields
+        payload.put("strategy", strategy);
+        payload.put("gameId", getGameId(game));
+        payload.put("matchId", getMatchId(game));
 
-            // Build game state
-            JSONObject gameState = new JSONObject();
-            gameState.put("turn", game.getTurnNum());
-            gameState.put("phase", game.getPhase().getType().toString());
-            gameState.put("step", game.getStep().getType().toString());
-            payload.put("gameState", gameState);
-
-            // Build choices
-            JSONArray choices = new JSONArray();
-            for (String choice : allChoices) {
-                choices.put(choice);
-            }
-            payload.put("allChoices", choices);
-
-            // Build current player
-            JSONObject currentPlayerObj = new JSONObject();
-            currentPlayerObj.put("id", currentPlayer.getId().toString());
-            currentPlayerObj.put("life", currentPlayer.getLife());
-            currentPlayerObj.put("handSize", currentPlayer.getHand().size());
-            payload.put("currentPlayer", currentPlayerObj);
-
-            // Build opponent player
-            UUID opponentId = game.getOpponents(currentPlayer.getId()).iterator().next();
-            Player opponent = game.getPlayer(opponentId);
-            JSONObject opponentObj = new JSONObject();
-            opponentObj.put("id", opponent.getId().toString());
-            opponentObj.put("life", opponent.getLife());
-            opponentObj.put("handSize", opponent.getHand().size());
-            payload.put("opponentPlayer", opponentObj);
-
-            // Build outcome
-            JSONObject outcomeObj = new JSONObject();
-            outcomeObj.put("isGood", outcome.isGood());
-            outcomeObj.put("toString", outcome.toString());
-            payload.put("outcome", outcomeObj);
-
-            // Build choice
-            JSONObject choiceObj = new JSONObject();
-            choiceObj.put("message", "Choose target");
-            payload.put("choice", choiceObj);
-
-            // Build game view
-            JSONObject gameView = new JSONObject();
-            gameView.put("battlefieldSize", game.getBattlefield().getAllActivePermanents().size());
-            payload.put("gameView", gameView);
-            payload.put("strategy", strategy);
-            payload.put("game_id", getGameId(game));
-            payload.put("match_id", getMatchId(game));
-
-            return payload;
-        } catch (Exception e) {
-            logger.error("Failed to build target payload", e);
-            return new JSONObject();
-        }
+        return payload;
     }
 
     /**
@@ -363,6 +360,7 @@ public class DecisionHandler {
         module.addSerializer(Card.class, new CardSerializer());
         module.addSerializer(Ability.class, new AbilitySerializer());
         module.addSerializer(Outcome.class, new OutcomeSerializer());
+        module.addSerializer(Player.class, new PlayerSerializer());
         mapper.registerModule(module);
 
         return mapper;
@@ -519,6 +517,41 @@ public class DecisionHandler {
                     card.getSpellAbility() != null ? card.getSpellAbility().toString() : "");
             gen.writeStringField("subtype", card.getSubtype() != null ? card.getSubtype().toString() : "");
             gen.writeStringField("supertype", card.getSuperType() != null ? card.getSuperType().toString() : "");
+            gen.writeEndObject();
+        }
+    }
+
+    public class PlayerSerializer extends StdSerializer<Player> {
+        public PlayerSerializer() {
+            this(null);
+        }
+
+        public PlayerSerializer(Class<Player> t) {
+            super(t);
+        }
+
+        @Override
+        public void serialize(Player player, JsonGenerator gen, SerializerProvider provider) throws IOException {
+            gen.writeStartObject();
+            gen.writeStringField("id", player.getId().toString());
+            gen.writeStringField("name", player.getName());
+            gen.writeNumberField("life", player.getLife());
+            gen.writeNumberField("handSize", player.getHand().size());
+
+            // Add hand card IDs array that the FastAPI endpoint expects
+            gen.writeArrayFieldStart("hand");
+            for (UUID cardId : player.getHand()) {
+                gen.writeString(cardId.toString());
+            }
+            gen.writeEndArray();
+
+            // Add other useful player fields
+            gen.writeNumberField("librarySize", player.getLibrary().size());
+            gen.writeNumberField("graveyardSize", player.getGraveyard().size());
+            gen.writeBooleanField("hasLost", player.hasLost());
+            gen.writeBooleanField("hasWon", player.hasWon());
+            gen.writeBooleanField("inGame", player.isInGame());
+
             gen.writeEndObject();
         }
     }

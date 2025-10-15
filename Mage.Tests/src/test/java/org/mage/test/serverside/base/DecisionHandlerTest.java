@@ -363,4 +363,177 @@ public class DecisionHandlerTest {
         // Verify the client was called (which means serialization succeeded)
         verify(mockClient, times(1)).requestDecision(any());
     }
+
+    @Test
+    public void testHandleChooseTargetAmount() {
+        // Setup mock client to return a successful decision
+        List<java.util.UUID> targetUuids = Arrays.asList(java.util.UUID.randomUUID());
+        DecisionResult expectedResult = new DecisionResult(0, targetUuids, "TargetAmountStrategy");
+        when(mockClient.requestDecision(any())).thenReturn(expectedResult);
+
+        // Create a real game and player using TestGameFactory
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+
+        // Create test target IDs
+        List<String> targetIds = Arrays.asList("target1", "target2");
+
+        // Test handleChooseTargetAmount with real objects - should succeed
+        DecisionResult result = decisionHandler.handleChooseTargetAmount(game, player, targetIds, 1, 3, "llm");
+
+        // Verify the result matches what the mock client returned
+        assertNotNull("Result should not be null", result);
+        assertEquals("Should return the mocked result", expectedResult.getChosenIndex(), result.getChosenIndex());
+        assertEquals("Should return the mocked UUIDs", expectedResult.getChosenUuids(), result.getChosenUuids());
+        assertEquals("Should return the mocked reason", expectedResult.getReason(), result.getReason());
+
+        // Verify the client was called
+        verify(mockClient, times(1)).requestDecision(any());
+
+        // Verify the payload structure by capturing the DecisionPayload
+        ArgumentCaptor<mage.player.ai.DecisionPayload> payloadCaptor = ArgumentCaptor
+                .forClass(mage.player.ai.DecisionPayload.class);
+        verify(mockClient).requestDecision(payloadCaptor.capture());
+
+        mage.player.ai.DecisionPayload capturedPayload = payloadCaptor.getValue();
+        assertNotNull("Payload should not be null", capturedPayload);
+        assertEquals("Should use correct endpoint", "/api/mtg_llm/chooseTargetAmount",
+                capturedPayload.getEndpointPath());
+
+        // Verify payload contains expected JSON structure
+        org.json.JSONObject payloadJson = capturedPayload.getBody();
+        assertTrue("Payload should contain targetIds", payloadJson.has("targetIds"));
+        assertTrue("Payload should contain minAmount", payloadJson.has("minAmount"));
+        assertTrue("Payload should contain maxAmount", payloadJson.has("maxAmount"));
+        assertTrue("Payload should contain strategy", payloadJson.has("strategy"));
+        assertTrue("Payload should contain gameId", payloadJson.has("gameId"));
+        assertTrue("Payload should contain matchId", payloadJson.has("matchId"));
+    }
+
+    @Test
+    public void testHandleChooseTargetAmountWithException() {
+        // Setup mock client to throw exception
+        when(mockClient.requestDecision(any())).thenThrow(new RuntimeException("Test exception"));
+
+        // Create a real game and player using TestGameFactory
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+
+        // Create test target IDs
+        List<String> targetIds = Arrays.asList("550e8400-e29b-41d4-a716-446655440000");
+
+        // Test handleChooseTargetAmount with exception
+        DecisionResult result = decisionHandler.handleChooseTargetAmount(game, player, targetIds, 1, 2, "llm");
+
+        assertNotNull("Result should not be null even with exception", result);
+        assertEquals("Should fallback to index 0", Integer.valueOf(0), result.getChosenIndex());
+        assertNotNull("Should have fallback UUIDs", result.getChosenUuids());
+        assertFalse("Should have at least one UUID", result.getChosenUuids().isEmpty());
+        assertTrue("Reason should indicate fallback", result.getReason().contains("fallback"));
+    }
+
+    @Test
+    public void testHandleLogTrajectory() {
+        // Setup mock client to return a successful decision
+        DecisionResult expectedResult = new DecisionResult(null, null, "TrajectoryLogged");
+        when(mockClient.requestDecision(any())).thenReturn(expectedResult);
+
+        // Create a real game and player using TestGameFactory
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+
+        // Create test trajectory data
+        Object availableActions = Arrays.asList("action1", "action2");
+        Map<String, Object> chosenAction = new HashMap<>();
+        chosenAction.put("actionIndex", 0);
+        chosenAction.put("actionName", "action1");
+        Map<String, Object> additionalContext = new HashMap<>();
+        additionalContext.put("turnNumber", 1);
+
+        // Test handleLogTrajectory with real objects - should succeed
+        DecisionResult result = decisionHandler.handleLogTrajectory(game, player, "action",
+                availableActions, chosenAction, additionalContext, "llm");
+
+        // Verify the result matches what the mock client returned
+        assertNotNull("Result should not be null", result);
+        assertEquals("Should return the mocked reason", expectedResult.getReason(), result.getReason());
+
+        // Verify the client was called
+        verify(mockClient, times(1)).requestDecision(any());
+
+        // Verify the payload structure by capturing the DecisionPayload
+        ArgumentCaptor<mage.player.ai.DecisionPayload> payloadCaptor = ArgumentCaptor
+                .forClass(mage.player.ai.DecisionPayload.class);
+        verify(mockClient).requestDecision(payloadCaptor.capture());
+
+        mage.player.ai.DecisionPayload capturedPayload = payloadCaptor.getValue();
+        assertNotNull("Payload should not be null", capturedPayload);
+        assertEquals("Should use correct endpoint", "/api/mtg_llm/v1/log_trajectory",
+                capturedPayload.getEndpointPath());
+
+        // Verify payload contains expected JSON structure
+        org.json.JSONObject payloadJson = capturedPayload.getBody();
+        assertTrue("Payload should contain decisionType", payloadJson.has("decisionType"));
+        assertTrue("Payload should contain gameIsOver", payloadJson.has("gameIsOver"));
+        assertTrue("Payload should contain availableActions", payloadJson.has("availableActions"));
+        assertTrue("Payload should contain chosenAction", payloadJson.has("chosenAction"));
+        assertTrue("Payload should contain additionalContext", payloadJson.has("additionalContext"));
+        assertTrue("Payload should contain game", payloadJson.has("game"));
+        assertTrue("Payload should contain gameCards", payloadJson.has("gameCards"));
+        assertTrue("Payload should contain gameState", payloadJson.has("gameState"));
+        assertTrue("Payload should contain currentPlayer", payloadJson.has("currentPlayer"));
+        assertTrue("Payload should contain opponentPlayer", payloadJson.has("opponentPlayer"));
+    }
+
+    @Test
+    public void testHandleLogTrajectoryWithException() {
+        // Setup mock client to throw exception
+        when(mockClient.requestDecision(any())).thenThrow(new RuntimeException("Test exception"));
+
+        // Create a real game and player using TestGameFactory
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+
+        // Create test trajectory data
+        Object availableActions = Arrays.asList("action1");
+        Map<String, Object> chosenAction = new HashMap<>();
+        Map<String, Object> additionalContext = new HashMap<>();
+
+        // Test handleLogTrajectory with exception
+        DecisionResult result = decisionHandler.handleLogTrajectory(game, player, "action",
+                availableActions, chosenAction, additionalContext, "llm");
+
+        assertNotNull("Result should not be null even with exception", result);
+        assertTrue("Reason should indicate fallback", result.getReason().contains("fallback"));
+    }
+
+    @Test
+    public void testBuildTrajectoryPayload() {
+        // Create a real game and player using TestGameFactory
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+
+        // Create test trajectory data
+        Object availableActions = Arrays.asList("action1", "action2");
+        Map<String, Object> chosenAction = new HashMap<>();
+        chosenAction.put("actionIndex", 0);
+        Map<String, Object> additionalContext = new HashMap<>();
+        additionalContext.put("turnNumber", 1);
+
+        // Test buildTrajectoryPayload - should not throw exception
+        try {
+            org.json.JSONObject payload = decisionHandler.buildTrajectoryPayload(game, player, "action",
+                    availableActions, chosenAction, additionalContext);
+
+            assertNotNull("Payload should not be null", payload);
+            assertTrue("Payload should contain decisionType", payload.has("decisionType"));
+            assertTrue("Payload should contain gameIsOver", payload.has("gameIsOver"));
+            assertTrue("Payload should contain availableActions", payload.has("availableActions"));
+            assertTrue("Payload should contain chosenAction", payload.has("chosenAction"));
+            assertTrue("Payload should contain additionalContext", payload.has("additionalContext"));
+            assertEquals("Decision type should match", "action", payload.getString("decisionType"));
+        } catch (Exception e) {
+            fail("buildTrajectoryPayload should not throw exception: " + e.getMessage());
+        }
+    }
 }
