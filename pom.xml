@@ -176,18 +176,7 @@
                         <consoleOutputReporter>
                             <disable>true</disable>
                         </consoleOutputReporter>
-                        <statelessTestsetInfoReporter
-                                implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5StatelessTestsetInfoTreeReporter">
-                            <theme>ASCII</theme>
-                            <printStacktraceOnError>true</printStacktraceOnError>
-                            <printStacktraceOnFailure>true</printStacktraceOnFailure>
-                            <printStdoutOnError>true</printStdoutOnError>
-                            <printStdoutOnFailure>true</printStdoutOnFailure>
-                            <printStdoutOnSuccess>${xmage.build.tests.treeViewRunnerShowAllLogs}</printStdoutOnSuccess>
-                            <printStderrOnError>true</printStderrOnError>
-                            <printStderrOnFailure>true</printStderrOnFailure>
-                            <printStderrOnSuccess>${xmage.build.tests.treeViewRunnerShowAllLogs}</printStderrOnSuccess>
-                        </statelessTestsetInfoReporter>
+                        <!-- Removed JUnit 5 specific reporter to allow both JUnit 4 and 5 tests -->
 
                         <!-- for compatible with jacoco code coverage - argLine moved to properties section
                         <argLine>-Dfile.encoding=UTF-8</argLine>
