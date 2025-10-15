@@ -145,27 +145,19 @@ public class DecisionHandler {
      */
     public JSONObject buildTrajectoryPayload(Game game, Player currentPlayer, String decisionType,
             Object availableActions, Map<String, Object> chosenAction, Map<String, Object> additionalContext) {
-        try {
-            // Start with DecisionBase fields using existing buildBasePayload method
-            JSONObject payload = buildBasePayload(game, currentPlayer, null);
+        // Start with DecisionBase fields using existing buildBasePayload method
+        JSONObject payload = buildBasePayload(game, currentPlayer, null);
 
-            // Add trajectory-specific fields
-            payload.put("decisionType", decisionType);
+        // Add trajectory-specific fields
+        payload.put("decisionType", decisionType);
+        payload.put("gameIsOver", game.checkIfGameIsOver());
 
-            // Full game state and game over status
-            JSONObject gameData = new JSONObject();
-            payload.put("gameIsOver", game.checkIfGameIsOver());
+        // Available actions, chosen action, and additional context using helper
+        putJsonField(payload, "availableActions", convertObjectToJson(availableActions));
+        putJsonField(payload, "chosenAction", convertObjectToJson(chosenAction));
+        putJsonField(payload, "additionalContext", convertObjectToJson(additionalContext));
 
-            // Available actions, chosen action, and additional context using helper
-            putJsonField(payload, "availableActions", convertObjectToJson(availableActions));
-            putJsonField(payload, "chosenAction", convertObjectToJson(chosenAction));
-            putJsonField(payload, "additionalContext", convertObjectToJson(additionalContext));
-
-            return payload;
-        } catch (Exception e) {
-            logger.error("Failed to build trajectory payload", e);
-            return new JSONObject().put("error", "Failed to build trajectory payload: " + e.getMessage());
-        }
+        return payload;
     }
 
     /**
@@ -327,8 +319,9 @@ public class DecisionHandler {
                 };
             }
         } catch (JsonProcessingException e) {
-            logger.error("Error converting object to JSON: " + obj.getClass().getName(), e);
-            return new JSONObject().put("error", "Failed to convert " + obj.getClass().getName() + " to JSON")
+            String className = obj != null ? obj.getClass().getName() : "null";
+            logger.error("Error converting object to JSON: " + className, e);
+            return new JSONObject().put("error", "Failed to convert " + className + " to JSON")
                     .put("message", e.getMessage().replace("\"", "\\\""));
         }
     }

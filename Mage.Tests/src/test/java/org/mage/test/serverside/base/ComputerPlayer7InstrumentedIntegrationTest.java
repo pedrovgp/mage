@@ -80,21 +80,23 @@ public class ComputerPlayer7InstrumentedIntegrationTest extends CardTestPlayerBa
 
     @Test
     public void test_log_trajectory_endpoint_accepts_valid_payload() {
-        // Build minimal valid trajectory payload matching LogTrajectoryCreate schema
+        // Build complete valid trajectory payload matching LogTrajectoryCreate schema
+        // (inherits from DecisionBase)
         JSONObject payload = new JSONObject();
         payload.put("request_id", UUID.randomUUID().toString());
         payload.put("gameId", "test-game-123");
         payload.put("matchId", "test-match-456");
         payload.put("decisionType", "priority");
 
-        // Game state
+        // DecisionBase required fields
+        payload.put("gameCards", new JSONArray());
+        payload.put("gameState", new JSONObject().put("turn", 1).put("phase", "MAIN1").put("step", "MAIN"));
+        payload.put("currentPlayer", new JSONObject().put("id", "player-a-uuid").put("life", 20).put("handSize", 1));
+        payload.put("opponentPlayer", new JSONObject().put("id", "player-b-uuid").put("life", 20).put("handSize", 1));
+        payload.put("gameView", new JSONObject().put("battlefieldSize", 0));
+
+        // Trajectory-specific fields
         JSONObject gameData = new JSONObject();
-        gameData.put("id", "test-game-123");
-        gameData.put("numPlayers", 2);
-        gameData.put("startingLife", 20);
-        gameData.put("currentTurn", 1);
-        gameData.put("activePlayerId", "player-a-uuid");
-        gameData.put("priorityPlayerId", "player-a-uuid");
         payload.put("game", gameData);
         payload.put("gameIsOver", false);
 

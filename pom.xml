@@ -155,7 +155,7 @@
                         -->
                         <useFile>false</useFile>
 
-                        <!-- Parallel test execution for LLMPuzzles only -->
+                        <!-- Parallel test execution for LLM-related tests -->
                         <includes>
                             <include>org/mage/test/serverside/base/LLMPuzzles.java</include>
                         </includes>
