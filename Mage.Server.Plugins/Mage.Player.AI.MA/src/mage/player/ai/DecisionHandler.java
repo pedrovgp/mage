@@ -293,112 +293,6 @@ public class DecisionHandler {
     }
 
     /**
-     * Build base payload with common game state and player information
-     */
-    private JSONObject buildBasePayload(Game game, Player currentPlayer, String strategy) {
-        JSONObject payload = new JSONObject();
-
-        // Add game cards
-        payload.put("gameCards", convertObjectToJson(game.getCards()));
-
-        // Add game state
-        GameState gameState = game.getState();
-        payload.put("gameState", convertObjectToJson(gameState));
-
-        // Add current player
-        payload.put("currentPlayer", convertObjectToJson(currentPlayer));
-
-        // Add opponent player
-        Player opponentPlayer = findOpponent(game, currentPlayer);
-        payload.put("opponentPlayer", convertObjectToJson(opponentPlayer));
-
-        // Add game view (simplified for now)
-        payload.put("gameView", new JSONObject());
-
-        // Add strategy and IDs
-        payload.put("strategy", strategy);
-        payload.put("game_id", getGameId(game));
-        payload.put("match_id", getMatchId(game));
-
-        return payload;
-    }
-
-    /**
-     * Build specialized payload for target selection
-     */
-    private JSONObject buildTargetPayload(Game game, Player currentPlayer, Outcome outcome,
-            String[] allChoices, String strategy) {
-        try {
-            JSONObject payload = new JSONObject();
-
-            // Build game cards
-            JSONArray gameCards = new JSONArray();
-            for (Card card : game.getCards()) {
-                JSONObject cardObj = new JSONObject();
-                cardObj.put("id", card.getId().toString());
-                cardObj.put("name", card.getName());
-                cardObj.put("type", card.getCardType().toString());
-                gameCards.put(cardObj);
-            }
-            payload.put("gameCards", gameCards);
-
-            // Build game state
-            JSONObject gameState = new JSONObject();
-            gameState.put("turn", game.getTurnNum());
-            gameState.put("phase", game.getPhase().getType().toString());
-            gameState.put("step", game.getStep().getType().toString());
-            payload.put("gameState", gameState);
-
-            // Build choices
-            JSONArray choices = new JSONArray();
-            for (String choice : allChoices) {
-                choices.put(choice);
-            }
-            payload.put("allChoices", choices);
-
-            // Build current player
-            JSONObject currentPlayerObj = new JSONObject();
-            currentPlayerObj.put("id", currentPlayer.getId().toString());
-            currentPlayerObj.put("life", currentPlayer.getLife());
-            currentPlayerObj.put("handSize", currentPlayer.getHand().size());
-            payload.put("currentPlayer", currentPlayerObj);
-
-            // Build opponent player
-            UUID opponentId = game.getOpponents(currentPlayer.getId()).iterator().next();
-            Player opponent = game.getPlayer(opponentId);
-            JSONObject opponentObj = new JSONObject();
-            opponentObj.put("id", opponent.getId().toString());
-            opponentObj.put("life", opponent.getLife());
-            opponentObj.put("handSize", opponent.getHand().size());
-            payload.put("opponentPlayer", opponentObj);
-
-            // Build outcome
-            JSONObject outcomeObj = new JSONObject();
-            outcomeObj.put("isGood", outcome.isGood());
-            outcomeObj.put("toString", outcome.toString());
-            payload.put("outcome", outcomeObj);
-
-            // Build choice
-            JSONObject choiceObj = new JSONObject();
-            choiceObj.put("message", "Choose target");
-            payload.put("choice", choiceObj);
-
-            // Build game view
-            JSONObject gameView = new JSONObject();
-            gameView.put("battlefieldSize", game.getBattlefield().getAllActivePermanents().size());
-            payload.put("gameView", gameView);
-            payload.put("strategy", strategy);
-            payload.put("game_id", getGameId(game));
-            payload.put("match_id", getMatchId(game));
-
-            return payload;
-        } catch (Exception e) {
-            logger.error("Failed to build target payload", e);
-            return new JSONObject();
-        }
-    }
-
-    /**
      * Helper method to find opponent player
      */
     private Player findOpponent(Game game, Player currentPlayer) {
@@ -495,7 +389,6 @@ public class DecisionHandler {
         module.addSerializer(Card.class, new CardSerializer());
         module.addSerializer(Ability.class, new AbilitySerializer());
         module.addSerializer(Outcome.class, new OutcomeSerializer());
-        module.addSerializer(Player.class, new PlayerSerializer());
         mapper.registerModule(module);
 
         return mapper;
@@ -652,47 +545,6 @@ public class DecisionHandler {
                     card.getSpellAbility() != null ? card.getSpellAbility().toString() : "");
             gen.writeStringField("subtype", card.getSubtype() != null ? card.getSubtype().toString() : "");
             gen.writeStringField("supertype", card.getSuperType() != null ? card.getSuperType().toString() : "");
-            gen.writeEndObject();
-        }
-    }
-
-    public class PlayerSerializer extends StdSerializer<Player> {
-        public PlayerSerializer() {
-            this(null);
-        }
-
-        public PlayerSerializer(Class<Player> t) {
-            super(t);
-        }
-
-        @Override
-        public void serialize(Player player, JsonGenerator gen, SerializerProvider provider) throws IOException {
-            gen.writeStartObject();
-            gen.writeStringField("id", player.getId().toString());
-            gen.writeStringField("name", player.getName());
-            gen.writeNumberField("life", player.getLife());
-            gen.writeNumberField("handSize", player.getHand().size());
-
-            // Add hand card IDs array that the FastAPI endpoint expects
-            gen.writeArrayFieldStart("hand");
-            for (UUID cardId : player.getHand()) {
-                gen.writeString(cardId.toString());
-            }
-            gen.writeEndArray();
-
-            // Add graveyard card IDs array that the Python pydantic model expects
-            gen.writeArrayFieldStart("graveyard");
-            for (UUID cardId : player.getGraveyard()) {
-                gen.writeString(cardId.toString());
-            }
-            gen.writeEndArray();
-
-            // Add other useful player fields
-            gen.writeNumberField("librarySize", player.getLibrary().size());
-            gen.writeBooleanField("hasLost", player.hasLost());
-            gen.writeBooleanField("hasWon", player.hasWon());
-            gen.writeBooleanField("inGame", player.isInGame());
-
             gen.writeEndObject();
         }
     }
