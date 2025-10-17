@@ -160,9 +160,9 @@ public class DecisionHandler {
             return result;
         } catch (Exception e) {
             logger.error("Failed to handle target amount decision", e);
-            // Fallback to first target with index 0 and populate chosenUuids
+            // Fallback to first target and populate chosenUuids
             List<UUID> fallbackUuids = targetIds.isEmpty() ? List.of() : List.of(UUID.fromString(targetIds.get(0)));
-            return new DecisionResult(0, fallbackUuids, "fallback_to_first_target");
+            return new DecisionResult(null, fallbackUuids, "fallback_to_first_target");
         }
     }
 
@@ -183,7 +183,7 @@ public class DecisionHandler {
         } catch (Exception e) {
             logger.error("Failed to handle trajectory logging", e);
             // Include 'fallback' in reason to satisfy tests that assert fallback wording
-            return new DecisionResult(null, null, "fallback");
+            return new DecisionResult(null, null, "fallback_trajectory_logging");
         }
     }
 
