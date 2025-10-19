@@ -39,6 +39,9 @@ public class ComputerPlayer7Instrumented extends ComputerPlayer7 {
     private long totalLoggingTime = 0;
     private int loggingCallCount = 0;
 
+    // Game termination tracking
+    private boolean gameEndLogged = false;
+
     public ComputerPlayer7Instrumented(String name, RangeOfInfluence range, int skill) {
         super(name, range, skill);
     }
@@ -236,6 +239,35 @@ public class ComputerPlayer7Instrumented extends ComputerPlayer7 {
         }
 
         updatePerformanceMetrics(startTime);
+    }
+
+    /**
+     * Log game termination as a standard trajectory entry.
+     * Uses the same format as other trajectory logs to maintain consistency.
+     * Includes error handling to prevent game disruption if logging fails.
+     */
+    public void logGameTermination(Game game) {
+        // Add debug logging to see if this method is being called
+        System.out.println("DEBUG: logGameTermination called for game: " +
+                (game.getId() != null ? game.getId().toString() : "null"));
+        logger.info("DEBUG: logGameTermination called for player " + getName() + " in game " +
+                (game.getId() != null ? game.getId().toString() : "null"));
+
+        if (gameEndLogged) {
+            System.out.println("DEBUG: Game end already logged, skipping");
+            return; // Prevent duplicate logging
+        }
+        gameEndLogged = true;
+
+        try {
+            System.out.println("DEBUG: About to log trajectory data for game_end");
+            logTrajectoryData(game, "game_end", null, null, null);
+            System.out.println("DEBUG: Successfully logged game_end trajectory data");
+        } catch (Exception e) {
+            System.err.println("DEBUG: Failed to log game termination: " + e.getMessage());
+            logger.warn("Failed to log game termination: " + e.getMessage());
+            // Game continues normally even if logging fails
+        }
     }
 
     /**

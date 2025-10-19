@@ -51,7 +51,7 @@ public class DecisionHandler {
     private static final String ENDPOINT_CHOOSE_FROM_CHOICES = "/choose_from_choices/";
     private static final String ENDPOINT_CHOOSE_TARGETS = "/choose_targets/";
     private static final String ENDPOINT_CHOOSE_TARGET_AMOUNT = "/chooseTargetAmount/";
-    private static final String ENDPOINT_LOG_TRAJECTORY = "/v1/log_trajectory/";
+    private static final String ENDPOINT_LOG_TRAJECTORY = "/v1/log_trajectory";
 
     private final LlmDecisionClient client;
     private final ObjectMapper objectMapper;
@@ -160,9 +160,9 @@ public class DecisionHandler {
             return result;
         } catch (Exception e) {
             logger.error("Failed to handle target amount decision", e);
-            // Fallback to first target and populate chosenUuids
+            // Fallback to first target with index 0 and populate chosenUuids
             List<UUID> fallbackUuids = targetIds.isEmpty() ? List.of() : List.of(UUID.fromString(targetIds.get(0)));
-            return new DecisionResult(null, fallbackUuids, "fallback_to_first_target");
+            return new DecisionResult(0, fallbackUuids, "fallback_to_first_target");
         }
     }
 
@@ -194,17 +194,46 @@ public class DecisionHandler {
     public JSONObject buildTrajectoryPayload(Game game, Player currentPlayer, String decisionType,
             Object availableActions, Map<String, Object> chosenAction, Map<String, Object> additionalContext) {
         // Start with DecisionBase fields using existing buildBasePayload method
-        JSONObject payload = buildDecisionBasePayload(game, currentPlayer, null);
+        JSONObject payload = buildDecisionBasePayload(game, currentPlayer, "trajectory");
 
         // Add trajectory-specific fields (LogTrajectoryCreate schema)
         payload.put("decisionType", decisionType);
         payload.put("gameIsOver", game.checkIfGameIsOver());
         payload.put("game", convertObjectToJson(game));
 
-        // Available actions, chosen action, and additional context using helper
-        putJsonField(payload, "availableActions", convertObjectToJson(availableActions));
-        putJsonField(payload, "chosenAction", convertObjectToJson(chosenAction));
-        putJsonField(payload, "additionalContext", convertObjectToJson(additionalContext));
+        // Handle availableActions - convert to JSONArray or empty array if null
+        if (availableActions != null) {
+            Object actionsJson = convertObjectToJson(availableActions);
+            if (actionsJson instanceof JSONArray) {
+                payload.put("availableActions", actionsJson);
+            } else if (actionsJson instanceof JSONObject &&
+                    ((JSONObject) actionsJson).has("error")) {
+                // Handle conversion error - use empty array
+                payload.put("availableActions", new JSONArray());
+            } else {
+                // Convert single action to array
+                JSONArray actionsArray = new JSONArray();
+                actionsArray.put(actionsJson);
+                payload.put("availableActions", actionsArray);
+            }
+        } else {
+            // Use empty array instead of null for Pydantic validation
+            payload.put("availableActions", new JSONArray());
+        }
+
+        // Handle chosenAction
+        if (chosenAction != null && !chosenAction.isEmpty()) {
+            payload.put("chosenAction", convertObjectToJson(chosenAction));
+        } else {
+            payload.put("chosenAction", JSONObject.NULL);
+        }
+
+        // Handle additionalContext
+        if (additionalContext != null && !additionalContext.isEmpty()) {
+            payload.put("additionalContext", convertObjectToJson(additionalContext));
+        } else {
+            payload.put("additionalContext", JSONObject.NULL);
+        }
 
         return payload;
     }
@@ -335,20 +364,30 @@ public class DecisionHandler {
      */
     private Object convertObjectToJson(Object obj) {
         try {
+            // Handle null objects explicitly - return empty array for availableActions
+            // compatibility
+            if (obj == null) {
+                return new JSONArray(); // Return empty array instead of empty object for Pydantic list validation
+            }
+
             String jsonString = objectMapper.writeValueAsString(obj);
-            if (jsonString.startsWith("{")) {
+            if (jsonString.equals("null")) {
+                return new JSONArray(); // Return empty array for null serialization
+            } else if (jsonString.startsWith("{")) {
                 return new JSONObject(jsonString);
             } else if (jsonString.startsWith("[")) {
                 return new JSONArray(jsonString);
             } else {
-                throw new JsonProcessingException("Invalid JSON string: " + jsonString) {
-                };
+                // Handle primitive values and other simple types
+                return jsonString.replaceAll("\"", ""); // Remove quotes from simple string values
             }
         } catch (JsonProcessingException e) {
             String className = obj != null ? obj.getClass().getName() : "null";
             logger.error("Error converting object to JSON: " + className, e);
-            return new JSONObject().put("error", "Failed to convert " + className + " to JSON")
-                    .put("message", e.getMessage().replace("\"", "\\\""));
+            // For trajectory logging, return empty array instead of error object to
+            // maintain Pydantic compatibility
+            logger.warn("Returning empty array for failed JSON conversion to maintain Pydantic compatibility");
+            return new JSONArray();
         }
     }
 

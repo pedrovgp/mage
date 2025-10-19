@@ -58,7 +58,7 @@ public class LLMPuzzlesBase extends CardTestPlayerBaseAI {
      */
     public void setupPuzzle(String testName, java.util.UUID startingPlayerId, PhaseStep startingStep, int stopTurn) {
         // Reset counters and gate execution based on -Dtests
-        httpPost("http://localhost:9000/api/mtg_llm/__test__/reset_counters", "{}");
+        httpPost("http://localhost:9000/__test__/reset_counters", "{}");
         System.out.println("[RUNNING] " + testName);
         org.junit.Assume.assumeTrue("Skipping " + testName, shouldRun(testName));
         setStrictChooseMode(false);
@@ -90,7 +90,7 @@ public class LLMPuzzlesBase extends CardTestPlayerBaseAI {
 
     public void finishAndSave(String puzzleId, int turnsTaken) {
         // Query metrics from magellmfast
-        JSONObject metrics = httpGetJson("http://localhost:9000/api/mtg_llm/__test__/metrics");
+        JSONObject metrics = httpGetJson("http://localhost:9000/__test__/metrics");
         int actions = metrics.optInt("choose_from_all_actions", 0);
         int choices = metrics.optInt("choose_from_choices", 0);
         int attackers = metrics.optInt("choose_attackers", 0);

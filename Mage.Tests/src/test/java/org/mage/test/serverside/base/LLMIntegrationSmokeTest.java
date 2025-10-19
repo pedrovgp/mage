@@ -21,7 +21,7 @@ import org.json.JSONObject;
  * Comprehensive AI vs AI smoke test to ensure multiple decision entry points
  * are routed through the LLM integration.
  * This relies on ComputerPlayer8 wiring that calls
- * http://localhost:9000/api/mtg_llm/*.
+ * http://localhost:9000/*.
  * Ensure magellm server is running in random strategy for fast tests.
  */
 public class LLMIntegrationSmokeTest extends CardTestPlayerBaseAI {
@@ -29,7 +29,7 @@ public class LLMIntegrationSmokeTest extends CardTestPlayerBaseAI {
     @Test
     public void test_AI_vs_AI_runs_and_makes_external_calls() {
         // Reset counters before run
-        httpPost("http://localhost:9000/api/mtg_llm/__test__/reset_counters", "{}");
+        httpPost("http://localhost:9000/__test__/reset_counters", "{}");
 
         // Debug: Check what player types we're using
         System.out.println("PlayerA type: " + playerA.getClass().getSimpleName());
@@ -57,7 +57,7 @@ public class LLMIntegrationSmokeTest extends CardTestPlayerBaseAI {
         }
 
         // Query metrics and assert at least one endpoint was called
-        JSONObject metrics = httpGetJson("http://localhost:9000/api/mtg_llm/__test__/metrics");
+        JSONObject metrics = httpGetJson("http://localhost:9000/__test__/metrics");
         int a = metrics.optInt("choose_from_all_actions", 0);
         int b = metrics.optInt("choose_from_choices", 0);
         int c = metrics.optInt("choose_attackers", 0);
@@ -72,7 +72,7 @@ public class LLMIntegrationSmokeTest extends CardTestPlayerBaseAI {
     @Test
     public void test_action_choices_are_processed_through_fastapi_server_integration() {
         // Reset counters before run
-        httpPost("http://localhost:9000/api/mtg_llm/__test__/reset_counters", "{}");
+        httpPost("http://localhost:9000/__test__/reset_counters", "{}");
 
         // Create a scenario that forces action decisions
         addCard(Zone.HAND, playerA, "Lightning Bolt");
@@ -87,7 +87,7 @@ public class LLMIntegrationSmokeTest extends CardTestPlayerBaseAI {
         execute();
 
         // Query metrics and assert action choices were processed
-        JSONObject metrics = httpGetJson("http://localhost:9000/api/mtg_llm/__test__/metrics");
+        JSONObject metrics = httpGetJson("http://localhost:9000/__test__/metrics");
 
         // At least one action choice should happen (priority/pass decisions)
         int actions = metrics.optInt("choose_from_all_actions", 0);
@@ -100,7 +100,7 @@ public class LLMIntegrationSmokeTest extends CardTestPlayerBaseAI {
     @Test
     public void test_llm_integration_calls_are_made_for_gameplay() {
         // Reset counters before run
-        httpPost("http://localhost:9000/api/mtg_llm/__test__/reset_counters", "{}");
+        httpPost("http://localhost:9000/__test__/reset_counters", "{}");
 
         // Create a scenario that triggers various LLM integration calls
         addCard(Zone.HAND, playerA, "Lightning Bolt");
@@ -116,7 +116,7 @@ public class LLMIntegrationSmokeTest extends CardTestPlayerBaseAI {
         execute();
 
         // Query metrics and assert LLM integration calls were made
-        JSONObject metrics = httpGetJson("http://localhost:9000/api/mtg_llm/__test__/metrics");
+        JSONObject metrics = httpGetJson("http://localhost:9000/__test__/metrics");
 
         int actions = metrics.optInt("choose_from_all_actions", 0);
         int choices = metrics.optInt("choose_from_choices", 0);
@@ -134,7 +134,7 @@ public class LLMIntegrationSmokeTest extends CardTestPlayerBaseAI {
     @Test
     public void test_select_attackers_triggers_correct_endpoint() {
         // Reset counters before run
-        httpPost("http://localhost:9000/api/mtg_llm/__test__/reset_counters", "{}");
+        httpPost("http://localhost:9000/__test__/reset_counters", "{}");
 
         // Create a scenario with creatures that can attack
         addCard(Zone.BATTLEFIELD, playerA, "Grizzly Bears"); // 2/2 creature
@@ -148,7 +148,7 @@ public class LLMIntegrationSmokeTest extends CardTestPlayerBaseAI {
         execute();
 
         // Query metrics and assert attacker selection was processed
-        JSONObject metrics = httpGetJson("http://localhost:9000/api/mtg_llm/__test__/metrics");
+        JSONObject metrics = httpGetJson("http://localhost:9000/__test__/metrics");
 
         int attackers = metrics.optInt("choose_attackers", 0);
         int actions = metrics.optInt("choose_from_all_actions", 0);
@@ -164,15 +164,15 @@ public class LLMIntegrationSmokeTest extends CardTestPlayerBaseAI {
     @Test
     public void test_LLM_endpoints_are_accessible() {
         // Test that we can reach the magellm server
-        JSONObject metrics = httpGetJson("http://localhost:9000/api/mtg_llm/__test__/metrics");
+        JSONObject metrics = httpGetJson("http://localhost:9000/__test__/metrics");
         assertTrue("Should be able to reach magellm server", metrics != null);
 
         // Test that we can reset counters
-        httpPost("http://localhost:9000/api/mtg_llm/__test__/reset_counters", "{}");
+        httpPost("http://localhost:9000/__test__/reset_counters", "{}");
         // If we get here without exception, the endpoint is accessible
 
         // Verify counters were reset
-        JSONObject metricsAfterReset = httpGetJson("http://localhost:9000/api/mtg_llm/__test__/metrics");
+        JSONObject metricsAfterReset = httpGetJson("http://localhost:9000/__test__/metrics");
         int totalCalls = metricsAfterReset.optInt("choose_from_all_actions", 0) +
                 metricsAfterReset.optInt("choose_from_choices", 0) +
                 metricsAfterReset.optInt("choose_attackers", 0) +

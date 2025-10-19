@@ -95,4 +95,11 @@ public final class TestComputerPlayer7Instrumented extends ComputerPlayer7Instru
             return testPlayerLink.isComputer();
         }
     }
+
+    @Override
+    public void logGameTermination(Game game) {
+        // Ensure game termination logging is called for the underlying
+        // ComputerPlayer7Instrumented
+        super.logGameTermination(game);
+    }
 }

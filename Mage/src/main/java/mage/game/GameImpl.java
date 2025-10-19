@@ -1547,6 +1547,40 @@ public abstract class GameImpl implements Game {
     public void end() {
         if (!state.isGameOver()) {
             logger.debug("END of gameId: " + this.getId());
+
+            // Notify all ComputerPlayer7Instrumented players of game end for trajectory
+            // logging
+            for (Player player : state.getPlayers().values()) {
+                try {
+                    // Check if player is directly a ComputerPlayer7Instrumented
+                    if (player.getClass().getSimpleName().equals("ComputerPlayer7Instrumented")) {
+                        player.getClass().getMethod("logGameTermination", Game.class).invoke(player, this);
+                    }
+                    // Check if player is a TestPlayer wrapper containing
+                    // ComputerPlayer7Instrumented
+                    else if (player.getClass().getSimpleName().equals("TestPlayer")) {
+                        try {
+                            // Try to get the computerPlayer field and check if it's
+                            // ComputerPlayer7Instrumented
+                            Object computerPlayer = player.getClass().getMethod("getComputerPlayer").invoke(player);
+                            if (computerPlayer != null &&
+                                    (computerPlayer.getClass().getSimpleName().equals("ComputerPlayer7Instrumented") ||
+                                            computerPlayer.getClass().getSimpleName()
+                                                    .equals("TestComputerPlayer7Instrumented"))) {
+                                // Call logGameTermination on the wrapped ComputerPlayer7Instrumented
+                                computerPlayer.getClass().getMethod("logGameTermination", Game.class)
+                                        .invoke(computerPlayer, this);
+                            }
+                        } catch (Exception innerE) {
+                            // TestPlayer doesn't have computerPlayer, skip
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.warn("Failed to log game termination for player " + player.getName() + ": "
+                            + e.getMessage());
+                    // Continue game ending process even if trajectory logging fails
+                }
+            }
             endTime = new Date();
             state.endGame();
 

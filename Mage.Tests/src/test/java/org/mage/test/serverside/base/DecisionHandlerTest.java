@@ -344,7 +344,7 @@ public class DecisionHandlerTest {
 
         mage.player.ai.DecisionPayload capturedPayload = payloadCaptor.getValue();
         assertNotNull("Payload should not be null", capturedPayload);
-        assertEquals("Should use correct endpoint", "/api/mtg_llm/v1/log_trajectory",
+        assertEquals("Should use correct endpoint", "/v1/log_trajectory",
                 capturedPayload.getEndpointPath());
 
         // Verify payload contains expected JSON structure
