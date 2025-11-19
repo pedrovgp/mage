@@ -1548,33 +1548,15 @@ public abstract class GameImpl implements Game {
         if (!state.isGameOver()) {
             logger.debug("END of gameId: " + this.getId());
 
-            // Notify all ComputerPlayer7Instrumented players of game end for trajectory
-            // logging
+            // Notify all players that support trajectory logging of game end by
+            // calling an optional logGameTermination(Game) method via reflection.
             for (Player player : state.getPlayers().values()) {
                 try {
-                    // Check if player is directly a ComputerPlayer7Instrumented
-                    if (player.getClass().getSimpleName().equals("ComputerPlayer7Instrumented")) {
-                        player.getClass().getMethod("logGameTermination", Game.class).invoke(player, this);
-                    }
-                    // Check if player is a TestPlayer wrapper containing
-                    // ComputerPlayer7Instrumented
-                    else if (player.getClass().getSimpleName().equals("TestPlayer")) {
-                        try {
-                            // Try to get the computerPlayer field and check if it's
-                            // ComputerPlayer7Instrumented
-                            Object computerPlayer = player.getClass().getMethod("getComputerPlayer").invoke(player);
-                            if (computerPlayer != null &&
-                                    (computerPlayer.getClass().getSimpleName().equals("ComputerPlayer7Instrumented") ||
-                                            computerPlayer.getClass().getSimpleName()
-                                                    .equals("TestComputerPlayer7Instrumented"))) {
-                                // Call logGameTermination on the wrapped ComputerPlayer7Instrumented
-                                computerPlayer.getClass().getMethod("logGameTermination", Game.class)
-                                        .invoke(computerPlayer, this);
-                            }
-                        } catch (Exception innerE) {
-                            // TestPlayer doesn't have computerPlayer, skip
-                        }
-                    }
+                    player.getClass().getMethod("logGameTermination", Game.class).invoke(player, this);
+                } catch (NoSuchMethodException noMethod) {
+                    // Player does not implement logGameTermination, skip
+                    logger.info("Player does not implement logGameTermination, skip logTermination for player "
+                            + player.getName());
                 } catch (Exception e) {
                     logger.warn("Failed to log game termination for player " + player.getName() + ": "
                             + e.getMessage());

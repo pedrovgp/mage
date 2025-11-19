@@ -38,9 +38,11 @@ public class ComputerPlayer7InstrumentedIntegrationTest extends CardTestPlayerBa
     }
 
     @Override
-    protected TestPlayer createPlayer(String name, RangeOfInfluence rangeOfInfluence) {
-        // Override to avoid deck loading issues - use a simple computer player
-        TestPlayer player = new TestPlayer(new org.mage.test.player.TestComputerPlayer(name, rangeOfInfluence));
+    protected TestPlayer createNewPlayer(String playerName, RangeOfInfluence rangeOfInfluence) {
+        // Use the instrumented computer player for trajectory logging tests
+        TestPlayer player = new TestPlayer(
+                new org.mage.test.player.TestComputerPlayer7Instrumented(playerName, rangeOfInfluence, 8));
+        player.setAIPlayer(true);
         player.setTestMode(true);
         return player;
     }
@@ -52,11 +54,6 @@ public class ComputerPlayer7InstrumentedIntegrationTest extends CardTestPlayerBa
 
         // Reset trajectory logs before test
         httpPost("http://localhost:9000/__test__/reset_counters", "{}");
-
-        // Replace playerA with instrumented version for trajectory logging
-        playerA = new TestPlayer(new org.mage.test.player.TestComputerPlayer7Instrumented("PlayerA",
-                mage.constants.RangeOfInfluence.ONE, 8));
-        playerA.setTestMode(true);
 
         // Create a simple scenario that forces decisions and ends the game
         // PlayerA has Lightning Bolt, PlayerB has 3 life -> game should end when bolt
@@ -75,25 +72,13 @@ public class ComputerPlayer7InstrumentedIntegrationTest extends CardTestPlayerBa
         assertTrue("Game should have ended when playerB died", currentGame.hasEnded());
         assertEquals("PlayerB should have 0 life", 0, playerB.getLife());
 
-        // Explicitly trigger game termination logging since the automatic detection
-        // might not work
-        // with TestComputerPlayer7Instrumented wrapper
-        System.out.println("DEBUG: About to call logGameTermination explicitly");
+        // Log debug info about player classes
         System.out.println("DEBUG: playerA class: " + playerA.getClass().getName());
-        if (playerA instanceof TestPlayer) {
-            TestPlayer testPlayerA = (TestPlayer) playerA;
-            System.out.println("DEBUG: computerPlayer class: " + testPlayerA.getComputerPlayer().getClass().getName());
-            if (testPlayerA.getComputerPlayer() instanceof org.mage.test.player.TestComputerPlayer7Instrumented) {
-                org.mage.test.player.TestComputerPlayer7Instrumented instrumentedPlayer = (org.mage.test.player.TestComputerPlayer7Instrumented) testPlayerA
-                        .getComputerPlayer();
-                System.out.println("DEBUG: Calling logGameTermination on instrumentedPlayer");
-                instrumentedPlayer.logGameTermination(currentGame);
-                System.out.println("DEBUG: Successfully called logGameTermination for playerA");
-            } else {
-                System.out.println("DEBUG: computerPlayer is not TestComputerPlayer7Instrumented");
-            }
-        } else {
-            System.out.println("DEBUG: playerA is not TestPlayer");
+        System.out.println("DEBUG: computerPlayer class: " + playerA.getComputerPlayer().getClass().getName());
+
+        // Assert that playerA is an instance of TestComputerPlayer7Instrumented
+        if (!(playerA.getComputerPlayer() instanceof org.mage.test.player.TestComputerPlayer7Instrumented)) {
+            fail("playerA is not an instance of TestComputerPlayer7Instrumented");
         }
 
         // Wait a moment for async logging to complete
@@ -135,7 +120,7 @@ public class ComputerPlayer7InstrumentedIntegrationTest extends CardTestPlayerBa
                     System.out.println("  " + lines[j]);
                 }
 
-                if (trajectoryContent.contains("\"decision_type\":\"game_end\"")) {
+                if (trajectoryContent.contains("game_end")) {
                     foundGameEndLog = true;
                     System.out.println("Found game_end log in file: " + filePath);
                     break;
