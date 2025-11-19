@@ -1548,20 +1548,12 @@ public abstract class GameImpl implements Game {
         if (!state.isGameOver()) {
             logger.debug("END of gameId: " + this.getId());
 
-            // Notify all players that support trajectory logging of game end by
-            // calling an optional logGameTermination(Game) method via reflection.
+            // Notify all players that support trajectory logging of game end.
+            // Uses getRealPlayer() to unwrap facades (e.g. TestPlayer) and then
+            // calls an optional logGameTermination(Game) method via reflection on
+            // the unwrapped player instance.
             for (Player player : state.getPlayers().values()) {
-                try {
-                    player.getClass().getMethod("logGameTermination", Game.class).invoke(player, this);
-                } catch (NoSuchMethodException noMethod) {
-                    // Player does not implement logGameTermination, skip
-                    logger.info("Player does not implement logGameTermination, skip logTermination for player "
-                            + player.getName());
-                } catch (Exception e) {
-                    logger.warn("Failed to log game termination for player " + player.getName() + ": "
-                            + e.getMessage());
-                    // Continue game ending process even if trajectory logging fails
-                }
+                tryLogGameTermination(player, this);
             }
             endTime = new Date();
             state.endGame();
@@ -1589,6 +1581,34 @@ public abstract class GameImpl implements Game {
             for (Player player : state.getPlayers().values()) {
                 player.abort();
             }
+        }
+    }
+
+    /**
+     * Try to notify a player (or its underlying real player) about game
+     * termination by calling an optional {@code logGameTermination(Game)}
+     * method via reflection. This relies on {@link Player#getRealPlayer()} to
+     * unwrap facades (e.g. TestPlayer) while avoiding class-specific
+     * dependencies.
+     */
+    private void tryLogGameTermination(Player facadePlayer, Game game) {
+        if (facadePlayer == null) {
+            return;
+        }
+
+        Player realPlayer = facadePlayer.getRealPlayer();
+        if (realPlayer == null) {
+            realPlayer = facadePlayer;
+        }
+
+        try {
+            realPlayer.getClass().getMethod("logGameTermination", Game.class).invoke(realPlayer, game);
+        } catch (NoSuchMethodException noMethod) {
+            // Player does not implement logGameTermination, skip silently
+        } catch (Exception e) {
+            logger.warn("Failed to log game termination for player " + realPlayer.getName() + ": "
+                    + e.getMessage());
+            // Continue game ending process even if trajectory logging fails
         }
     }
 
