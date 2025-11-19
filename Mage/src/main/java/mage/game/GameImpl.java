@@ -1592,21 +1592,23 @@ public abstract class GameImpl implements Game {
      * dependencies.
      */
     private void tryLogGameTermination(Player facadePlayer, Game game) {
-        if (facadePlayer == null) {
-            return;
-        }
-
-        Player realPlayer = facadePlayer.getRealPlayer();
-        if (realPlayer == null) {
-            realPlayer = facadePlayer;
-        }
 
         try {
-            realPlayer.getClass().getMethod("logGameTermination", Game.class).invoke(realPlayer, game);
+            facadePlayer.getClass().getMethod("logGameTermination", Game.class).invoke(facadePlayer, game);
         } catch (NoSuchMethodException noMethod) {
-            // Player does not implement logGameTermination, skip silently
+            // Player does not implement logGameTermination, try unwrapping via
+            // getRealPlayer(). If getRealPlayer returns the same instance or
+            // null, treat this as a wiring error in test/instrumented setups
+            // instead of silently ignoring it.
+            Player realPlayer = facadePlayer.getRealPlayer();
+            if (realPlayer != null && realPlayer != facadePlayer) {
+                tryLogGameTermination(realPlayer, game);
+            } else {
+                logger.error("Final real player without logGameTermination: "
+                        + facadePlayer.getClass().getName() + " (" + facadePlayer.getName() + ")");
+            }
         } catch (Exception e) {
-            logger.warn("Failed to log game termination for player " + realPlayer.getName() + ": "
+            logger.warn("Failed to log game termination for player " + facadePlayer.getName() + ": "
                     + e.getMessage());
             // Continue game ending process even if trajectory logging fails
         }
