@@ -1,0 +1,19 @@
+// Archetype: White Weenie Aggro
+// Source: Approximate list based on premodern online meta
+// Main game plan: Deploy efficient white threats, protect them, and close games with pump effects and land denial.
+// Creatures
+4 Mother of Runes
+4 Savannah Lions
+4 Soltari Priest
+4 Silver Knight
+4 Paladin en-Vec
+4 Longbow Archer
+// Spells
+4 Swords to Plowshares
+4 Disenchant
+4 Glorious Anthem
+4 Armageddon
+// Lands
+16 Plains
+4 Wasteland
+4 Wasteland

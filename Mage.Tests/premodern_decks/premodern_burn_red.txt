@@ -1,0 +1,19 @@
+// Archetype: Burn (Mono-Red)
+// Source: Approximate list based on premodern online meta
+// Main game plan: Use cheap creatures and direct damage spells to defeat the opponent as quickly as possible.
+// Creatures
+4 Jackal Pup
+4 Grim Lavamancer
+4 Mogg Fanatic
+// Spells
+4 Lightning Bolt
+4 Chain Lightning
+4 Fireblast
+4 Price of Progress
+4 Incinerate
+4 Seal of Fire
+4 Volcanic Hammer
+// Lands
+18 Mountain
+4 Wasteland
+// Lands

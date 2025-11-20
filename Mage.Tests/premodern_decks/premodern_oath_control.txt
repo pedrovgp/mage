@@ -1,0 +1,26 @@
+// Archetype: Oath Control (UGW)
+// Source: Approximate list based on premodern online meta
+// Main game plan: Stall the board with countermagic/removal and use Oath of Druids to cheat out oversized finishers.
+// Creatures
+2 Akroma, Angel of Wrath
+2 Phantom Nishoba
+2 Morphling
+// Spells
+4 Oath of Druids
+4 Brainstorm
+4 Impulse
+4 Counterspell
+4 Force of Will
+3 Swords to Plowshares
+3 Enlightened Tutor
+3 Wrath of God
+3 Accumulated Knowledge
+2 Intuition
+// Lands
+4 Tropical Island
+4 Tundra
+4 Savannah
+4 Flooded Strand
+2 Forest
+2 Island
+4 Flooded Strand

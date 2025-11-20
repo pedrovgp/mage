@@ -1,0 +1,22 @@
+// Archetype: UW Control
+// Source: Approximate list based on premodern online meta
+// Main game plan: Control the board with counterspells and removal, then win with a resilient threat.
+// Creatures
+4 Meddling Mage
+2 Exalted Angel
+// Spells
+4 Counterspell
+4 Force Spike
+4 Mana Leak
+4 Swords to Plowshares
+4 Brainstorm
+4 Accumulated Knowledge
+2 Wrath of God
+2 Absorb
+2 Cunning Wish
+// Lands
+4 Flooded Strand
+4 Adarkar Wastes
+9 Island
+5 Plains
+4 Adarkar Wastes

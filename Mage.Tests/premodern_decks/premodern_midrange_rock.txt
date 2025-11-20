@@ -1,0 +1,23 @@
+// Archetype: The Rock (BG Midrange)
+// Source: Approximate list based on premodern online meta
+// Main game plan: Disrupt the opponent with discard and removal, then win with efficient creatures.
+// Creatures
+4 Birds of Paradise
+4 Wall of Blossoms
+4 Yavimaya Elder
+3 Spiritmonger
+2 Deranged Hermit
+// Spells
+4 Duress
+3 Cabal Therapy
+4 Pernicious Deed
+3 Living Death
+2 Vampiric Tutor
+// Lands
+4 Llanowar Wastes
+4 Treetop Village
+1 Dust Bowl
+1 Volrath's Stronghold
+7 Forest
+6 Swamp
+1 Volrath's Stronghold

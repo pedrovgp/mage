@@ -1,0 +1,24 @@
+// Archetype: Reanimator (BR)
+// Source: Approximate list based on premodern online meta
+// Main game plan: Discard a large creature and then reanimate it for a quick win.
+// Creatures
+4 Akroma, Angel of Wrath
+4 Phantom Nishoba
+4 Verdant Force
+4 Putrid Imp
+4 Vampire Hounds
+// Spells
+4 Reanimate
+4 Exhume
+4 Duress
+4 Cabal Therapy
+2 Vampiric Tutor
+1 Buried Alive
+// Lands
+4 Bloodstained Mire
+4 Polluted Delta
+4 Sulfurous Springs
+4 Tainted Pact
+4 Swamp
+2 Mountain
+4 Tainted Pact

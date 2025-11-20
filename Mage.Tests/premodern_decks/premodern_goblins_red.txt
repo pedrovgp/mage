@@ -1,0 +1,21 @@
+// Archetype: Mono-Red Goblins
+// Source: Approximate list based on premodern online meta
+// Main game plan: Cheat explosive goblin threats into play via Lackey/Prospector and finish with massive combat steps.
+// Creatures
+4 Goblin Lackey
+4 Goblin Piledriver
+4 Goblin Warchief
+4 Goblin Ringleader
+4 Goblin Matron
+4 Skirk Prospector
+4 Mogg Fanatic
+2 Siege-Gang Commander
+// Spells
+4 Lightning Bolt
+4 Fireblast
+2 Goblin Grenade
+// Lands
+14 Mountain
+4 Wasteland
+2 Barbarian Ring
+14 Mountain

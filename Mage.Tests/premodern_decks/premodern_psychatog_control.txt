@@ -1,0 +1,25 @@
+// Archetype: UB Psychatog Control
+// Source: Approximate list based on premodern online meta
+// Main game plan: Trade resources early, build a stocked graveyard, then finish with an overwhelming Psychatog swing.
+// Creatures
+4 Psychatog
+2 Nightscape Familiar
+2 Wonder
+// Spells
+4 Counterspell
+4 Force of Will
+4 Memory Lapse
+4 Accumulated Knowledge
+4 Fact or Fiction
+4 Deep Analysis
+4 Duress
+4 Smother
+3 Cunning Wish
+2 Upheaval
+// Lands
+4 Underground Sea
+4 Underground River
+3 Polluted Delta
+2 Island
+2 Swamp
+3 Polluted Delta
