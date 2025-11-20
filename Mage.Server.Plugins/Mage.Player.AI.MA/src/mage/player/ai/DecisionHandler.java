@@ -200,6 +200,7 @@ public class DecisionHandler {
         payload.put("decisionType", decisionType);
         payload.put("gameIsOver", game.checkIfGameIsOver());
         payload.put("game", convertObjectToJson(game));
+        payload.put("currentPlayerId", currentPlayer.getId().toString());
 
         // Handle availableActions - convert to JSONArray or empty array if null
         if (availableActions != null) {

@@ -123,7 +123,8 @@ public class ComputerPlayer7InstrumentedIntegrationTest extends CardTestPlayerBa
                     System.out.println("  " + lines[j]);
                 }
 
-                // Count how many times "game_end" appears in this trajectory file (should be 4)
+                // Count how many times "game_end" appears in this trajectory file (should be 2
+                // for a single player)
                 int occurrences = 0;
                 int index = 0;
                 while ((index = trajectoryContent.indexOf("game_end", index)) != -1) {
@@ -131,7 +132,7 @@ public class ComputerPlayer7InstrumentedIntegrationTest extends CardTestPlayerBa
                     index += "game_end".length();
                 }
                 System.out.println("Found 'game_end' occurrences in file " + filePath + ": " + occurrences);
-                if (occurrences == 4) {
+                if (occurrences == 2) {
                     foundGameEndLog = true;
                     break;
                 }
