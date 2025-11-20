@@ -71,6 +71,8 @@ public class ComputerPlayer7InstrumentedIntegrationTest extends CardTestPlayerBa
         // Verify the game actually ended (playerB should be dead)
         assertTrue("Game should have ended when playerB died", currentGame.hasEnded());
         assertEquals("PlayerB should have 0 life", 0, playerB.getLife());
+        assertTrue("PlayerA should be the winner",
+                currentGame.getWinner().equals("Player " + playerA.getName() + " is the winner"));
 
         // Log debug info about player classes
         System.out.println("DEBUG: playerA class: " + playerA.getClass().getName());
@@ -89,7 +91,8 @@ public class ComputerPlayer7InstrumentedIntegrationTest extends CardTestPlayerBa
         }
 
         // Verify trajectory logs were created
-        JSONObject trajectories = httpGetJson("http://localhost:9000/__test__/list_trajectories");
+        JSONObject trajectories = httpGetJson(
+                "http://localhost:9000/__test__/list_trajectories?game_id=" + currentGame.getId());
         JSONArray files = trajectories.getJSONArray("files");
 
         System.out.println("Trajectory files created: " + files.length());
@@ -109,7 +112,7 @@ public class ComputerPlayer7InstrumentedIntegrationTest extends CardTestPlayerBa
 
             try {
                 // Convert relative path to absolute path from the project root
-                String absoluteFilePath = "../" + filePath;
+                String absoluteFilePath = filePath;
 
                 // Read the trajectory file and check for game_end decision type
                 String trajectoryContent = readTrajectoryFile(absoluteFilePath);
@@ -120,16 +123,21 @@ public class ComputerPlayer7InstrumentedIntegrationTest extends CardTestPlayerBa
                     System.out.println("  " + lines[j]);
                 }
 
-                if (trajectoryContent.contains("game_end")) {
+                // Count how many times "game_end" appears in this trajectory file (should be 4)
+                int occurrences = 0;
+                int index = 0;
+                while ((index = trajectoryContent.indexOf("game_end", index)) != -1) {
+                    occurrences++;
+                    index += "game_end".length();
+                }
+                System.out.println("Found 'game_end' occurrences in file " + filePath + ": " + occurrences);
+                if (occurrences == 4) {
                     foundGameEndLog = true;
-                    System.out.println("Found game_end log in file: " + filePath);
                     break;
                 }
             } catch (Exception e) {
                 System.out.println("Could not read file " + filePath + ": " + e.getMessage());
-                // File doesn't exist or can't be read - that's okay, we can skip the game_end
-                // validation
-                // since the main test goal was to verify the instrumentation works
+                throw new RuntimeException(e);
             }
         }
 
