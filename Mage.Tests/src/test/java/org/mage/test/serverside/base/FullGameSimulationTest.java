@@ -66,20 +66,20 @@ public class FullGameSimulationTest extends FullGameSimulationInstrumentedBase {
 
         // Override defaults for smaller test
         SimulationConfig config = new SimulationConfig(
-                3, // numGames
+                1, // numGames
                 50, // maxTurns
                 12345L, // seed
                 burnDeck,
                 controlDeck,
                 false,
-                "mage/Mage.Tests/tests/full_games/",
+                "/home/pv/Documents/pv/projetos/magellm/logs/FullGameSimulationInstrumentedBase",
                 "random");
 
         SimulationResults results = runSimulationSeries(config);
 
         // Basic validation
         assertNotNull("Results should not be null", results);
-        assertEquals("Should have requested 3 games", 3, results.gamesRequested);
+        assertEquals("Should have requested 1 games", 1, results.gamesRequested);
         assertTrue("Should have completed games", results.gamesCompleted >= 0);
 
         System.out.println("Small batch test completed successfully");

@@ -4,6 +4,7 @@ import mage.constants.MultiplayerAttackOption;
 import mage.constants.RangeOfInfluence;
 import mage.game.Game;
 import mage.game.GameException;
+import mage.game.GameOptions;
 import mage.game.TwoPlayerDuel;
 import mage.game.mulligan.MulliganType;
 import org.json.JSONObject;
@@ -26,6 +27,8 @@ import static org.junit.Assert.*;
  * Enables batch execution of multiple games with configurable parameters.
  */
 public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerBase {
+
+    private static final Path PROJECT_ROOT = detectProjectRoot();
 
     // Read system properties for reproducible runs
     public static final String STRATEGY = System.getProperty("strategy", "random");
@@ -86,7 +89,7 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
                     deck1Path,
                     deck2Path,
                     false,
-                    "mage/Mage.Tests/tests/full_games/",
+                    "/home/pv/Documents/pv/projetos/magellm/logs/FullGameSimulationInstrumentedBase",
                     STRATEGY);
         }
     }
@@ -204,6 +207,11 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
         List<GameResult> results = new ArrayList<>();
         Random random = new Random(config.seed);
 
+        Path deck1File = resolveDeckPath(config.deck1Path);
+        Path deck2File = resolveDeckPath(config.deck2Path);
+        String deck1Resolved = deck1File.toString();
+        String deck2Resolved = deck2File.toString();
+
         // Set system properties for the simulation
         System.setProperty("strategy", config.strategy);
 
@@ -216,11 +224,17 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
 
                 // Create new game with seeded random
                 long gameSeed = random.nextLong();
-                Game game = createGameWithDecks(config.deck1Path, config.deck2Path, gameSeed);
+                Game game = createGameWithDecks(deck1Resolved, deck2Resolved, gameSeed);
+
+                GameOptions gameOptions = new GameOptions();
+                gameOptions.testMode = false;
+                gameOptions.skipInitShuffling = false;
+                gameOptions.rollbackTurnsAllowed = false;
+                game.setGameOptions(gameOptions);
 
                 // Create players and add them to the game
-                TestPlayer playerA = createPlayer(game, "PlayerA", config.deck1Path);
-                TestPlayer playerB = createPlayer(game, "PlayerB", config.deck2Path);
+                TestPlayer playerA = createPlayer(game, "PlayerA", deck1Resolved);
+                TestPlayer playerB = createPlayer(game, "PlayerB", deck2Resolved);
 
                 // Start the game – GameImpl drives phases internally (mirrors LoadTest
                 // behaviour)
@@ -262,8 +276,7 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
         }
 
         // Create results summary
-        String matchup = Paths.get(config.deck1Path).getFileName() + " vs " +
-                Paths.get(config.deck2Path).getFileName();
+        String matchup = deck1File.getFileName() + " vs " + deck2File.getFileName();
         SimulationResults simulationResults = new SimulationResults(matchup, config.numGames, results, config.seed);
 
         // Save metrics to file
@@ -337,6 +350,43 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
         } catch (IOException e) {
             System.err.println("[SIMULATION] Failed to save results: " + e.getMessage());
         }
+    }
+
+    private static Path detectProjectRoot() {
+        Path current = Paths.get("").toAbsolutePath();
+        while (current != null) {
+            if (Files.exists(current.resolve(".git"))) {
+                return current;
+            }
+            current = current.getParent();
+        }
+        return Paths.get("").toAbsolutePath();
+    }
+
+    protected Path resolveDeckPath(String deckPath) {
+        Path raw = Paths.get(deckPath);
+        if (Files.exists(raw)) {
+            return raw.toAbsolutePath();
+        }
+
+        Path repoCandidate = PROJECT_ROOT.resolve(raw).normalize();
+        if (Files.exists(repoCandidate)) {
+            return repoCandidate.toAbsolutePath();
+        }
+
+        if (raw.getNameCount() > 1) {
+            Path projectName = PROJECT_ROOT.getFileName();
+            Path firstSegment = raw.getName(0);
+            if (projectName != null && projectName.toString().equals(firstSegment.toString())) {
+                Path trimmed = raw.subpath(1, raw.getNameCount());
+                Path trimmedCandidate = PROJECT_ROOT.resolve(trimmed).normalize();
+                if (Files.exists(trimmedCandidate)) {
+                    return trimmedCandidate.toAbsolutePath();
+                }
+            }
+        }
+
+        throw new IllegalArgumentException("Deck file not found: " + deckPath);
     }
 
     // HTTP helpers (copied from LLMPuzzlesBase)

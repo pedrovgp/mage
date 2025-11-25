@@ -30,7 +30,7 @@ public class ComputerPlayer7Instrumented extends ComputerPlayer7 {
 
     // HTTP client configuration using LlmDecisionClient
     private static final LlmDecisionClient decisionClient = new LlmDecisionClient(
-            System.getProperty("magellmfast.url", "http://localhost:8000"));
+            System.getProperty("magellmfast.url", "http://localhost:9000"));
 
     // Decision handler for centralized payload generation
     private static final DecisionHandler decisionHandler = new DecisionHandler(decisionClient);
