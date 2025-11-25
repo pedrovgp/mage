@@ -2,14 +2,11 @@ package org.mage.test.serverside.base;
 
 import mage.constants.MultiplayerAttackOption;
 import mage.constants.RangeOfInfluence;
-import mage.constants.Zone;
 import mage.game.Game;
 import mage.game.GameException;
 import mage.game.TwoPlayerDuel;
 import mage.game.mulligan.MulliganType;
-import mage.players.Player;
 import org.json.JSONObject;
-import org.junit.Test;
 import org.mage.test.player.TestPlayer;
 
 import java.io.FileNotFoundException;
@@ -19,7 +16,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.*;
 
@@ -29,7 +25,7 @@ import static org.junit.Assert.*;
  * trajectory logging.
  * Enables batch execution of multiple games with configurable parameters.
  */
-public abstract class LLMFullGameSimulationBase extends CardTestPlayerBase {
+public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerBase {
 
     // Read system properties for reproducible runs
     public static final String STRATEGY = System.getProperty("strategy", "random");
@@ -223,47 +219,38 @@ public abstract class LLMFullGameSimulationBase extends CardTestPlayerBase {
                 Game game = createGameWithDecks(config.deck1Path, config.deck2Path, gameSeed);
 
                 // Create players and add them to the game
-                TestPlayer playerA = createPlayerForSimulation(game, "PlayerA", config.deck1Path);
-                TestPlayer playerB = createPlayerForSimulation(game, "PlayerB", config.deck2Path);
+                TestPlayer playerA = createPlayer(game, "PlayerA", config.deck1Path);
+                TestPlayer playerB = createPlayer(game, "PlayerB", config.deck2Path);
 
-                // Start the game
+                // Start the game – GameImpl drives phases internally (mirrors LoadTest
+                // behaviour)
                 game.start(playerA.getId());
 
-                // Run the game until completion or timeout
-                int turnsPlayed = 0;
-                boolean gameEnded = false;
-
-                while (!gameEnded && turnsPlayed < config.maxTurns) {
-                    // Execute current phase
-                    game.getPhase().executePhase(game);
-                    turnsPlayed = game.getTurnNum();
-
-                    if (game.hasEnded()) {
-                        gameEnded = true;
-                    }
-                }
-
+                int turnsPlayed = game.getTurnNum();
                 long gameDuration = System.currentTimeMillis() - gameStartTime;
 
-                // Determine winner
+                boolean timedOut = turnsPlayed > config.maxTurns;
                 String winner;
-                if (!gameEnded) {
+                if (timedOut) {
                     winner = "Timeout";
-                } else if (game.getWinner() != null) {
-                    if (game.getWinner().contains(playerA.getName())) {
-                        winner = "PlayerA";
-                    } else if (game.getWinner().contains(playerB.getName())) {
-                        winner = "PlayerB";
+                } else {
+                    String rawWinner = game.getWinner();
+                    if (rawWinner != null) {
+                        if (rawWinner.contains(playerA.getName())) {
+                            winner = "PlayerA";
+                        } else if (rawWinner.contains(playerB.getName())) {
+                            winner = "PlayerB";
+                        } else {
+                            winner = "Draw";
+                        }
                     } else {
                         winner = "Draw";
                     }
-                } else {
-                    winner = "Draw";
                 }
 
                 results.add(new GameResult(gameIndex, winner, turnsPlayed, null, gameDuration));
 
-                System.out.println(String.format("[SIMULATION] Game %d/%d: %s won in %d turns (%dms)",
+                System.out.println(String.format("[SIMULATION] Game %d/%d: %s (%d turns, %dms)",
                         gameIndex + 1, config.numGames, winner, turnsPlayed, gameDuration));
 
             } catch (Exception e) {
@@ -309,31 +296,18 @@ public abstract class LLMFullGameSimulationBase extends CardTestPlayerBase {
         return game;
     }
 
-    /**
-     * Create a player for simulation with the appropriate AI type
-     */
-    protected TestPlayer createPlayerForSimulation(Game game, String playerName, String deckPath)
-            throws GameException {
-        // For trajectory logging, use ComputerPlayer7Instrumented for PlayerA
-        // For baseline opponent, use ComputerPlayer7 for PlayerB
+    @Override
+    protected TestPlayer createNewPlayer(String playerName, RangeOfInfluence rangeOfInfluence) {
         TestPlayer player;
         if ("PlayerA".equals(playerName)) {
             player = new TestPlayer(
-                    new org.mage.test.player.TestComputerPlayer7Instrumented(playerName, RangeOfInfluence.ONE, 8));
+                    new org.mage.test.player.TestComputerPlayer7Instrumented(playerName, rangeOfInfluence, 8));
         } else {
             player = new TestPlayer(
-                    new org.mage.test.player.TestComputerPlayer7Instrumented(playerName, RangeOfInfluence.ONE, 8));
+                    new org.mage.test.player.TestComputerPlayer7(playerName, rangeOfInfluence, 8));
         }
         player.setAIPlayer(true);
         player.setTestMode(true);
-
-        // Load deck and add player to game (following CardTestPlayerBase pattern)
-        try {
-            createPlayer(game, playerName, deckPath);
-        } catch (FileNotFoundException e) {
-            throw new GameException("Failed to load deck: " + deckPath);
-        }
-
         return player;
     }
 
@@ -368,7 +342,7 @@ public abstract class LLMFullGameSimulationBase extends CardTestPlayerBase {
     // HTTP helpers (copied from LLMPuzzlesBase)
     protected static void httpPost(String urlString, String body) {
         try {
-            java.net.URL url = new java.net.URL(urlString);
+            java.net.URL url = java.net.URI.create(urlString).toURL();
             java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setConnectTimeout(2000);
@@ -390,7 +364,7 @@ public abstract class LLMFullGameSimulationBase extends CardTestPlayerBase {
 
     protected static JSONObject httpGetJson(String urlString) {
         try {
-            java.net.URL url = new java.net.URL(urlString);
+            java.net.URL url = java.net.URI.create(urlString).toURL();
             java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(2000);

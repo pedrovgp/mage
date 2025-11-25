@@ -9,7 +9,7 @@ import static org.junit.Assert.*;
  * Tests ComputerPlayer7Instrumented vs ComputerPlayer7 matchups for trajectory
  * logging.
  */
-public class FullGameSimulationTest extends LLMFullGameSimulationBase {
+public class FullGameSimulationTest extends FullGameSimulationInstrumentedBase {
 
     @Test
     public void testBurnVsControlSimulation() {
