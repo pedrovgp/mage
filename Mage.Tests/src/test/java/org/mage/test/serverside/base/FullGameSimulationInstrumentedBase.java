@@ -317,7 +317,7 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
                     new org.mage.test.player.TestComputerPlayer7Instrumented(playerName, rangeOfInfluence, 8));
         } else {
             player = new TestPlayer(
-                    new org.mage.test.player.TestComputerPlayer7(playerName, rangeOfInfluence, 8));
+                    new org.mage.test.player.TestComputerPlayer7Instrumented(playerName, rangeOfInfluence, 8));
         }
         player.setAIPlayer(true);
         player.setTestMode(true);
