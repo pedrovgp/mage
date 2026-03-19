@@ -22,9 +22,14 @@ import static org.junit.Assert.*;
 
 /**
  * Base class for full game simulation tests between AI players.
- * Supports ComputerPlayer7Instrumented vs ComputerPlayer7 matchups for
- * trajectory logging.
- * Enables batch execution of multiple games with configurable parameters.
+ *
+ * <p>Two modes controlled by {@code -Dstrategy=...}:
+ * <ul>
+ *   <li>{@code mageai} (default) — both players are CP7Instrumented (trajectory logging for BC training)
+ *   <li>{@code rl} / {@code rl_eval} — PlayerA is CP8 (RL via HTTP to magellmfast), PlayerB is CP7 (MCTS)
+ * </ul>
+ *
+ * <p>Enables batch execution of multiple games with configurable parameters.
  */
 public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerBase {
 
@@ -81,6 +86,15 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
             this.strategy = strategy;
         }
 
+        public static String defaultMetricsPath() {
+            // Allow override via -Dmetrics_output_path for per-run isolation
+            String override = System.getProperty("metrics_output_path");
+            if (override != null && !override.isEmpty()) {
+                return override;
+            }
+            return PROJECT_ROOT.resolve("logs").resolve("full_games").toString();
+        }
+
         public static SimulationConfig createDefault(String deck1Path, String deck2Path) {
             return new SimulationConfig(
                     NUM_GAMES,
@@ -89,7 +103,7 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
                     deck1Path,
                     deck2Path,
                     false,
-                    "/home/pv/Documents/pv/projetos/magellm/logs/FullGameSimulationInstrumentedBase",
+                    defaultMetricsPath(),
                     STRATEGY);
         }
     }
@@ -218,13 +232,22 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
         for (int gameIndex = 0; gameIndex < config.numGames; gameIndex++) {
             long gameStartTime = System.currentTimeMillis();
 
+            // Mirror sides: swap decks every other game when enabled
+            boolean swapped = config.mirrorSides && (gameIndex % 2 == 1);
+            String gameDeck1 = swapped ? deck2Resolved : deck1Resolved;
+            String gameDeck2 = swapped ? deck1Resolved : deck2Resolved;
+
             try {
-                // Reset trajectory counters for this game
-                httpPost("http://localhost:9000/__test__/reset_counters", "{}");
+                // Reset trajectory counters for this game (non-fatal if server not reachable)
+                try {
+                    httpPost("http://localhost:9000/__test__/reset_counters", "{}");
+                } catch (Exception resetEx) {
+                    System.err.println("[SIMULATION] Warning: could not reset counters: " + resetEx.getMessage());
+                }
 
                 // Create new game with seeded random
                 long gameSeed = random.nextLong();
-                Game game = createGameWithDecks(deck1Resolved, deck2Resolved, gameSeed);
+                Game game = createGameWithDecks(gameDeck1, gameDeck2, gameSeed);
 
                 GameOptions gameOptions = new GameOptions();
                 gameOptions.testMode = false;
@@ -233,8 +256,8 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
                 game.setGameOptions(gameOptions);
 
                 // Create players and add them to the game
-                TestPlayer playerA = createPlayer(game, "PlayerA", deck1Resolved);
-                TestPlayer playerB = createPlayer(game, "PlayerB", deck2Resolved);
+                TestPlayer playerA = createPlayer(game, "PlayerA", gameDeck1);
+                TestPlayer playerB = createPlayer(game, "PlayerB", gameDeck2);
 
                 // Start the game – GameImpl drives phases internally (mirrors LoadTest
                 // behaviour)
@@ -251,9 +274,11 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
                     String rawWinner = game.getWinner();
                     if (rawWinner != null) {
                         if (rawWinner.contains(playerA.getName())) {
-                            winner = "PlayerA";
+                            // When sides are swapped, PlayerA is playing deck2 so
+                            // a "PlayerA seat" win is actually a "Deck2" win.
+                            winner = swapped ? "PlayerB" : "PlayerA";
                         } else if (rawWinner.contains(playerB.getName())) {
-                            winner = "PlayerB";
+                            winner = swapped ? "PlayerA" : "PlayerB";
                         } else {
                             winner = "Draw";
                         }
@@ -264,14 +289,18 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
 
                 results.add(new GameResult(gameIndex, winner, turnsPlayed, null, gameDuration));
 
-                System.out.println(String.format("[SIMULATION] Game %d/%d: %s (%d turns, %dms)",
-                        gameIndex + 1, config.numGames, winner, turnsPlayed, gameDuration));
+                String sideNote = swapped ? " [sides swapped]" : "";
+                System.out.println(String.format("[SIMULATION] Game %d/%d: %s (%d turns, %dms)%s",
+                        gameIndex + 1, config.numGames, winner, turnsPlayed, gameDuration, sideNote));
 
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 long gameDuration = System.currentTimeMillis() - gameStartTime;
-                results.add(new GameResult(gameIndex, "Error", 0, e.getMessage(), gameDuration));
-                System.err.println(String.format("[SIMULATION] Game %d/%d failed: %s",
-                        gameIndex + 1, config.numGames, e.getMessage()));
+                String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
+                boolean isStall = msg.contains("Too much priority calls");
+                String winner = isStall ? "Timeout" : "Error";
+                results.add(new GameResult(gameIndex, winner, 0, msg, gameDuration));
+                System.err.println(String.format("[SIMULATION] Game %d/%d %s: %s",
+                        gameIndex + 1, config.numGames, winner.toLowerCase(), msg));
             }
         }
 
@@ -312,10 +341,20 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
     @Override
     protected TestPlayer createNewPlayer(String playerName, RangeOfInfluence rangeOfInfluence) {
         TestPlayer player;
-        if ("PlayerA".equals(playerName)) {
-            player = new TestPlayer(
-                    new org.mage.test.player.TestComputerPlayer7Instrumented(playerName, rangeOfInfluence, 8));
+        String currentStrategy = System.getProperty("strategy", STRATEGY);
+        if ("rl".equals(currentStrategy) || "rl_eval".equals(currentStrategy)) {
+            // Competitive evaluation mode: CP8 (RL via HTTP) vs CP7 (MCTS).
+            // PlayerA is the RL agent; PlayerB is the rule-based opponent.
+            if ("PlayerA".equals(playerName)) {
+                player = new TestPlayer(
+                        new org.mage.test.player.TestComputerPlayer8(playerName, rangeOfInfluence, 8));
+            } else {
+                player = new TestPlayer(
+                        new org.mage.test.player.TestComputerPlayer7(playerName, rangeOfInfluence, 8));
+            }
         } else {
+            // Data collection mode (strategy=mageai or default): both players instrumented
+            // so trajectories are logged for BC training.
             player = new TestPlayer(
                     new org.mage.test.player.TestComputerPlayer7Instrumented(playerName, rangeOfInfluence, 8));
         }
@@ -353,9 +392,22 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
     }
 
     private static Path detectProjectRoot() {
+        // Walk up looking for the magellm project root.
+        // We identify it by pyproject.toml (unique to the magellm repo root,
+        // not present in the mage submodule).  Fall back to .git directory
+        // (not file — submodules use a .git file) if pyproject.toml isn't found.
         Path current = Paths.get("").toAbsolutePath();
         while (current != null) {
-            if (Files.exists(current.resolve(".git"))) {
+            if (Files.exists(current.resolve("pyproject.toml"))) {
+                return current;
+            }
+            current = current.getParent();
+        }
+        // Fallback: walk up looking for a .git *directory* (not file)
+        current = Paths.get("").toAbsolutePath();
+        while (current != null) {
+            Path gitPath = current.resolve(".git");
+            if (Files.isDirectory(gitPath)) {
                 return current;
             }
             current = current.getParent();

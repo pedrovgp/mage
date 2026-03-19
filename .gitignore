@@ -1,5 +1,7 @@
 syntax: glob
 
+logs
+
 # global files
 **/db
 **/saved

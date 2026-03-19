@@ -2972,7 +2972,7 @@ public abstract class PlayerImpl implements Player, Serializable {
                 .stream()
                 .filter(card -> filter.match(card, getId(), source, game))
                 .collect(Collectors.toSet());
-        Card card = RandomUtil.randomFromCollection(cards);
+        Card card = RandomUtil.playerRandomFromCollection(this.getId(), cards);
         if (card == null) {
             return false;
         }
@@ -3098,7 +3098,7 @@ public abstract class PlayerImpl implements Player, Serializable {
      */
     @Override
     public boolean flipCoinResult(Game game) {
-        return RandomUtil.nextBoolean();
+        return RandomUtil.playerNextBoolean(this.getId());
     }
 
     private static final class RollDieResult {
@@ -3129,7 +3129,7 @@ public abstract class PlayerImpl implements Player, Serializable {
 
     @Override
     public int rollDieResult(int sides, Game game) {
-        return RandomUtil.nextInt(sides) + 1;
+        return RandomUtil.playerNextInt(this.getId(), sides) + 1;
     }
 
     /**

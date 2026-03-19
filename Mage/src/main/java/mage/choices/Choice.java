@@ -109,9 +109,10 @@ public interface Choice extends Serializable, Copyable<Choice> {
 
     // random choice (for AI usage)
     void setRandomChoice();
+    void setRandomChoice(java.util.UUID playerId);
 
-    // LLM (external) choice (for AI usage)
-    void setLLMChoice(Outcome outcome, Game game, ComputerPlayer8Interface player);
+    // RL decision engine (external) choice (for AI usage)
+    void setRLChoice(Outcome outcome, Game game, ComputerPlayer8Interface player);
 
     boolean setChoiceByAnswers(List<String> answers, boolean removeSelectAnswerFromList);
 

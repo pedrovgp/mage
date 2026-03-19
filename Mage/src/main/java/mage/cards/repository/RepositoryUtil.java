@@ -65,6 +65,13 @@ public final class RepositoryUtil {
     }
 
     public static boolean isNewBuildRun(ConnectionSource connectionSource, String entityName, Class clazz) throws SQLException {
+        // Allow callers to skip the rebuild check (e.g. during automated test pipelines where
+        // mvn install is run before tests and would otherwise trigger a full card DB rebuild on
+        // every pipeline run, causing a 30-60 min bottleneck with parallel test JVMs).
+        if (Boolean.getBoolean("mage.skipDbRebuildCheck")) {
+            return false;
+        }
+
         // build time checks only for releases, not runtime (e.g. IDE debug)
         // that's check uses for cards db cleanup on new version/build
         String currentBuild = JarVersion.getBuildTime(clazz);

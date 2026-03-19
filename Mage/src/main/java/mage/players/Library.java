@@ -33,11 +33,13 @@ public class Library implements Serializable {
 
     /**
      * Don't use this directly. Use <player.shuffleLibrary(game)> instead.
+     * Uses per-player RNG (isolated from other players) so PlayerA shuffles
+     * never pollute PlayerB's RNG sequence and vice versa.
      */
     public void shuffle() {
         UUID[] shuffled = library.toArray(new UUID[0]);
         for (int n = shuffled.length - 1; n > 0; n--) {
-            int r = RandomUtil.nextInt(n + 1);
+            int r = RandomUtil.playerNextInt(playerId, n + 1);
             UUID temp = shuffled[n];
             shuffled[n] = shuffled[r];
             shuffled[r] = temp;

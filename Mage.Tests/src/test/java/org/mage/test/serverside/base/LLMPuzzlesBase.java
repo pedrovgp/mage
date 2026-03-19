@@ -1,11 +1,65 @@
 package org.mage.test.serverside.base;
 
 import mage.constants.PhaseStep;
+import mage.game.GameException;
+import mage.util.RandomUtil;
 import org.json.JSONObject;
+import java.io.FileNotFoundException;
 import java.util.Set;
 import static org.junit.Assert.assertTrue;
 
 public class LLMPuzzlesBase extends CardTestPlayerBaseAI {
+
+    // Seed the global RandomUtil before the game is created so that deck
+    // shuffling, starting player selection, and AI tiebreaking are all
+    // deterministic for a given seed value.
+    @Override
+    @org.junit.Before
+    public void reset() throws GameException, FileNotFoundException {
+        if (!SEED.isEmpty()) {
+            RandomUtil.setSeed(Long.parseLong(SEED));
+        }
+        super.reset();
+    }
+
+    // Both players are fully simulated so that all decisions go through the chosen AI.
+    // Note: createPlayer below overrides PlayerB to always be CP7Instrumented for rl strategy.
+    @Override
+    public java.util.List<String> getFullSimulatedPlayers() {
+        return java.util.Arrays.asList("PlayerA", "PlayerB");
+    }
+
+    // Player slot constants for per-player RNG seeding.
+    // These are fixed per slot (not per UUID) so that the same seed always
+    // produces the same per-player RNG regardless of JVM run.
+    private static final long PLAYER_A_RNG_CONSTANT = 0xAAAAAAAAL;
+    private static final long PLAYER_B_RNG_CONSTANT = 0xBBBBBBBBL;
+
+    // For the rl strategy, PlayerB must be CP7Instrumented (the reference opponent),
+    // not CP8 (the RL agent). This ensures PlayerB uses the same alpha-beta logic in
+    // both mageai_log and rl runs, so the game trajectory is comparable.
+    // Also registers each player with an isolated per-player RNG seeded from
+    // (gameSeed ^ slotConstant) so that PlayerA's random calls never affect PlayerB's.
+    @Override
+    protected org.mage.test.player.TestPlayer createPlayer(String name, mage.constants.RangeOfInfluence rangeOfInfluence) {
+        String strategy = System.getProperty("strategy", "");
+        org.mage.test.player.TestPlayer testPlayer;
+        if ("PlayerB".equals(name) && "rl".equalsIgnoreCase(strategy)) {
+            testPlayer = new org.mage.test.player.TestPlayer(
+                    new org.mage.test.player.TestComputerPlayer7Instrumented(name, rangeOfInfluence, getSkillLevel()));
+            testPlayer.setAIPlayer(true);
+        } else {
+            testPlayer = super.createPlayer(name, rangeOfInfluence);
+        }
+        // Register per-player RNG. setSeed() already cleared the map before super.reset()
+        // called createPlayer(), so we can safely register here with the correct seed.
+        if (!SEED.isEmpty()) {
+            long seed = Long.parseLong(SEED);
+            long slotConstant = "PlayerA".equals(name) ? PLAYER_A_RNG_CONSTANT : PLAYER_B_RNG_CONSTANT;
+            RandomUtil.registerPlayer(testPlayer.getId(), seed ^ slotConstant);
+        }
+        return testPlayer;
+    }
 
     // Read system properties for reproducible runs
     public static final String STRATEGY = System.getProperty("strategy", "rl");
@@ -98,12 +152,14 @@ public class LLMPuzzlesBase extends CardTestPlayerBaseAI {
 
         System.out.println(puzzleId + " metrics: " + metrics.toString());
 
-        // Assert at least one decision was made (skip when using local mageai agent
-        // that doesn't call external API)
-        if (!"mageai".equalsIgnoreCase(STRATEGY)) {
+        // Assert at least one decision was made (skip when using mageai variants
+        // that don't call external decision endpoints — they only log trajectories)
+        boolean isMageAiVariant = "mageai".equalsIgnoreCase(STRATEGY)
+                || "mageai_log".equalsIgnoreCase(STRATEGY);
+        if (!isMageAiVariant) {
             assertTrue("Expected at least one external decision call", (actions + choices + attackers + targets) > 0);
         } else {
-            System.out.println("Skipping external decision assertion for strategy=mageai");
+            System.out.println("Skipping external decision assertion for strategy=" + STRATEGY);
         }
 
         // Collect performance metrics
@@ -115,9 +171,17 @@ public class LLMPuzzlesBase extends CardTestPlayerBaseAI {
 
         // Save metrics to file (for aggregator script)
         String artifacts = System.getProperty("artifact.dir", "tests");
-        String agent = ("mageai".equalsIgnoreCase(STRATEGY) ? "ComputerPlayer7" : "ComputerPlayer8");
+        String agent;
+        if ("mageai".equalsIgnoreCase(STRATEGY)) {
+            agent = "ComputerPlayer7";
+        } else if ("mageai_log".equalsIgnoreCase(STRATEGY)) {
+            agent = "ComputerPlayer7Instrumented";
+        } else {
+            agent = "ComputerPlayer8";
+        }
         saveMetricsJson(artifacts + "/metrics.json", new JSONObject()
                 .put("puzzle_id", puzzleId)
+                .put("game_id", currentGame.getId().toString())
                 .put("agent", agent)
                 .put("strategy", STRATEGY)
                 .put("seed", SEED.isEmpty() ? JSONObject.NULL : Integer.parseInt(SEED))

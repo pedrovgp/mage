@@ -8,6 +8,7 @@ import mage.game.TwoPlayerDuel;
 import mage.game.mulligan.MulliganType;
 import mage.players.Player;
 import org.mage.test.player.TestComputerPlayer7;
+import org.mage.test.player.TestComputerPlayer7Instrumented;
 import org.mage.test.player.TestPlayer;
 import org.mage.test.serverside.base.impl.CardTestPlayerAPIImpl;
 
@@ -67,6 +68,9 @@ public abstract class CardTestPlayerBaseAI extends CardTestPlayerAPIImpl {
             TestPlayer testPlayer;
             if ("mageai".equalsIgnoreCase(strategy)) {
                 testPlayer = new TestPlayer(new TestComputerPlayer7(name, rangeOfInfluence, getSkillLevel()));
+            } else if ("mageai_log".equalsIgnoreCase(strategy)) {
+                // CP7 rules engine with trajectory logging to magellmfast server
+                testPlayer = new TestPlayer(new TestComputerPlayer7Instrumented(name, rangeOfInfluence, getSkillLevel()));
             } else {
                 testPlayer = new TestPlayer(
                         new org.mage.test.player.TestComputerPlayer8(name, rangeOfInfluence, getSkillLevel()));

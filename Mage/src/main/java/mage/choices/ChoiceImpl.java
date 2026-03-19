@@ -277,40 +277,44 @@ public class ChoiceImpl implements Choice {
 
     @Override
     public void setRandomChoice() {
+        setRandomChoice(null);
+    }
 
+    @Override
+    public void setRandomChoice(UUID playerId) {
         if (this.isKeyChoice()) {
             // key mode
             String[] vals = this.getKeyChoices().keySet().toArray(new String[0]);
             if (vals.length > 0) {
-                int choiceNum = RandomUtil.nextInt(vals.length);
+                int choiceNum = RandomUtil.playerNextInt(playerId, vals.length);
                 this.setChoiceByKey(vals[choiceNum], false);
             }
         } else {
             // string mode
             String[] vals = this.getChoices().toArray(new String[0]);
             if (vals.length > 0) {
-                int choiceNum = RandomUtil.nextInt(vals.length);
+                int choiceNum = RandomUtil.playerNextInt(playerId, vals.length);
                 this.setChoice(vals[choiceNum], false);
             }
         }
     }
 
     // TODO PV
-    public void setLLMChoice(Outcome outcome, Game game, ComputerPlayer8Interface currentPlayer) {
+    public void setRLChoice(Outcome outcome, Game game, ComputerPlayer8Interface currentPlayer) {
 
         if (this.isKeyChoice()) {
             // key mode
             String[] vals = this.getKeyChoices().keySet().toArray(new String[0]);
             if (vals.length > 0) {
-                int llmChoice = currentPlayer.callLLMToChooseFromChoices(game, currentPlayer, outcome, this, vals);
-                this.setChoiceByKey(vals[llmChoice], false);
+                int choiceIdx = currentPlayer.selectChoiceViaRL(game, currentPlayer, outcome, this, vals);
+                this.setChoiceByKey(vals[choiceIdx], false);
             }
         } else {
             // string mode
             String[] vals = this.getChoices().toArray(new String[0]);
             if (vals.length > 0) {
-                int llmChoice = currentPlayer.callLLMToChooseFromChoices(game, currentPlayer, outcome, this, vals);
-                this.setChoice(vals[llmChoice], false);
+                int choiceIdx = currentPlayer.selectChoiceViaRL(game, currentPlayer, outcome, this, vals);
+                this.setChoice(vals[choiceIdx], false);
             }
         }
     }

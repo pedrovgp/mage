@@ -361,6 +361,316 @@ public class DecisionHandlerTest {
         assertTrue("Payload should contain opponentPlayer", payloadJson.has("opponentPlayer"));
     }
 
+    // =========================================================================
+    // DN1a: GameView / Information State Tests
+    // =========================================================================
+
+    @Test
+    public void testGameViewConstructionDebug() {
+        // Temporary debug test to expose GameView construction exception
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+        try {
+            mage.view.GameView gv = new mage.view.GameView(game.getState(), game, player.getId(), null);
+            System.out.println("[DEBUG] GameView constructed OK. Players: " + gv.getPlayers().size());
+            System.out.println("[DEBUG] Phase: " + gv.getPhase() + " Step: " + gv.getStep() + " Turn: " + gv.getTurn());
+            System.out.println("[DEBUG] MyPlayer: " + gv.getMyPlayer());
+        } catch (Exception e) {
+            System.out.println("[DEBUG] GameView construction FAILED: " + e.getClass().getName() + ": " + e.getMessage());
+            e.printStackTrace(System.out);
+        }
+        // This test always passes — it's just for debugging
+        assertTrue("Debug test", true);
+    }
+
+    @Test
+    public void testGameViewPopulated() {
+        // After DN1a, buildDecisionBasePayload should include a populated gameView
+        DecisionResult expectedResult = new DecisionResult(0, null, "GameViewTest");
+        when(mockClient.requestDecision(any())).thenReturn(expectedResult);
+
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+
+        mage.abilities.common.PassAbility passAbility = new mage.abilities.common.PassAbility();
+        java.util.List<mage.abilities.Ability> actions = Arrays.asList(passAbility);
+
+        decisionHandler.handleAction(game, player, actions, "random");
+
+        ArgumentCaptor<mage.player.ai.DecisionPayload> payloadCaptor = ArgumentCaptor
+                .forClass(mage.player.ai.DecisionPayload.class);
+        verify(mockClient).requestDecision(payloadCaptor.capture());
+
+        org.json.JSONObject payloadJson = payloadCaptor.getValue().getBody();
+        assertTrue("Payload should contain gameView", payloadJson.has("gameView"));
+        org.json.JSONObject gameView = payloadJson.optJSONObject("gameView");
+        assertNotNull("gameView should be a JSONObject", gameView);
+        // Should have phase, step, turn at minimum (even for minimal game)
+        assertTrue("gameView should have phase key", gameView.has("phase"));
+        assertTrue("gameView should have step key", gameView.has("step"));
+        assertTrue("gameView should have turn key", gameView.has("turn"));
+        assertTrue("gameView should have myPlayer key", gameView.has("myPlayer"));
+        assertTrue("gameView should have opponentPlayer key", gameView.has("opponentPlayer"));
+    }
+
+    @Test
+    public void testGameViewMyPlayerHasHandFields() {
+        DecisionResult expectedResult = new DecisionResult(0, null, "HandFieldsTest");
+        when(mockClient.requestDecision(any())).thenReturn(expectedResult);
+
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+
+        mage.abilities.common.PassAbility passAbility = new mage.abilities.common.PassAbility();
+        decisionHandler.handleAction(game, player, Arrays.asList(passAbility), "random");
+
+        ArgumentCaptor<mage.player.ai.DecisionPayload> payloadCaptor = ArgumentCaptor
+                .forClass(mage.player.ai.DecisionPayload.class);
+        verify(mockClient).requestDecision(payloadCaptor.capture());
+
+        org.json.JSONObject payloadJson = payloadCaptor.getValue().getBody();
+        org.json.JSONObject gameView = payloadJson.optJSONObject("gameView");
+        assertNotNull("gameView should not be null", gameView);
+
+        org.json.JSONObject myPlayer = gameView.optJSONObject("myPlayer");
+        assertNotNull("myPlayer should not be null", myPlayer);
+        assertTrue("myPlayer should have handCount", myPlayer.has("handCount"));
+        assertTrue("myPlayer should have handCards", myPlayer.has("handCards"));
+        assertTrue("handCount should be >= 0", myPlayer.getInt("handCount") >= 0);
+        assertNotNull("handCards should be a JSONArray", myPlayer.optJSONArray("handCards"));
+    }
+
+    @Test
+    public void testGameViewOpponentHandHidden() {
+        DecisionResult expectedResult = new DecisionResult(0, null, "OpponentHandTest");
+        when(mockClient.requestDecision(any())).thenReturn(expectedResult);
+
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+
+        mage.abilities.common.PassAbility passAbility = new mage.abilities.common.PassAbility();
+        decisionHandler.handleAction(game, player, Arrays.asList(passAbility), "random");
+
+        ArgumentCaptor<mage.player.ai.DecisionPayload> payloadCaptor = ArgumentCaptor
+                .forClass(mage.player.ai.DecisionPayload.class);
+        verify(mockClient).requestDecision(payloadCaptor.capture());
+
+        org.json.JSONObject payloadJson = payloadCaptor.getValue().getBody();
+        org.json.JSONObject gameView = payloadJson.optJSONObject("gameView");
+        assertNotNull("gameView should not be null", gameView);
+
+        org.json.JSONObject opponentPlayer = gameView.optJSONObject("opponentPlayer");
+        assertNotNull("opponentPlayer should not be null", opponentPlayer);
+        assertTrue("opponentPlayer should have handCount", opponentPlayer.has("handCount"));
+        assertTrue("opponentPlayer handCount should be >= 0", opponentPlayer.getInt("handCount") >= 0);
+        // Opponent hand cards must be empty (information boundary)
+        org.json.JSONArray handCards = opponentPlayer.optJSONArray("handCards");
+        assertNotNull("handCards should be a JSONArray (not null)", handCards);
+        assertEquals("opponentPlayer.handCards should be empty (information boundary)", 0, handCards.length());
+    }
+
+    @Test
+    public void testGameViewOpponentLibraryHidden() {
+        DecisionResult expectedResult = new DecisionResult(0, null, "OpponentLibraryTest");
+        when(mockClient.requestDecision(any())).thenReturn(expectedResult);
+
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+
+        mage.abilities.common.PassAbility passAbility = new mage.abilities.common.PassAbility();
+        decisionHandler.handleAction(game, player, Arrays.asList(passAbility), "random");
+
+        ArgumentCaptor<mage.player.ai.DecisionPayload> payloadCaptor = ArgumentCaptor
+                .forClass(mage.player.ai.DecisionPayload.class);
+        verify(mockClient).requestDecision(payloadCaptor.capture());
+
+        org.json.JSONObject payloadJson = payloadCaptor.getValue().getBody();
+        org.json.JSONObject gameView = payloadJson.optJSONObject("gameView");
+        org.json.JSONObject opponentPlayer = gameView.optJSONObject("opponentPlayer");
+        assertNotNull("opponentPlayer should not be null", opponentPlayer);
+        // Opponent library count is public info
+        assertTrue("opponentPlayer should have libraryCount", opponentPlayer.has("libraryCount"));
+        assertTrue("opponentPlayer.libraryCount should be >= 0", opponentPlayer.getInt("libraryCount") >= 0);
+        // No libraryCards field should be present (library order is hidden)
+        assertFalse("opponentPlayer should NOT have libraryCards array", opponentPlayer.has("libraryCards"));
+    }
+
+    @Test
+    public void testGameViewBackwardCompatible() {
+        // Pre-existing payload keys must still be present and unchanged after DN1a
+        DecisionResult expectedResult = new DecisionResult(0, null, "BackwardCompatTest");
+        when(mockClient.requestDecision(any())).thenReturn(expectedResult);
+
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+
+        mage.abilities.common.PassAbility passAbility = new mage.abilities.common.PassAbility();
+        decisionHandler.handleAction(game, player, Arrays.asList(passAbility), "random");
+
+        ArgumentCaptor<mage.player.ai.DecisionPayload> payloadCaptor = ArgumentCaptor
+                .forClass(mage.player.ai.DecisionPayload.class);
+        verify(mockClient).requestDecision(payloadCaptor.capture());
+
+        org.json.JSONObject payloadJson = payloadCaptor.getValue().getBody();
+        // All pre-existing keys must be present
+        assertTrue("Should contain gameState", payloadJson.has("gameState"));
+        assertTrue("Should contain currentPlayer", payloadJson.has("currentPlayer"));
+        assertTrue("Should contain opponentPlayer", payloadJson.has("opponentPlayer"));
+        assertTrue("Should contain gameCards", payloadJson.has("gameCards"));
+        assertTrue("Should contain strategy", payloadJson.has("strategy"));
+        assertTrue("Should contain gameId", payloadJson.has("gameId"));
+        assertTrue("Should contain matchId", payloadJson.has("matchId"));
+        // gameView should now be a populated JSONObject, not an empty one
+        assertTrue("Should contain gameView", payloadJson.has("gameView"));
+        org.json.JSONObject gameView = payloadJson.optJSONObject("gameView");
+        assertNotNull("gameView should be JSONObject", gameView);
+    }
+
+    @Test
+    public void testGameViewPlayerHasBattlefieldManaPool() {
+        // Verify myPlayer has expected structural fields
+        DecisionResult expectedResult = new DecisionResult(0, null, "PlayerFieldsTest");
+        when(mockClient.requestDecision(any())).thenReturn(expectedResult);
+
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+
+        mage.abilities.common.PassAbility passAbility = new mage.abilities.common.PassAbility();
+        decisionHandler.handleAction(game, player, Arrays.asList(passAbility), "random");
+
+        ArgumentCaptor<mage.player.ai.DecisionPayload> payloadCaptor = ArgumentCaptor
+                .forClass(mage.player.ai.DecisionPayload.class);
+        verify(mockClient).requestDecision(payloadCaptor.capture());
+
+        org.json.JSONObject payloadJson = payloadCaptor.getValue().getBody();
+        org.json.JSONObject gameView = payloadJson.optJSONObject("gameView");
+        org.json.JSONObject myPlayer = gameView.optJSONObject("myPlayer");
+        assertNotNull("myPlayer should not be null", myPlayer);
+        assertTrue("myPlayer should have battlefield", myPlayer.has("battlefield"));
+        assertTrue("myPlayer should have graveyard", myPlayer.has("graveyard"));
+        assertTrue("myPlayer should have exile", myPlayer.has("exile"));
+        assertTrue("myPlayer should have manaPool", myPlayer.has("manaPool"));
+        assertTrue("myPlayer should have life", myPlayer.has("life"));
+        assertTrue("myPlayer should have id", myPlayer.has("id"));
+        assertTrue("myPlayer should have name", myPlayer.has("name"));
+        // manaPool should have color fields
+        org.json.JSONObject manaPool = myPlayer.optJSONObject("manaPool");
+        assertNotNull("manaPool should be JSONObject", manaPool);
+        assertTrue("manaPool should have red", manaPool.has("red"));
+        assertTrue("manaPool should have green", manaPool.has("green"));
+    }
+
+    @Test
+    public void testTrajectoryPayloadHasGameView() {
+        // Trajectory payload should inherit gameView from buildDecisionBasePayload
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+
+        java.util.Map<String, Object> chosenAction = new java.util.HashMap<>();
+        chosenAction.put("actionIndex", 0);
+        java.util.Map<String, Object> additionalContext = new java.util.HashMap<>();
+
+        org.json.JSONObject payload = decisionHandler.buildTrajectoryPayload(
+                game, player, "priority", Arrays.asList("action1"), chosenAction, additionalContext);
+
+        assertNotNull("Trajectory payload should not be null", payload);
+        assertTrue("Trajectory payload should contain gameView", payload.has("gameView"));
+        org.json.JSONObject gameView = payload.optJSONObject("gameView");
+        assertNotNull("gameView should be a JSONObject", gameView);
+        assertTrue("gameView should have myPlayer", gameView.has("myPlayer"));
+        assertTrue("gameView should have opponentPlayer", gameView.has("opponentPlayer"));
+    }
+
+    @Test
+    public void testActionPayloadHasPopulatedGameView() {
+        // Verify action endpoint payload has populated gameView
+        DecisionResult expectedResult = new DecisionResult(0, null, "ActionGameViewTest");
+        when(mockClient.requestDecision(any())).thenReturn(expectedResult);
+
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+
+        mage.abilities.common.PassAbility passAbility = new mage.abilities.common.PassAbility();
+        decisionHandler.handleAction(game, player, Arrays.asList(passAbility), "random");
+
+        ArgumentCaptor<mage.player.ai.DecisionPayload> payloadCaptor = ArgumentCaptor
+                .forClass(mage.player.ai.DecisionPayload.class);
+        verify(mockClient).requestDecision(payloadCaptor.capture());
+
+        org.json.JSONObject payloadJson = payloadCaptor.getValue().getBody();
+        org.json.JSONObject gameView = payloadJson.optJSONObject("gameView");
+        assertNotNull("Action payload gameView should be a JSONObject", gameView);
+        assertTrue("Action payload gameView should have myPlayer", gameView.has("myPlayer"));
+    }
+
+    @Test
+    public void testChoicePayloadHasPopulatedGameView() {
+        // Verify choice endpoint payload has populated gameView
+        DecisionResult expectedResult = new DecisionResult(0, null, "ChoiceGameViewTest");
+        when(mockClient.requestDecision(any())).thenReturn(expectedResult);
+
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+
+        mage.choices.Choice choice = new mage.choices.ChoiceImpl(true);
+        choice.setMessage("Test");
+        String[] choices = {"A", "B"};
+        decisionHandler.handleChoice(game, player, Outcome.Benefit, choice, choices, "random");
+
+        ArgumentCaptor<mage.player.ai.DecisionPayload> payloadCaptor = ArgumentCaptor
+                .forClass(mage.player.ai.DecisionPayload.class);
+        verify(mockClient).requestDecision(payloadCaptor.capture());
+
+        org.json.JSONObject payloadJson = payloadCaptor.getValue().getBody();
+        org.json.JSONObject gameView = payloadJson.optJSONObject("gameView");
+        assertNotNull("Choice payload gameView should be a JSONObject", gameView);
+        assertTrue("Choice payload gameView should have opponentPlayer", gameView.has("opponentPlayer"));
+    }
+
+    @Test
+    public void testAttackersPayloadHasPopulatedGameView() {
+        // Verify attackers endpoint payload has populated gameView
+        DecisionResult expectedResult = new DecisionResult(null, java.util.List.of(), "AttackersGameViewTest");
+        when(mockClient.requestDecision(any())).thenReturn(expectedResult);
+
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+
+        decisionHandler.handleAttackers(game, player,
+                java.util.List.of(), java.util.List.of(), "random");
+
+        ArgumentCaptor<mage.player.ai.DecisionPayload> payloadCaptor = ArgumentCaptor
+                .forClass(mage.player.ai.DecisionPayload.class);
+        verify(mockClient).requestDecision(payloadCaptor.capture());
+
+        org.json.JSONObject payloadJson = payloadCaptor.getValue().getBody();
+        org.json.JSONObject gameView = payloadJson.optJSONObject("gameView");
+        assertNotNull("Attackers payload gameView should be a JSONObject", gameView);
+        assertTrue("Attackers payload gameView should have phase", gameView.has("phase"));
+    }
+
+    @Test
+    public void testTargetAmountPayloadDoesNotHaveGameView() {
+        // chooseTargetAmount uses buildBaseRequestPayload (not buildDecisionBasePayload)
+        // so it should NOT have gameView
+        DecisionResult expectedResult = new DecisionResult(0, java.util.List.of(), "TargetAmountTest");
+        when(mockClient.requestDecision(any())).thenReturn(expectedResult);
+
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+
+        decisionHandler.handleChooseTargetAmount(game, player,
+                java.util.List.of(), 1, 1, "random");
+
+        ArgumentCaptor<mage.player.ai.DecisionPayload> payloadCaptor = ArgumentCaptor
+                .forClass(mage.player.ai.DecisionPayload.class);
+        verify(mockClient).requestDecision(payloadCaptor.capture());
+
+        org.json.JSONObject payloadJson = payloadCaptor.getValue().getBody();
+        // chooseTargetAmount intentionally does NOT include gameView (uses BaseRequest, not DecisionBase)
+        assertFalse("TargetAmount payload should NOT have gameView (uses BaseRequest)", payloadJson.has("gameView"));
+    }
+
     @Test
     public void testBuildTrajectoryPayload() {
         // Create a real game and player using TestGameFactory

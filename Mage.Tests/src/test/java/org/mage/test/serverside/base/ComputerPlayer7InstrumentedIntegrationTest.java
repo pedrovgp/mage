@@ -19,6 +19,7 @@ import java.util.UUID;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
 import org.json.JSONObject;
@@ -359,6 +360,124 @@ public class ComputerPlayer7InstrumentedIntegrationTest extends CardTestPlayerBa
         } catch (Exception e) {
             throw new RuntimeException("HTTP GET failed: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Verifies that real trajectory data written during gameplay contains a populated
+     * gameView (DN1a information-state feature).
+     *
+     * Checks:
+     * - request_payload.gameView exists and is a non-empty object
+     * - gameView has the five required top-level keys: myPlayer, opponentPlayer,
+     *   phase, step, turn
+     * - myPlayer.name is a non-empty string
+     * - opponentPlayer.handCards is an empty array (information boundary respected)
+     * - turn is a positive integer
+     */
+    @Test
+    public void test_game_view_populated_in_trajectory() {
+        System.setProperty("magellmfast.url", "http://localhost:9000");
+        httpPost("http://localhost:9000/__test__/reset_counters", "{}");
+
+        addCard(Zone.HAND, playerA, "Lightning Bolt");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain");
+        setLife(playerB, 3);
+
+        setStrictChooseMode(false);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        try { Thread.sleep(2000); } catch (InterruptedException e) { /* ignore */ }
+
+        JSONObject trajectories = httpGetJson(
+                "http://localhost:9000/__test__/list_trajectories?game_id=" + currentGame.getId());
+        JSONArray files = trajectories.getJSONArray("files");
+        assertTrue("Expected at least one trajectory file", files.length() > 0);
+
+        boolean foundPopulatedGameView = false;
+        int linesChecked = 0;
+        int gameViewEntries = 0;
+
+        for (int i = 0; i < files.length(); i++) {
+            String filePath = files.getJSONObject(i).getString("path");
+            String content = readTrajectoryFile(filePath);
+            String[] lines = content.split("\n");
+
+            for (String line : lines) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+                linesChecked++;
+
+                JSONObject entry;
+                try {
+                    entry = new JSONObject(line);
+                } catch (Exception e) {
+                    System.out.println("WARN: Could not parse JSONL line as JSON: " + e.getMessage());
+                    continue;
+                }
+
+                // Trajectory entries are wrapped in request_payload
+                JSONObject reqPayload = entry.optJSONObject("request_payload");
+                if (reqPayload == null) continue;
+
+                // The trajectory logger stores this as "game_view" (snake_case),
+                // mirroring the Python trajectory_data dict key.
+                JSONObject gameView = reqPayload.optJSONObject("game_view");
+                if (gameView == null || gameView.isEmpty()) continue;
+                gameViewEntries++;
+
+                // Verify required top-level keys
+                boolean hasRequiredKeys = gameView.has("myPlayer")
+                        && gameView.has("opponentPlayer")
+                        && gameView.has("phase")
+                        && gameView.has("step")
+                        && gameView.has("turn");
+
+                if (!hasRequiredKeys) {
+                    System.out.println("WARN: gameView present but missing required keys: " + gameView.keys());
+                    continue;
+                }
+
+                // Verify myPlayer has a name
+                JSONObject myPlayer = gameView.optJSONObject("myPlayer");
+                assertNotNull("gameView.myPlayer should be an object", myPlayer);
+                String myName = myPlayer.optString("name", "");
+                assertTrue("gameView.myPlayer.name should be non-empty", !myName.isEmpty());
+
+                // Verify information boundary: opponent hand cards must be hidden (empty array)
+                JSONObject oppPlayer = gameView.optJSONObject("opponentPlayer");
+                assertNotNull("gameView.opponentPlayer should be an object", oppPlayer);
+                JSONArray oppHand = oppPlayer.optJSONArray("handCards");
+                assertNotNull("gameView.opponentPlayer.handCards should be an array", oppHand);
+                assertEquals(
+                        "gameView.opponentPlayer.handCards must be empty (info boundary respected)",
+                        0, oppHand.length());
+
+                // Verify turn is a positive integer
+                int turn = gameView.optInt("turn", -1);
+                assertTrue("gameView.turn should be >= 1, got: " + turn, turn >= 1);
+
+                // Verify phase is a non-empty string
+                String phase = gameView.optString("phase", "");
+                assertTrue("gameView.phase should be non-empty", !phase.isEmpty());
+
+                System.out.println("  [gameView OK] player=" + myName
+                        + " phase=" + phase + " turn=" + turn
+                        + " oppHandCards=" + oppHand.length());
+                foundPopulatedGameView = true;
+            }
+        }
+
+        System.out.println("Lines checked: " + linesChecked
+                + ", entries with gameView: " + gameViewEntries
+                + ", valid gameView entries: " + (foundPopulatedGameView ? ">0" : "0"));
+
+        assertTrue(
+                "Expected at least one trajectory entry with a populated gameView containing "
+                        + "myPlayer, opponentPlayer (hand hidden), phase, step, turn. "
+                        + "Lines checked: " + linesChecked
+                        + ", gameView entries: " + gameViewEntries,
+                foundPopulatedGameView);
     }
 
     private static String readTrajectoryFile(String filePath) {

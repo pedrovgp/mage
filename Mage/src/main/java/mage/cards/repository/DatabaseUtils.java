@@ -25,11 +25,21 @@ public class DatabaseUtils {
      * @param improveCaches use memory optimizations for cards database (no needs for other dbs)
      */
     public static String prepareH2Connection(String dbName, boolean improveCaches) {
-        // example: jdbc:h2:file:./db/cards.h2;AUTO_SERVER=TRUE;IGNORECASE=TRUE
-        String res = String.format("jdbc:h2:file:./db/%s", dbName);
+        // Allow overriding the DB directory via system property so parallel test
+        // JVMs can each use a private DB copy, eliminating H2 AUTO_SERVER races.
+        // Example: -Dmage.dbDir=/tmp/mage_db_matchup_42
+        String dbDir = System.getProperty("mage.dbDir", "./db");
+        String res = String.format("jdbc:h2:file:%s/%s", dbDir, dbName);
 
         // shared params
-        res += ";AUTO_SERVER=TRUE"; // open database in mix mode (first open by new thread, second open by new jvm-process)
+        // AUTO_SERVER=TRUE enables H2 mixed mode (multiple JVMs share one file via an
+        // embedded TCP server). Omit it when each JVM has its own private DB copy —
+        // no sharing needed, and avoiding AUTO_SERVER eliminates the bootstrap race
+        // where two JVMs simultaneously try to start the embedded TCP server.
+        boolean privateDb = System.getProperty("mage.dbDir") != null;
+        if (!privateDb) {
+            res += ";AUTO_SERVER=TRUE";
+        }
         res += ";IGNORECASE=TRUE"; // ignore char case for text searching
 
         // additional params

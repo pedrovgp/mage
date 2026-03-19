@@ -31,6 +31,7 @@ import mage.target.TargetAmount;
 import mage.target.TargetCard;
 import mage.util.CardUtil;
 import mage.util.RandomUtil;
+
 import mage.util.ThreadUtils;
 import mage.util.XmageThreadFactory;
 import org.apache.log4j.Logger;
@@ -636,7 +637,7 @@ public class ComputerPlayer6 extends ComputerPlayer {
                     if (finalScore > alpha
                             || (depth == maxDepth
                             && finalScore == alpha
-                            && RandomUtil.nextBoolean())) { // Adding random for equal value to get change sometimes
+                            && RandomUtil.nextAlphaBetaBoolean())) { // Seeded tie-breaking: deterministic per game seed (via RandomUtil.alphaBetaRandom seeded with gameSeed XOR offset), isolated from main game RNG
                         alpha = finalScore;
                         bestNode = newNode;
                         bestNode.setScore(finalScore);
@@ -838,7 +839,7 @@ public class ComputerPlayer6 extends ComputerPlayer {
         }
         if (!choice.isChosen()) {
             if (!choice.setChoiceByAnswers(choices, true)) {
-                choice.setRandomChoice();
+                choice.setRandomChoice(this.getId());
             }
         }
         return true;

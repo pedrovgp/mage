@@ -3,6 +3,7 @@ package mage.player.ai;
 import mage.abilities.Ability;
 import mage.constants.RangeOfInfluence;
 import mage.game.Game;
+import mage.util.RandomUtil;
 import org.apache.log4j.Logger;
 
 import java.util.Date;
@@ -116,8 +117,30 @@ public class ComputerPlayer7 extends ComputerPlayer6 {
             currentScore = GameStateEvaluator2.evaluate(playerId, game).getTotalScore();
             Game sim = createSimulation(game);
             SimulationNode2.resetCount();
-            root = new SimulationNode2(null, sim, maxDepth, playerId);
-            addActionsTimed(); // TODO: root can be null again after addActionsTimed O_o need to research (it's a CPU AI problem?)
+            // Reset alphaBetaRandom before each think() so tie-breaking is state-deterministic:
+            // same board state + same turn + same phase => same tie-breaking decisions.
+            // positionSeed includes life totals and permanent count so that two seeds
+            // that reach the same board state always make identical alpha-beta choices
+            // (required for BC state-determinism; temporary — will relax with online RL).
+            long lifeSum = 0L;
+            for (mage.players.Player p : game.getPlayers().values()) {
+                lifeSum += p.getLife();
+            }
+            long boardHash = lifeSum * 1_000_003L
+                    + (long) game.getBattlefield().getAllPermanents().size() * 999_983L;
+            RandomUtil.resetAlphaBetaForThink(
+                    (long) game.getTurnNum() * 997L
+                    ^ (long) game.getTurnStepType().ordinal() * 31337L
+                    ^ boardHash);
+            // Enter simulation mode: all random calls during the alpha-beta tree search
+            // route to simulationRandom so they do NOT advance real-game per-player RNGs.
+            RandomUtil.enterSimulation();
+            try {
+                root = new SimulationNode2(null, sim, maxDepth, playerId);
+                addActionsTimed(); // TODO: root can be null again after addActionsTimed O_o need to research (it's a CPU AI problem?)
+            } finally {
+                RandomUtil.exitSimulation();
+            }
             if (root != null && root.children != null && !root.children.isEmpty()) {
                 logger.trace("After add actions timed: root.children.size = " + root.children.size());
                 root = root.children.get(0);

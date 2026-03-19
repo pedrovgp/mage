@@ -14,6 +14,13 @@ import mage.abilities.costs.mana.ColoredManaCost;
 import mage.abilities.costs.mana.GenericManaCost;
 import mage.abilities.costs.mana.ManaCost;
 import mage.cards.o.Ornithopter;
+import mage.view.GameView;
+import mage.view.PlayerView;
+import mage.view.PermanentView;
+import mage.view.CardView;
+import mage.view.CardsView;
+import mage.view.ManaPoolView;
+import mage.view.CombatGroupView;
 
 import org.apache.log4j.Logger;
 import org.json.JSONArray;
@@ -46,11 +53,11 @@ public class DecisionHandler {
 
     // Endpoint constants aligned with magellmfast routes (relative paths, base URL
     // added by LlmDecisionClient)
-    private static final String ENDPOINT_CHOOSE_FROM_ALL_ACTIONS = "/choose_from_all_actions/";
-    private static final String ENDPOINT_CHOOSE_ATTACKERS = "/choose_attackers/";
-    private static final String ENDPOINT_CHOOSE_FROM_CHOICES = "/choose_from_choices/";
-    private static final String ENDPOINT_CHOOSE_TARGETS = "/choose_targets/";
-    private static final String ENDPOINT_CHOOSE_TARGET_AMOUNT = "/chooseTargetAmount/";
+    private static final String ENDPOINT_CHOOSE_FROM_ALL_ACTIONS = "/choose_from_all_actions";
+    private static final String ENDPOINT_CHOOSE_ATTACKERS = "/choose_attackers";
+    private static final String ENDPOINT_CHOOSE_FROM_CHOICES = "/choose_from_choices";
+    private static final String ENDPOINT_CHOOSE_TARGETS = "/choose_targets";
+    private static final String ENDPOINT_CHOOSE_TARGET_AMOUNT = "/chooseTargetAmount";
     private static final String ENDPOINT_LOG_TRAJECTORY = "/v1/log_trajectory";
 
     private final LlmDecisionClient client;
@@ -160,9 +167,8 @@ public class DecisionHandler {
             return result;
         } catch (Exception e) {
             logger.error("Failed to handle target amount decision", e);
-            // Fallback to first target with index 0 and populate chosenUuids
             List<UUID> fallbackUuids = targetIds.isEmpty() ? List.of() : List.of(UUID.fromString(targetIds.get(0)));
-            return new DecisionResult(0, fallbackUuids, "fallback_to_first_target");
+            return new DecisionResult(null, fallbackUuids, "fallback_to_first_target");
         }
     }
 
@@ -229,9 +235,36 @@ public class DecisionHandler {
             payload.put("chosenAction", JSONObject.NULL);
         }
 
-        // Handle additionalContext
+        // Handle additionalContext — serialize each entry individually.
+        // Jackson cannot serialize List<Map<String,Object>> stored as Object in a Map
+        // (it falls back to bean introspection and emits {"empty":false}).
+        // Instead, we manually build JSONArrays for List values via org.json so that
+        // payload.toString() serializes them correctly without Jackson involvement.
         if (additionalContext != null && !additionalContext.isEmpty()) {
-            payload.put("additionalContext", convertObjectToJson(additionalContext));
+            JSONObject ctxJson = new JSONObject();
+            for (java.util.Map.Entry<String, Object> entry : additionalContext.entrySet()) {
+                Object val = entry.getValue();
+                if (val instanceof java.util.List) {
+                    JSONArray arr = new JSONArray();
+                    for (Object item : (java.util.List<?>) val) {
+                        if (item instanceof java.util.Map) {
+                            @SuppressWarnings("unchecked")
+                            java.util.Map<String, Object> m = (java.util.Map<String, Object>) item;
+                            JSONObject itemObj = new JSONObject();
+                            for (java.util.Map.Entry<String, Object> me : m.entrySet()) {
+                                itemObj.put(me.getKey(), me.getValue() != null ? me.getValue() : JSONObject.NULL);
+                            }
+                            arr.put(itemObj);
+                        } else {
+                            arr.put(item != null ? item : JSONObject.NULL);
+                        }
+                    }
+                    ctxJson.put(entry.getKey(), arr);
+                } else {
+                    ctxJson.put(entry.getKey(), convertObjectToJson(val));
+                }
+            }
+            payload.put("additionalContext", ctxJson);
         } else {
             payload.put("additionalContext", JSONObject.NULL);
         }
@@ -298,14 +331,204 @@ public class DecisionHandler {
     private JSONObject buildDecisionBasePayload(Game game, Player currentPlayer, String strategy) {
         JSONObject payload = buildBaseRequestPayload(game, currentPlayer, strategy);
 
-        // Add DecisionBase-specific fields
+        // Add DecisionBase-specific fields (true state)
         payload.put("gameCards", convertObjectToJson(game.getCards()));
         payload.put("gameState", convertObjectToJson(game.getState()));
         payload.put("currentPlayer", convertObjectToJson(currentPlayer));
         payload.put("opponentPlayer", convertObjectToJson(findOpponent(game, currentPlayer)));
-        payload.put("gameView", new JSONObject()); // Simplified for now
+
+        // Add information state (GameView) — uses XMage's built-in information hiding
+        payload.put("gameView", buildGameViewJson(game, currentPlayer));
 
         return payload;
+    }
+
+    /**
+     * Build information-state JSON from XMage's GameView.
+     *
+     * Constructs a real GameView (which applies XMage's information boundary:
+     * opponent hand hidden, face-down permanents masked, etc.) then extracts
+     * only the strategically relevant fields into a clean JSONObject.
+     *
+     * Falls back to empty JSONObject if GameView construction fails.
+     */
+    private JSONObject buildGameViewJson(Game game, Player currentPlayer) {
+        try {
+            GameView gameView = new GameView(game.getState(), game, currentPlayer.getId(), null);
+            return serializeGameView(gameView);
+        } catch (Exception e) {
+            logger.error("[DN1a] Failed to build GameView for player " + currentPlayer.getId() + ": " + e.getMessage(), e);
+            return new JSONObject();
+        }
+    }
+
+    /**
+     * Serialize a GameView into a clean JSONObject with only strategically
+     * relevant fields. Does NOT reimplement information hiding — that is handled
+     * by XMage's GameView/PlayerView constructors.
+     */
+    private JSONObject serializeGameView(GameView gameView) {
+        JSONObject result = new JSONObject();
+
+        // Phase / turn metadata
+        result.put("phase", gameView.getPhase() != null ? gameView.getPhase().toString() : "");
+        result.put("step", gameView.getStep() != null ? gameView.getStep().toString() : "");
+        result.put("turn", gameView.getTurn());
+        result.put("activePlayerId", gameView.getActivePlayerId() != null
+                ? gameView.getActivePlayerId().toString() : "");
+
+        // My player (full hand visible)
+        PlayerView myPlayerView = gameView.getMyPlayer();
+        if (myPlayerView != null) {
+            result.put("myPlayer", serializePlayerView(myPlayerView, gameView.getMyHand()));
+        } else {
+            result.put("myPlayer", new JSONObject());
+        }
+
+        // Opponent player (hand cards hidden — handCount only)
+        PlayerView opponentView = null;
+        for (PlayerView pv : gameView.getPlayers()) {
+            if (myPlayerView == null || !pv.getPlayerId().equals(myPlayerView.getPlayerId())) {
+                opponentView = pv;
+                break;
+            }
+        }
+        if (opponentView != null) {
+            result.put("opponentPlayer", serializePlayerView(opponentView, null));
+        } else {
+            result.put("opponentPlayer", new JSONObject());
+        }
+
+        // Stack (public)
+        result.put("stack", serializeCardsView(gameView.getStack()));
+
+        // Combat groups
+        JSONArray combatArray = new JSONArray();
+        for (CombatGroupView cg : gameView.getCombat()) {
+            JSONObject cgObj = new JSONObject();
+            cgObj.put("attackers", serializeCardsView(cg.getAttackers()));
+            cgObj.put("blockers", serializeCardsView(cg.getBlockers()));
+            combatArray.put(cgObj);
+        }
+        result.put("combat", combatArray);
+
+        return result;
+    }
+
+    /**
+     * Serialize a PlayerView into a JSONObject.
+     *
+     * @param pv        The PlayerView to serialize (may be own player or opponent)
+     * @param handCards The actual hand cards (non-null only for own player, from
+     *                  GameView.getMyHand()). Pass null for opponent to enforce
+     *                  information boundary.
+     */
+    private JSONObject serializePlayerView(PlayerView pv, CardsView handCards) {
+        JSONObject obj = new JSONObject();
+        obj.put("id", pv.getPlayerId().toString());
+        obj.put("name", pv.getName());
+        obj.put("life", pv.getLife());
+        obj.put("handCount", pv.getHandCount());
+        obj.put("libraryCount", pv.getLibraryCount());
+
+        // Hand cards: full details for own player, empty for opponent
+        if (handCards != null) {
+            obj.put("handCards", serializeCardsView(handCards));
+        } else {
+            obj.put("handCards", new JSONArray());
+        }
+
+        // Top card (if revealed)
+        if (pv.getTopCard() != null) {
+            obj.put("topCard", serializeCardView(pv.getTopCard()));
+        } else {
+            obj.put("topCard", JSONObject.NULL);
+        }
+
+        // Battlefield permanents
+        JSONArray battlefield = new JSONArray();
+        for (PermanentView permanentView : pv.getBattlefield().values()) {
+            battlefield.put(serializePermanentView(permanentView));
+        }
+        obj.put("battlefield", battlefield);
+
+        // Public zones
+        obj.put("graveyard", serializeCardsView(pv.getGraveyard()));
+        obj.put("exile", serializeCardsView(pv.getExile()));
+
+        // Mana pool
+        obj.put("manaPool", serializeManaPool(pv.getManaPool()));
+
+        return obj;
+    }
+
+    /**
+     * Serialize a CardsView (map of UUID → CardView) into a JSONArray.
+     */
+    private JSONArray serializeCardsView(CardsView cv) {
+        JSONArray arr = new JSONArray();
+        if (cv == null) {
+            return arr;
+        }
+        for (CardView cardView : cv.values()) {
+            arr.put(serializeCardView(cardView));
+        }
+        return arr;
+    }
+
+    /**
+     * Serialize a CardView into a JSONObject with strategically relevant fields.
+     * Face-down card names are already masked by XMage's view layer.
+     */
+    private JSONObject serializeCardView(CardView cv) {
+        JSONObject obj = new JSONObject();
+        obj.put("id", cv.getId() != null ? cv.getId().toString() : "");
+        obj.put("name", cv.getName() != null ? cv.getName() : "");
+        obj.put("power", cv.getPower() != null ? cv.getPower() : "");
+        obj.put("toughness", cv.getToughness() != null ? cv.getToughness() : "");
+        obj.put("manaCost", cv.getManaCostStr() != null ? cv.getManaCostStr() : "");
+        obj.put("typeText", cv.getTypeText() != null ? cv.getTypeText() : "");
+        // Rules list
+        JSONArray rules = new JSONArray();
+        if (cv.getRules() != null) {
+            for (String rule : cv.getRules()) {
+                rules.put(rule);
+            }
+        }
+        obj.put("rules", rules);
+        return obj;
+    }
+
+    /**
+     * Serialize a PermanentView (extends CardView) into a JSONObject.
+     * Includes battlefield-specific fields: tapped, face-down, counters, etc.
+     */
+    private JSONObject serializePermanentView(PermanentView pv) {
+        JSONObject obj = serializeCardView(pv);
+        obj.put("tapped", pv.isTapped());
+        obj.put("faceDown", pv.isMorphed() || pv.isManifested() || pv.isCloaked() || pv.isDisguised());
+        obj.put("controlled", pv.isControlled());
+        obj.put("damage", pv.getDamage());
+        obj.put("summoningSickness", pv.hasSummoningSickness());
+        obj.put("attachedTo", pv.getAttachedTo() != null ? pv.getAttachedTo().toString() : JSONObject.NULL);
+        return obj;
+    }
+
+    /**
+     * Serialize a ManaPoolView into a JSONObject.
+     */
+    private JSONObject serializeManaPool(ManaPoolView mp) {
+        JSONObject obj = new JSONObject();
+        if (mp == null) {
+            return obj;
+        }
+        obj.put("red", mp.getRed());
+        obj.put("green", mp.getGreen());
+        obj.put("blue", mp.getBlue());
+        obj.put("white", mp.getWhite());
+        obj.put("black", mp.getBlack());
+        obj.put("colorless", mp.getColorless());
+        return obj;
     }
 
     /**
@@ -363,7 +586,7 @@ public class DecisionHandler {
     /**
      * Convert objects to JSON using configured ObjectMapper
      */
-    private Object convertObjectToJson(Object obj) {
+    public Object convertObjectToJson(Object obj) {
         try {
             // Handle null objects explicitly - return empty array for availableActions
             // compatibility
@@ -556,6 +779,9 @@ public class DecisionHandler {
             gen.writeStringField("effects", ability.getEffects() != null ? ability.getEffects().toString() : "");
             gen.writeStringField("targets", ability.getTargets() != null ? ability.getTargets().toString() : "");
             gen.writeStringField("zone", ability.getZone() != null ? ability.getZone().toString() : "");
+            gen.writeStringField("manaCost",
+                    ability.getManaCosts() != null && !ability.getManaCosts().isEmpty()
+                            ? ability.getManaCosts().getText() : "");
             gen.writeEndObject();
         }
     }
@@ -585,6 +811,7 @@ public class DecisionHandler {
                     card.getSpellAbility() != null ? card.getSpellAbility().toString() : "");
             gen.writeStringField("subtype", card.getSubtype() != null ? card.getSubtype().toString() : "");
             gen.writeStringField("supertype", card.getSuperType() != null ? card.getSuperType().toString() : "");
+            gen.writeStringField("manaCost", card.getManaCost() != null ? card.getManaCost().toString() : "");
             gen.writeEndObject();
         }
     }

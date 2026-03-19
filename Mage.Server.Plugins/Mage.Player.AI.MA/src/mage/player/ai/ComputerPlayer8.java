@@ -122,7 +122,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
 
         int chosenActionIndex = 0;
         if (allActions.size() > 1) {
-            chosenActionIndex = callLLMToChooseAction(game, allActions, this);
+            chosenActionIndex = selectActionViaRL(game, allActions, this);
         }
 
         Ability chosenAction = allActions.get(chosenActionIndex);
@@ -134,6 +134,13 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         if (chosenAction instanceof PassAbility) {
             pass(game);
         } else {
+            // Clear pre-filled targets from alpha-beta evaluation so that the game engine
+            // invokes chooseTarget() on this player, allowing the RL model to select targets
+            // via the /choose_targets endpoint rather than using alpha-beta's choice.
+            for (Target t : chosenAction.getTargets()) {
+                t.clearChosen();
+            }
+
             LinkedList<Ability> singleActionList = new LinkedList<>();
             singleActionList.add(chosenAction);
             this.actions = singleActionList;
@@ -181,14 +188,15 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         return false;
     }
 
-    private int callLLMToChooseAction(Game game, LinkedList<Ability> allActions, ComputerPlayer currentPlayer) {
+    private int selectActionViaRL(Game game, LinkedList<Ability> allActions, ComputerPlayer currentPlayer) {
         DecisionResult result = decisionHandler.handleAction(game, currentPlayer, allActions,
                 getStrategyFromEnvironment());
         decisionHandler.informChosenAction(game, currentPlayer, allActions, result);
         return result.getChosenIndex() != null ? result.getChosenIndex() : 0;
     }
 
-    public int callLLMToChooseFromChoices(Game game, Player currentPlayer, Outcome outcome, Choice choice,
+    @Override
+    public int selectChoiceViaRL(Game game, Player currentPlayer, Outcome outcome, Choice choice,
             String[] allChoices) {
         DecisionResult result = decisionHandler.handleChoice(game, currentPlayer, outcome, choice, allChoices,
                 getStrategyFromEnvironment());
@@ -204,18 +212,18 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
     @Override
     public boolean choose(Outcome outcome, Choice choice, Game game) {
         logger.debug("choose 8");
-        // Delegate general choice selection to LLM when multiple options exist
+        // Delegate general choice selection to RL decision engine when multiple options exist
         if (!choice.isChosen() && choice.getChoices() != null && !choice.getChoices().isEmpty()) {
             try {
                 Player currentPlayer = game.getPlayer(this.getId());
                 String[] allChoices = choice.getChoices().toArray(new String[0]);
-                int idx = callLLMToChooseFromChoices(game, currentPlayer, outcome, choice, allChoices);
+                int idx = selectChoiceViaRL(game, currentPlayer, outcome, choice, allChoices);
                 if (idx >= 0 && idx < allChoices.length) {
                     choice.setChoice(allChoices[idx]);
                     return true;
                 }
             } catch (Exception e) {
-                logger.error("LLM choice failed, falling back to super", e);
+                logger.error("RL choice failed, falling back to super", e);
             }
         }
         // Fallbacks and special cases
@@ -253,7 +261,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
                 }
                 List<Permanent> possibleBlockers = defender.getAvailableBlockers(game);
 
-                List<Permanent> selectedAttackers = callLLMToChooseAttackers(game, attackersList, possibleBlockers,
+                List<Permanent> selectedAttackers = selectAttackersViaRL(game, attackersList, possibleBlockers,
                         attackingPlayer);
 
                 for (Permanent attacker : selectedAttackers) {
@@ -263,7 +271,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         }
     }
 
-    private List<Permanent> callLLMToChooseAttackers(Game game, List<Permanent> possibleAttackers,
+    private List<Permanent> selectAttackersViaRL(Game game, List<Permanent> possibleAttackers,
             List<Permanent> possibleBlockers, Player currentPlayer) {
         DecisionResult dr = decisionHandler.handleAttackers(game, currentPlayer, possibleAttackers, possibleBlockers,
                 getStrategyFromEnvironment());
@@ -305,13 +313,21 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
             required = false;
         }
 
-        UUID[] possibleTargetsUUIDArray = possibleTargets.toArray(new UUID[0]); // Convert to array
-        // Create new empty array of mage objects to be filled
-        MageObject[] possibleTargetsArray = new MageObject[possibleTargetsUUIDArray.length];
-        int index = 0; // Initialize an index for the array
-        for (UUID possibleTargetUUID : possibleTargetsUUIDArray) {
-            // Fill the array with the MageObjects corresponding to the UUIDs
-            possibleTargetsArray[index++] = game.getObject(possibleTargetUUID);
+        // Build paired list sorted alphabetically by MageObject.toString() so that
+        // the action index in /choose_targets/ is stable and matches the index logged
+        // by CP7Instrumented (which also sorts alphabetically).
+        List<java.util.AbstractMap.SimpleEntry<UUID, MageObject>> sortedPairs = new java.util.ArrayList<>();
+        for (UUID possibleTargetUUID : possibleTargets) {
+            sortedPairs.add(new java.util.AbstractMap.SimpleEntry<>(
+                    possibleTargetUUID, game.getObject(possibleTargetUUID)));
+        }
+        sortedPairs.sort(java.util.Comparator.comparing(
+                e -> e.getValue() != null ? e.getValue().toString() : ""));
+        UUID[] possibleTargetsUUIDArray = new UUID[sortedPairs.size()];
+        MageObject[] possibleTargetsArray = new MageObject[sortedPairs.size()];
+        for (int i = 0; i < sortedPairs.size(); i++) {
+            possibleTargetsUUIDArray[i] = sortedPairs.get(i).getKey();
+            possibleTargetsArray[i] = sortedPairs.get(i).getValue();
         }
 
         // LLM single-target selection (smoke coverage): if there is exactly one pick to

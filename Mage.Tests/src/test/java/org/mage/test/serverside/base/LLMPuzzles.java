@@ -1210,6 +1210,30 @@ public class LLMPuzzles extends LLMPuzzlesBase {
     }
 
     @Test
+    public void test_pv_custom_multi_attack_puzzle_llm_metrics() {
+        // custom validation: two White Knights must both attack to deal lethal (4 dmg vs 6 life).
+        // Lava Spike (targets player OR planeswalker only — never creatures) ensures a main-phase
+        // priority decision without the risk of the RL model killing its own knights.
+        // Win requires: Lava Spike targets opponent (3 dmg) + both knights attack (2+2 = 4 dmg) = 7.
+        // This validates multi-attacker selection: CP7 picks both knights; CP8 must also pick both.
+        setupPuzzle("test_pv_custom_multi_attack_puzzle_llm_metrics", 1);
+
+        // PlayerA: two 2/2 first-strikers + Lava Spike + mana to cast it
+        setLife(playerA, 20);
+        addCard(Zone.BATTLEFIELD, playerA, "White Knight");
+        addCard(Zone.BATTLEFIELD, playerA, "White Knight");
+        addCard(Zone.HAND, playerA, "Lava Spike");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain");
+
+        // PlayerB: 6 life — needs Lava Spike + both knights to kill in one turn
+        setLife(playerB, 6);
+
+        execute();
+
+        finishAndSave("pv_custom_multi_attack", 1);  // puzzle_id for trajectory logs
+    }
+
+    @Test
     public void test_pv_custom_attack() {
         // custom validation: White Knight should be able to win against 2 life
         setupPuzzle("test_pv_custom_attack", 1);

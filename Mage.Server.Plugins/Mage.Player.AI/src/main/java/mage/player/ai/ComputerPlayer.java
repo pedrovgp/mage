@@ -1023,7 +1023,7 @@ public class ComputerPlayer extends PlayerImpl {
         }
 
         if (target.getOriginalTarget() instanceof TargetDefender) {
-            UUID randomDefender = RandomUtil.randomFromCollection(possibleTargets);
+            UUID randomDefender = RandomUtil.playerRandomFromCollection(this.getId(), possibleTargets);
             target.addTarget(randomDefender, source, game);
             return target.isChosen(game);
         }
@@ -1977,7 +1977,7 @@ public class ComputerPlayer extends PlayerImpl {
     @Override
     public int announceXCost(int min, int max, String message, Game game, Ability ability, VariableCost variablCost) {
         log.debug("announceXCost");
-        int value = RandomUtil.nextInt(CardUtil.overflowInc(max, 1));
+        int value = RandomUtil.playerNextInt(this.getId(), CardUtil.overflowInc(max, 1));
         if (value < min) {
             value = min;
         }
@@ -2060,7 +2060,7 @@ public class ComputerPlayer extends PlayerImpl {
 
         // choose by random
         if (!choice.isChosen()) {
-            choice.setRandomChoice();
+            choice.setRandomChoice(this.getId());
         }
 
         return true;
@@ -2290,7 +2290,7 @@ public class ComputerPlayer extends PlayerImpl {
             return min;
         }
         if (min < max && min == 0) {
-            return RandomUtil.nextInt(CardUtil.overflowInc(max, 1));
+            return RandomUtil.playerNextInt(this.getId(), CardUtil.overflowInc(max, 1));
         }
         return min;
     }
@@ -3145,7 +3145,7 @@ public class ComputerPlayer extends PlayerImpl {
      * @return
      */
     public UUID getRandomOpponent(UUID abilityControllerId, Game game) {
-        return RandomUtil.randomFromCollection(game.getOpponents(abilityControllerId));
+        return RandomUtil.playerRandomFromCollection(abilityControllerId, game.getOpponents(abilityControllerId));
     }
 
     @Override
