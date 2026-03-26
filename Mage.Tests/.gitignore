@@ -1,0 +1,3 @@
+# Default artifact.dir fallback directory (used when -Dartifact.dir is not passed to Maven).
+# Benchmark metrics should always be written to an explicit absolute path outside the submodule.
+tests/
