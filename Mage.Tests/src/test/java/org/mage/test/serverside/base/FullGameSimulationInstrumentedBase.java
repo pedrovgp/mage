@@ -289,6 +289,32 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
 
                 results.add(new GameResult(gameIndex, winner, turnsPlayed, null, gameDuration));
 
+                // Post game result to magellmfast for DN2 value function training
+                try {
+                    mage.players.Player pA = game.getPlayer(playerA.getId());
+                    mage.players.Player pB = game.getPlayer(playerB.getId());
+                    if (pA != null && pB != null && !"Timeout".equals(winner) && !"Draw".equals(winner)) {
+                        String winnerPlayerId = "PlayerA".equals(winner) ? playerA.getId().toString() : playerB.getId().toString();
+                        String loserPlayerId  = "PlayerA".equals(winner) ? playerB.getId().toString() : playerA.getId().toString();
+                        int winnerLife = "PlayerA".equals(winner) ? pA.getLife() : pB.getLife();
+                        int loserLife  = "PlayerA".equals(winner) ? pB.getLife() : pA.getLife();
+                        String gameId  = game.getId() != null ? game.getId().toString() : "unknown";
+                        JSONObject payload = new JSONObject();
+                        payload.put("game_id",            gameId);
+                        payload.put("match_id",           config.deck1Path + "_vs_" + config.deck2Path);
+                        payload.put("winner_player_id",   winnerPlayerId);
+                        payload.put("loser_player_id",    loserPlayerId);
+                        payload.put("winner_final_life",  winnerLife);
+                        payload.put("loser_final_life",   loserLife);
+                        payload.put("turns",              turnsPlayed);
+                        payload.put("strategy_winner",    config.strategy);
+                        payload.put("strategy_loser",     config.strategy);
+                        httpPost("http://localhost:9000/v1/game_result", payload.toString());
+                    }
+                } catch (Exception resultEx) {
+                    System.err.println("[SIMULATION] Warning: could not post game_result: " + resultEx.getMessage());
+                }
+
                 String sideNote = swapped ? " [sides swapped]" : "";
                 System.out.println(String.format("[SIMULATION] Game %d/%d: %s (%d turns, %dms)%s",
                         gameIndex + 1, config.numGames, winner, turnsPlayed, gameDuration, sideNote));
