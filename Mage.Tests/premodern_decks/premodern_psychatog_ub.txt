@@ -1,0 +1,21 @@
+// Archetype: Psychatog (UB Control)
+// Category: Control
+// Source: Premodern Tier 2, classic finisher control
+// Main game plan: Control the game with counters and removal, win with Psychatog + Upheaval combo.
+// Creatures (4)
+4 Psychatog
+// Spells (32)
+4 Counterspell
+4 Force Spike
+4 Fact or Fiction
+4 Accumulated Knowledge
+4 Duress
+4 Smother
+2 Upheaval
+2 Cunning Wish
+4 Innocent Blood
+// Lands (24)
+4 Underground River
+4 Polluted Delta
+8 Island
+8 Swamp

@@ -1,0 +1,21 @@
+// Archetype: Goblins (Mono-Red Tribal Aggro)
+// Category: Aggro
+// Source: Premodern Tier 1, tournament staple
+// Main game plan: Cheat goblins into play via Lackey, overwhelm with tribal synergies.
+// Creatures (28)
+4 Goblin Lackey
+4 Goblin Piledriver
+4 Goblin Warchief
+4 Goblin Ringleader
+4 Goblin Matron
+4 Skirk Prospector
+2 Siege-Gang Commander
+2 Mogg Fanatic
+// Spells (8)
+4 Lightning Bolt
+2 Goblin Grenade
+2 Gempalm Incinerator
+// Lands (24)
+4 Rishadan Port
+4 Wasteland
+16 Mountain

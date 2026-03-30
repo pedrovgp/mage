@@ -1,0 +1,23 @@
+// Archetype: Landstill (UW Control)
+// Category: Control
+// Source: Premodern Tier 3, draw-go control
+// Main game plan: Counter threats, clear board, win with manlands + Standstill card advantage.
+// Creatures (0)
+// Spells (34)
+4 Counterspell
+4 Swords to Plowshares
+4 Standstill
+4 Wrath of God
+4 Force Spike
+3 Decree of Justice
+3 Fact or Fiction
+4 Accumulated Knowledge
+2 Dismantling Blow
+2 Forbid
+// Lands (26)
+4 Adarkar Wastes
+4 Flooded Strand
+4 Mishra's Factory
+2 Faerie Conclave
+6 Island
+6 Plains

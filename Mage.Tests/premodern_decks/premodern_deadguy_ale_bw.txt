@@ -1,0 +1,22 @@
+// Archetype: Deadguy Ale (BW Midrange)
+// Category: Midrange
+// Source: Premodern Tier 2, discard + threats
+// Main game plan: Strip opponent's hand, deploy resilient threats, ride attrition to victory.
+// Creatures (16)
+4 Hypnotic Specter
+4 Nantuko Shade
+4 Phyrexian Negator
+4 Withered Wretch
+// Spells (20)
+4 Dark Ritual
+4 Duress
+4 Hymn to Tourach
+4 Swords to Plowshares
+2 Vindicate
+2 Gerrard's Verdict
+// Lands (24)
+4 Scrubland
+4 Caves of Koilos
+2 Wasteland
+8 Swamp
+6 Plains

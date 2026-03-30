@@ -1,0 +1,25 @@
+// Archetype: The Rock (BG Midrange)
+// Category: Midrange
+// Source: Premodern Tier 3, classic archetype
+// Main game plan: Disrupt with discard and removal, then win with efficient creatures.
+// Creatures (16)
+4 Birds of Paradise
+4 Wall of Blossoms
+4 Yavimaya Elder
+2 Spiritmonger
+2 Ravenous Baloth
+// Spells (20)
+4 Duress
+3 Cabal Therapy
+4 Pernicious Deed
+3 Living Death
+2 Vampiric Tutor
+2 Diabolic Edict
+2 Naturalize
+// Lands (24)
+4 Llanowar Wastes
+4 Treetop Village
+1 Volrath's Stronghold
+1 Dust Bowl
+7 Forest
+7 Swamp

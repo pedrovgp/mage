@@ -1,0 +1,20 @@
+// Archetype: UG Madness (Midrange)
+// Category: Midrange
+// Source: Premodern Tier 1.5, classic Standard archetype
+// Main game plan: Use discard outlets to cast Madness spells cheaply, enable Threshold for Mongoose.
+// Creatures (20)
+4 Wild Mongrel
+4 Basking Rootwalla
+4 Arrogant Wurm
+4 Aquamoeba
+4 Nimble Mongoose
+// Spells (16)
+4 Circular Logic
+4 Deep Analysis
+4 Careful Study
+2 Roar of the Wurm
+2 Wonder
+// Lands (24)
+4 Yavimaya Coast
+10 Island
+10 Forest

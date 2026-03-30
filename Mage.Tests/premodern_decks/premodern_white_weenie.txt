@@ -1,0 +1,20 @@
+// Archetype: White Weenie (Mono-White Aggro)
+// Category: Aggro
+// Source: Premodern Tier 2, classic archetype
+// Main game plan: Deploy efficient white creatures, protect them, and close with Armageddon.
+// Creatures (24)
+4 Mother of Runes
+4 Savannah Lions
+4 Soltari Priest
+4 Silver Knight
+4 Paladin en-Vec
+4 Longbow Archer
+// Spells (14)
+4 Swords to Plowshares
+4 Glorious Anthem
+2 Armageddon
+4 Tithe
+// Lands (22)
+14 Plains
+4 Wasteland
+4 Rishadan Port

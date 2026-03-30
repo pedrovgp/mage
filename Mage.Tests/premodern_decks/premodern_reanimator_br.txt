@@ -1,0 +1,23 @@
+// Archetype: Reanimator (BR Combo)
+// Category: Combo
+// Source: Premodern Tier 2, graveyard combo
+// Main game plan: Dump fatties into graveyard, reanimate them early for massive tempo advantage.
+// Creatures (12)
+4 Putrid Imp
+2 Petradon
+2 Visara the Dreadful
+2 Phantom Nishoba
+2 Verdant Force
+// Spells (24)
+4 Entomb
+4 Reanimate
+4 Exhume
+4 Duress
+4 Dark Ritual
+2 Buried Alive
+2 Animate Dead
+// Lands (24)
+4 Bloodstained Mire
+4 Sulfurous Springs
+12 Swamp
+4 Mountain

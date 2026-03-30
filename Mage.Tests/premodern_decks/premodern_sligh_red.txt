@@ -1,0 +1,19 @@
+// Archetype: Sligh (Mono-Red Aggro)
+// Category: Aggro
+// Source: Premodern Tier 1, adapted from tournament lists
+// Main game plan: Deploy cheap creatures and burn spells to kill the opponent as fast as possible.
+// Creatures (16)
+4 Jackal Pup
+4 Mogg Fanatic
+4 Grim Lavamancer
+4 Ball Lightning
+// Spells (24)
+4 Lightning Bolt
+4 Chain Lightning
+4 Incinerate
+4 Fireblast
+4 Seal of Fire
+4 Price of Progress
+// Lands (20)
+16 Mountain
+4 Wasteland

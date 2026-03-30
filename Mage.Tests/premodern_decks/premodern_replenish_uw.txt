@@ -1,0 +1,20 @@
+// Archetype: Parallax Replenish (UW Combo)
+// Category: Combo
+// Source: Premodern Tier 1, lock-control with combo finish
+// Main game plan: Fill graveyard with enchantments, cast Replenish to establish Parallax lock + Opalescence win.
+// Creatures (0)
+// Spells (36)
+4 Replenish
+4 Parallax Wave
+4 Parallax Tide
+4 Opalescence
+4 Counterspell
+4 Force Spike
+4 Frantic Search
+4 Attunement
+4 Enlightened Tutor
+// Lands (24)
+4 Adarkar Wastes
+4 Flooded Strand
+8 Island
+8 Plains

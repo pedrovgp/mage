@@ -1,0 +1,20 @@
+// Archetype: Mono Blue Control
+// Category: Control
+// Source: Premodern Tier 1.5, permission-based control
+// Main game plan: Counter everything, win with manlands and Morphling. Powder Keg handles resolved threats.
+// Creatures (3)
+3 Morphling
+// Spells (31)
+4 Counterspell
+4 Force Spike
+4 Mana Leak
+4 Accumulated Knowledge
+4 Fact or Fiction
+3 Powder Keg
+4 Standstill
+2 Forbid
+2 Capsize
+// Lands (26)
+4 Mishra's Factory
+4 Faerie Conclave
+18 Island
