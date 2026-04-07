@@ -378,6 +378,11 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
                 player = new TestPlayer(
                         new org.mage.test.player.TestComputerPlayer7(playerName, rangeOfInfluence, 8));
             }
+        } else if ("self_play".equals(currentStrategy)) {
+            // Self-play mode: both seats use CP8 (RL policy via HTTP to magellmfast).
+            // Trajectories from both players are logged by the server for online training.
+            player = new TestPlayer(
+                    new org.mage.test.player.TestComputerPlayer8(playerName, rangeOfInfluence, 8));
         } else {
             // Data collection mode (strategy=mageai or default): both players instrumented
             // so trajectories are logged for BC training.

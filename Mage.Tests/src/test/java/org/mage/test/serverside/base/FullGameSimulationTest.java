@@ -193,7 +193,10 @@ public class FullGameSimulationTest extends FullGameSimulationInstrumentedBase {
         assertNotNull("Results should not be null", results);
         assertEquals("Should have requested correct number of games",
                 config.numGames, results.gamesRequested);
-        int totalOutcomes = results.gamesCompleted + results.errors + results.timeouts;
+        // gamesCompleted already includes timeouts (anything that is not an error).
+        // Adding timeouts a second time would double-count them, so we use only
+        // gamesCompleted + errors as the coverage check.
+        int totalOutcomes = results.gamesCompleted + results.errors;
         assertTrue("All games should have an outcome",
                 totalOutcomes == config.numGames);
     }
