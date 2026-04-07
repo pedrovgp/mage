@@ -92,13 +92,15 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
 
     public ComputerPlayer8(String name, RangeOfInfluence range, int skill) {
         super(name, range, skill);
-        this.decisionHandler = new DecisionHandler("http://localhost:9000");
+        this.decisionHandler = new DecisionHandler(
+                System.getProperty("magellmfast.url", "http://localhost:9000"));
     }
 
     public ComputerPlayer8(final ComputerPlayer8 player) {
         super(player);
         this.allowBadMoves = player.allowBadMoves;
-        this.decisionHandler = new DecisionHandler("http://localhost:9000");
+        this.decisionHandler = new DecisionHandler(
+                System.getProperty("magellmfast.url", "http://localhost:9000"));
     }
 
     @Override
