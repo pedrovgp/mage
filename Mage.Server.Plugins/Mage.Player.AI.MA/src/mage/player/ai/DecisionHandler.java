@@ -542,6 +542,14 @@ public class DecisionHandler {
         payload.put("gameId", getGameId(game));
         payload.put("matchId", getMatchId(game));
 
+        // logTrajectory: controlled by a JVM system property.
+        // Defaults to true — trajectory logging is on by default.
+        // Benchmark clients are launched with -Dmagellmfast.logTrajectory=false
+        // to opt out; self-play workers rely on the default.
+        boolean logTraj = Boolean.parseBoolean(
+            System.getProperty("magellmfast.logTrajectory", "true"));
+        payload.put("logTrajectory", logTraj);
+
         return payload;
     }
 
