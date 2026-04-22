@@ -550,6 +550,14 @@ public class DecisionHandler {
             System.getProperty("magellmfast.logTrajectory", "true"));
         payload.put("logTrajectory", logTraj);
 
+        // strategyId: sub-strategy selector within the rl branch.
+        // Set via -Dstrategy.id=<id> (e.g. cosine, zone, noop).
+        // Absent → Python server defaults to "cosine" (back-compat).
+        String strategyId = System.getProperty("strategy.id");
+        if (strategyId != null && !strategyId.isEmpty()) {
+            payload.put("strategyId", strategyId);
+        }
+
         return payload;
     }
 

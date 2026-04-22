@@ -69,6 +69,37 @@ public class LLMPuzzlesBase extends CardTestPlayerBaseAI {
     public static final String COMMIT = System.getProperty("commit", "");
     public static final String METADATA = System.getProperty("metadata", "{}");
 
+    // Base URL for the magellmfast inference server. Matches what ComputerPlayer8 uses so
+    // the __test__ endpoints (reset_counters, metrics) are always routed to the same host/port
+    // as the inference endpoints. Defaults to localhost:9000 (single-GPU / no nginx). When
+    // running behind nginx (start-multi-gpu) pass -Dmagellmfast.url=http://localhost:9000 to
+    // point directly at one GPU worker rather than the load-balancer (which does not expose
+    // __test__ routes).
+    public static final String MAGELLMFAST_URL = System.getProperty("magellmfast.url", "http://localhost:9000");
+
+    // Life totals recorded when setLife() is called during puzzle setup (before execute()).
+    // Used by finishAndSave to report initial_playerA_life / initial_playerB_life alongside
+    // final values. Defaults to 20 (XMage default) in case setLife() was never called.
+    protected int initialLifeA = 20;
+    protected int initialLifeB = 20;
+
+    /**
+     * Override setLife() to record the intended starting life totals for each player.
+     * The base implementation only queues a command ("life:N") that is applied during
+     * execute(), so playerA.getLife() / playerB.getLife() return 0 until then. Capturing
+     * the value here lets finishAndSave report the true starting total without any change
+     * to individual test methods.
+     */
+    @Override
+    public void setLife(org.mage.test.player.TestPlayer player, int life) {
+        super.setLife(player, life);
+        if (player == playerA) {
+            initialLifeA = life;
+        } else if (player == playerB) {
+            initialLifeB = life;
+        }
+    }
+
     // Tests selection: provide a comma-separated list via -Dtests="test_A,test_B".
     // If empty, all tests run. This lets the runner invoke the full test class once
     // and each test decide whether to skip itself.
@@ -112,7 +143,7 @@ public class LLMPuzzlesBase extends CardTestPlayerBaseAI {
      */
     public void setupPuzzle(String testName, java.util.UUID startingPlayerId, PhaseStep startingStep, int stopTurn) {
         // Reset counters and gate execution based on -Dtests
-        httpPost("http://localhost:9000/__test__/reset_counters", "{}");
+        httpPost(MAGELLMFAST_URL + "/__test__/reset_counters", "{}");
         System.out.println("[RUNNING] " + testName);
         org.junit.Assume.assumeTrue("Skipping " + testName, shouldRun(testName));
         setStrictChooseMode(false);
@@ -143,8 +174,17 @@ public class LLMPuzzlesBase extends CardTestPlayerBaseAI {
     }
 
     public void finishAndSave(String puzzleId, int turnsTaken) {
+        finishAndSave(puzzleId, turnsTaken, false);
+    }
+
+    /**
+     * Survival-mode variant: won = playerA.getLife() > 0 (playerA survived the
+     * turn). Use for puzzles where the model must respond to an opponent's threat
+     * rather than deal lethal damage.
+     */
+    public void finishAndSave(String puzzleId, int turnsTaken, boolean survivalMode) {
         // Query metrics from magellmfast
-        JSONObject metrics = httpGetJson("http://localhost:9000/__test__/metrics");
+        JSONObject metrics = httpGetJson(MAGELLMFAST_URL + "/__test__/metrics");
         int actions = metrics.optInt("choose_from_all_actions", 0);
         int choices = metrics.optInt("choose_from_choices", 0);
         int attackers = metrics.optInt("choose_attackers", 0);
@@ -165,9 +205,10 @@ public class LLMPuzzlesBase extends CardTestPlayerBaseAI {
         // Collect performance metrics
         int lifeA = playerA.getLife();
         int lifeB = playerB.getLife();
-        boolean won = lifeB <= 0;
+        boolean won = survivalMode ? lifeA > 0 : lifeB <= 0;
 
-        System.out.println("Puzzle result: PlayerA life=" + lifeA + ", PlayerB life=" + lifeB + ", PlayerA won=" + won);
+        System.out.println("Puzzle result: PlayerA life=" + lifeA + ", PlayerB life=" + lifeB
+                + ", PlayerA won=" + won + (survivalMode ? " [survival mode]" : ""));
 
         // Save metrics to file (for aggregator script)
         String artifacts = System.getProperty("artifact.dir", "tests");
@@ -193,9 +234,12 @@ public class LLMPuzzlesBase extends CardTestPlayerBaseAI {
                 .put("choices", choices)
                 .put("attackers", attackers)
                 .put("targets", targets)
+                .put("initial_playerA_life", initialLifeA)
+                .put("initial_playerB_life", initialLifeB)
                 .put("playerA_life", lifeA)
                 .put("playerB_life", lifeB)
                 .put("won", won)
+                .put("survival_mode", survivalMode)
                 .put("turns_taken", turnsTaken));
     }
 

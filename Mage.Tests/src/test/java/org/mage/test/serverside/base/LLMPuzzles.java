@@ -1569,6 +1569,813 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         finishAndSave("PS_GRN7", 1);
     }
 
+    // =========================================================================
+    // SKILL-BASED CURRICULUM PUZZLES
+    // Ordered by tier (T0 → T4). Each puzzle isolates a single skill so
+    // model capability can be tracked precisely across training checkpoints.
+    // Card pool: Pre-Modern (4th Edition – Scourge) unless marked [OOT].
+    // =========================================================================
+
+    // -------------------------------------------------------------------------
+    // TIER 0 -- Foundational Actions
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void test_pv_bolt_face_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 0
+        // Skill: T0.3 -- Cast a single spell at opponent for lethal
+        // PreModern: Yes (Lightning Bolt in 4th/5th Edition)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0hand=Lightning Bolt
+        // p0battlefield=Mountain
+        // p1life=3
+        // p1battlefield=
+        //
+        // Win line: cast Lightning Bolt targeting opponent (3 damage = lethal).
+        // Tests: /choose_from_all_actions (cast spell), /choose_targets (opponent).
+        setupPuzzle("test_pv_bolt_face_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Lightning Bolt");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain");
+
+        setLife(playerB, 3);
+
+        execute();
+
+        finishAndSave("pv_bolt_face", 1);
+    }
+
+    @Test
+    public void test_pv_ping_ability_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 0
+        // Skill: T0.4 -- Activate a tap ability targeting opponent for lethal
+        // PreModern: Yes (Prodigal Sorcerer in 4th–7th Edition)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0battlefield=Prodigal Sorcerer;Island
+        // p1life=1
+        // p1battlefield=
+        //
+        // Win line: tap Prodigal Sorcerer, target opponent (1 damage = lethal).
+        // Tests: /choose_from_all_actions (activate ability), /choose_targets (opponent).
+        setupPuzzle("test_pv_ping_ability_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.BATTLEFIELD, playerA, "Prodigal Sorcerer");
+        addCard(Zone.BATTLEFIELD, playerA, "Island");
+
+        setLife(playerB, 1);
+
+        execute();
+
+        finishAndSave("pv_ping_ability", 1);
+    }
+
+    // -------------------------------------------------------------------------
+    // TIER 1 -- Single-Mechanic Decisions
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void test_sk_double_bolt_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 1
+        // Skill: T1.1 -- Two burn spells at opponent for lethal, no combat
+        // PreModern: Yes (Lightning Bolt 4th/5th, Shock Stronghold/6th/7th)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0hand=Lightning Bolt;Shock
+        // p0battlefield=Mountain;Mountain;Mountain
+        // p1life=5
+        // p1battlefield=
+        //
+        // Win line: Lightning Bolt (3) + Shock (2) = 5 damage = lethal.
+        // Combat is not needed. Tests casting two spells and choosing correct targets.
+        setupPuzzle("test_sk_double_bolt_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Lightning Bolt");
+        addCard(Zone.HAND, playerA, "Shock");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 3);
+
+        setLife(playerB, 5);
+
+        execute();
+
+        finishAndSave("sk_double_bolt", 1);
+    }
+
+    @Test
+    public void test_sk_bolt_plus_attack_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 1
+        // Skill: T1.2 -- Burn spell + combat attack both needed for lethal
+        // PreModern: Yes (Shock Stronghold/6th, Grizzly Bears 4th–7th)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0hand=Shock
+        // p0battlefield=Grizzly Bears;Mountain;Mountain
+        // p1life=4
+        // p1battlefield=
+        //
+        // Win line: Shock opponent (2) then attack with Grizzly Bears (2) = 4 = lethal.
+        // Neither alone is enough (2 < 4). Tests spell + combat sequencing.
+        setupPuzzle("test_sk_bolt_plus_attack_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Shock");
+        addCard(Zone.BATTLEFIELD, playerA, "Grizzly Bears");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 2);
+
+        setLife(playerB, 4);
+
+        execute();
+
+        finishAndSave("sk_bolt_plus_attack", 1);
+    }
+
+    @Test
+    public void test_sk_evasion_pick_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 1
+        // Skill: T1.3 -- Choose the flying attacker to bypass a ground defender
+        // PreModern: Yes (Wind Drake 5th/6th/7th, Grizzly Bears 4th–7th, Wall of Ice 4th/5th)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0battlefield=Wind Drake;Grizzly Bears;Island;Island;Island
+        // p1life=2
+        // p1battlefield=Wall of Ice
+        //
+        // Win line: attack with Wind Drake (flying, 2 damage). Wall of Ice (0/7 defender)
+        // blocks Grizzly Bears but cannot block Wind Drake. Tests selecting the correct
+        // attacker subset when evasion is relevant.
+        setupPuzzle("test_sk_evasion_pick_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.BATTLEFIELD, playerA, "Wind Drake");
+        addCard(Zone.BATTLEFIELD, playerA, "Grizzly Bears");
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 3);
+
+        setLife(playerB, 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Wall of Ice");
+
+        execute();
+
+        finishAndSave("sk_evasion_pick", 1);
+    }
+
+    @Test
+    public void test_sk_haste_creature_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 1
+        // Skill: T1.4 -- Cast a creature with haste and attack with it same turn
+        // PreModern: Yes (Raging Goblin in Exodus/6th/7th Edition)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0hand=Raging Goblin
+        // p0battlefield=Mountain
+        // p1life=1
+        // p1battlefield=
+        //
+        // Win line: cast Raging Goblin (haste), attack for 1 = lethal.
+        // Tests recognizing haste allows immediate attack from a freshly cast creature.
+        setupPuzzle("test_sk_haste_creature_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Raging Goblin");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain");
+
+        setLife(playerB, 1);
+
+        execute();
+
+        finishAndSave("sk_haste_creature", 1);
+    }
+
+    @Test
+    public void test_sk_pump_and_attack_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 1
+        // Skill: T1.5 -- Cast a pump spell on own creature before combat for lethal
+        // PreModern: Yes (Giant Growth in 4th–7th, Grizzly Bears 4th–7th)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0hand=Giant Growth
+        // p0battlefield=Grizzly Bears;Forest
+        // p1life=5
+        // p1battlefield=
+        //
+        // Win line: Giant Growth on Grizzly Bears (becomes 5/5), attack for 5 = lethal.
+        // Without Giant Growth, Bears attack for 2 (not lethal). Tests pump + attack.
+        setupPuzzle("test_sk_pump_and_attack_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Giant Growth");
+        addCard(Zone.BATTLEFIELD, playerA, "Grizzly Bears");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest");
+
+        setLife(playerB, 5);
+
+        execute();
+
+        finishAndSave("sk_pump_and_attack", 1);
+    }
+
+    @Test
+    public void test_sk_fling_for_value_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 1
+        // Skill: T1.6 -- Sacrifice a creature via Fling to deal damage (only line)
+        // PreModern: Yes (Fling in Stronghold, Hill Giant 4th–7th, Wall of Ice 4th/5th)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0hand=Fling
+        // p0battlefield=Hill Giant;Mountain;Mountain
+        // p1life=3
+        // p1battlefield=Wall of Ice
+        //
+        // Win line: Fling sacrificing Hill Giant (3 damage to opponent) = lethal.
+        // Wall of Ice (0/7 defender) blocks Hill Giant in combat -- no trample, 0 damage.
+        // Fling bypasses the defender. Tests sacrifice-as-damage pattern.
+        setupPuzzle("test_sk_fling_for_value_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Fling");
+        addCard(Zone.BATTLEFIELD, playerA, "Hill Giant");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 2);
+
+        setLife(playerB, 3);
+        addCard(Zone.BATTLEFIELD, playerB, "Wall of Ice");
+
+        execute();
+
+        finishAndSave("sk_fling_for_value", 1);
+    }
+
+    @Test
+    public void test_sk_correct_target_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 1
+        // Skill: T1.7 -- Target selection: bolt the opponent, not the irrelevant creature
+        // PreModern: Yes (Lightning Bolt 4th/5th, Llanowar Elves 4th–7th)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0hand=Lightning Bolt
+        // p0battlefield=Mountain
+        // p1life=3
+        // p1battlefield=Llanowar Elves
+        //
+        // Win line: Lightning Bolt targeting opponent (3 damage = lethal).
+        // Bolting Llanowar Elves wastes the spell (opponent at 3, not lethal).
+        // Tests choosing the correct target when multiple legal targets exist.
+        setupPuzzle("test_sk_correct_target_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Lightning Bolt");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain");
+
+        setLife(playerB, 3);
+        addCard(Zone.BATTLEFIELD, playerB, "Llanowar Elves");
+
+        execute();
+
+        finishAndSave("sk_correct_target", 1);
+    }
+
+    // -------------------------------------------------------------------------
+    // TIER 2 -- Two-Step Reasoning
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void test_sk_remove_blocker_attack_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 2
+        // Skill: T2.1 -- Remove the blocker first, then attack for lethal
+        // PreModern: Yes (Terror 4th–6th, Grizzly Bears 4th–7th, Craw Wurm 4th–7th)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0hand=Terror
+        // p0battlefield=Grizzly Bears;Swamp;Swamp
+        // p1life=2
+        // p1battlefield=Craw Wurm
+        //
+        // Win line: Terror on Craw Wurm (destroy it), attack with Bears (2 damage = lethal).
+        // Without Terror, Craw Wurm (6/4) blocks Bears (Bears die, 0 player damage).
+        // There is no burn spell to go face directly. Tests two-step: removal then attack.
+        setupPuzzle("test_sk_remove_blocker_attack_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Terror");
+        addCard(Zone.BATTLEFIELD, playerA, "Grizzly Bears");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp", 2);
+
+        setLife(playerB, 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Craw Wurm");
+
+        execute();
+
+        finishAndSave("sk_remove_blocker_attack", 1);
+    }
+
+    @Test
+    public void test_sk_pump_evasion_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 2
+        // Skill: T2.2 -- Pump a flying creature for lethal; ground creatures can't block
+        // PreModern: Yes (Giant Growth 4th–7th, Wind Drake 5th–7th, Craw Wurm 4th–7th)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0hand=Giant Growth
+        // p0battlefield=Wind Drake;Forest
+        // p1life=5
+        // p1battlefield=Craw Wurm
+        //
+        // Win line: Giant Growth on Wind Drake (5/5 flying), attack. Craw Wurm is ground
+        // and cannot block a flyer. Wind Drake deals 5 = lethal.
+        // Without Giant Growth, Drake only deals 2 (not lethal). Tests pump + evasion.
+        setupPuzzle("test_sk_pump_evasion_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Giant Growth");
+        addCard(Zone.BATTLEFIELD, playerA, "Wind Drake");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest");
+
+        setLife(playerB, 5);
+        addCard(Zone.BATTLEFIELD, playerB, "Craw Wurm");
+
+        execute();
+
+        finishAndSave("sk_pump_evasion", 1);
+    }
+
+    @Test
+    public void test_sk_two_spells_mana_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 2
+        // Skill: T2.3 -- Cast two burn spells with exactly 2 mana (tight resource management)
+        // PreModern: Yes (Lightning Bolt 4th/5th, Shock Stronghold/6th/7th)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0hand=Lightning Bolt;Shock
+        // p0battlefield=Mountain;Mountain
+        // p1life=5
+        // p1battlefield=
+        //
+        // Win line: Lightning Bolt (3) + Shock (2) = 5 = lethal. Exactly 2 mana for 2 spells.
+        // Differs from sk_double_bolt (3 Mountains): here there is no slack mana.
+        // Tests mana-constrained sequencing of two burn spells.
+        setupPuzzle("test_sk_two_spells_mana_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Lightning Bolt");
+        addCard(Zone.HAND, playerA, "Shock");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 2);
+
+        setLife(playerB, 5);
+
+        execute();
+
+        finishAndSave("sk_two_spells_mana", 1);
+    }
+
+    @Test
+    public void test_sk_mana_puzzle_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 2
+        // Skill: T2.5 -- Choose the correct spell combination when a distractor is in hand
+        // PreModern: Yes (Lightning Bolt 4th/5th, Shock 6th/7th, Lava Axe 7th Edition)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0hand=Lightning Bolt;Shock;Lava Axe
+        // p0battlefield=Mountain;Mountain
+        // p1life=5
+        // p1battlefield=
+        //
+        // Win line: Lightning Bolt (3, costs R) + Shock (2, costs R) = 5 = lethal.
+        // Lava Axe (5 damage) costs 4R -- uncastable with only 2 Mountains.
+        // Model must ignore the distractor and pick the castable pair.
+        setupPuzzle("test_sk_mana_puzzle_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Lightning Bolt");
+        addCard(Zone.HAND, playerA, "Shock");
+        addCard(Zone.HAND, playerA, "Lava Axe");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 2);
+
+        setLife(playerB, 5);
+
+        execute();
+
+        finishAndSave("sk_mana_puzzle", 1);
+    }
+
+    @Test
+    public void test_sk_equip_attack_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 2
+        // Skill: T2.6 -- Enchant own creature with Rancor to boost power, then attack
+        // PreModern: Yes (Rancor in Urza's Legacy, Grizzly Bears 4th–7th)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0hand=Rancor
+        // p0battlefield=Grizzly Bears;Forest;Forest
+        // p1life=4
+        // p1battlefield=
+        //
+        // Win line: cast Rancor on Grizzly Bears (+2/+0, bears become 4/2), attack for 4 = lethal.
+        // Without Rancor, Bears attack for 2 (not lethal). Tests enchant + attack two-step.
+        setupPuzzle("test_sk_equip_attack_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Rancor");
+        addCard(Zone.BATTLEFIELD, playerA, "Grizzly Bears");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 2);
+
+        setLife(playerB, 4);
+
+        execute();
+
+        finishAndSave("sk_equip_attack", 1);
+    }
+
+    @Test
+    public void test_sk_ability_plus_combat_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 2
+        // Skill: T2.7 -- Activate tap ability + attack, both required for lethal
+        // PreModern: Yes (Prodigal Sorcerer 4th–7th, Grizzly Bears 4th–7th)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0battlefield=Prodigal Sorcerer;Grizzly Bears;Island;Island
+        // p1life=3
+        // p1battlefield=
+        //
+        // Win line: tap Prodigal Sorcerer to deal 1 damage to opponent, then attack with
+        // Grizzly Bears for 2 = total 3 = lethal. Neither action alone is enough (1 < 3, 2 < 3).
+        // Tests recognizing that both the ability and combat are needed.
+        setupPuzzle("test_sk_ability_plus_combat_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.BATTLEFIELD, playerA, "Prodigal Sorcerer");
+        addCard(Zone.BATTLEFIELD, playerA, "Grizzly Bears");
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 2);
+
+        setLife(playerB, 3);
+
+        execute();
+
+        finishAndSave("sk_ability_plus_combat", 1);
+    }
+
+    // -------------------------------------------------------------------------
+    // TIER 3 -- Non-Obvious Plays
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void test_sk_fling_for_lethal_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 3
+        // Skill: T3.1 -- Sacrifice own creature via Fling instead of attacking (combat blocked)
+        // PreModern: Yes (Fling Stronghold, Mahamoti Djinn 4th–7th, Fog Bank Urza's Saga)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0hand=Fling
+        // p0battlefield=Mahamoti Djinn;Mountain;Mountain
+        // p1life=5
+        // p1battlefield=Fog Bank
+        //
+        // Win line: Fling sacrificing Mahamoti Djinn (5 damage to opponent) = lethal.
+        // Fog Bank (0/2, flying, prevents all combat damage) blocks the Djinn and prevents
+        // all combat damage -- attacking is completely useless. Fling bypasses combat entirely.
+        // Tests the non-obvious line: sacrifice the big creature rather than attacking with it.
+        setupPuzzle("test_sk_fling_for_lethal_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Fling");
+        addCard(Zone.BATTLEFIELD, playerA, "Mahamoti Djinn");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 2);
+
+        setLife(playerB, 5);
+        addCard(Zone.BATTLEFIELD, playerB, "Fog Bank");
+
+        execute();
+
+        finishAndSave("sk_fling_for_lethal", 1);
+    }
+
+    @Test
+    public void test_sk_counterspell_to_survive_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 3
+        // Skill: T3.2 -- Counter a lethal spell from the opponent to survive (SURVIVAL PUZZLE)
+        // PreModern: Yes (Counterspell 4th–7th, Shock Stronghold/6th/7th)
+        // [state]
+        // turn=2
+        // activeplayer=p1 (opponent's turn)
+        // activephase=MAIN1
+        // p0life=2
+        // p0hand=Counterspell
+        // p0battlefield=Island;Island
+        // p1life=20
+        // p1hand=Shock
+        // p1battlefield=Mountain
+        //
+        // Setup: opponent's turn. Opponent (MageAI) has Shock and a Mountain.
+        // PlayerA has 2 life and Counterspell. If opponent casts Shock (2 damage),
+        // PlayerA must counter it to survive. Win = PlayerA life > 0 (survival mode).
+        // Tests: responding to opponent's spell on the stack with a counterspell.
+        // Note: if MageAI does not cast Shock (unlikely but possible), PlayerA survives
+        // without acting -- puzzle still records a win in survival mode.
+        setupPuzzle("test_sk_counterspell_to_survive_puzzle_llm_metrics",
+                playerB.getId(), PhaseStep.PRECOMBAT_MAIN, 2);
+
+        setLife(playerA, 2);
+        addCard(Zone.HAND, playerA, "Counterspell");
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 2);
+
+        setLife(playerB, 20);
+        addCard(Zone.HAND, playerB, "Shock");
+        addCard(Zone.BATTLEFIELD, playerB, "Mountain");
+
+        execute();
+
+        finishAndSave("sk_counterspell_to_survive", 2, true);
+    }
+
+    @Test
+    public void test_sk_ignore_board_go_face_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 3
+        // Skill: T3.3 -- Ignore the opponent's board; direct damage wins this turn
+        // PreModern: Yes (Lightning Bolt 4th/5th, Shock Stronghold/6th/7th, Serra Angel 4th–7th)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0hand=Lightning Bolt;Shock
+        // p0battlefield=Mountain;Mountain;Mountain
+        // p1life=5
+        // p1battlefield=Serra Angel
+        //
+        // Win line: Lightning Bolt (3) + Shock (2) at opponent = 5 = lethal.
+        // Serra Angel (4/4 flying, vigilance) is threatening but irrelevant -- the model
+        // should not waste spells on it. Tests recognizing lethal is available via direct
+        // damage and not getting distracted by a scary creature on board.
+        setupPuzzle("test_sk_ignore_board_go_face_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Lightning Bolt");
+        addCard(Zone.HAND, playerA, "Shock");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 3);
+
+        setLife(playerB, 5);
+        addCard(Zone.BATTLEFIELD, playerB, "Serra Angel");
+
+        execute();
+
+        finishAndSave("sk_ignore_board_go_face", 1);
+    }
+
+    @Test
+    public void test_sk_mogg_maniac_redirect_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 3
+        // Skill: T3.5 -- Damage own creature to trigger a damage-redirect ability
+        // PreModern: Yes (Shock Stronghold/6th/7th, Mogg Maniac Stronghold)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=5
+        // p0hand=Shock
+        // p0battlefield=Mogg Maniac;Mountain;Mountain
+        // p1life=2
+        // p1battlefield=
+        //
+        // Win line: Shock own Mogg Maniac (2 damage). Mogg Maniac's ability triggers:
+        // deal 2 damage to target opponent = lethal.
+        // The non-obvious target is your OWN creature with a damage spell.
+        // Mogg Maniac: "When Mogg Maniac is dealt damage, it deals that much damage to
+        // target opponent." Tests redirecting damage through own creature ability.
+        setupPuzzle("test_sk_mogg_maniac_redirect_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 5);
+        addCard(Zone.HAND, playerA, "Shock");
+        addCard(Zone.BATTLEFIELD, playerA, "Mogg Maniac");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 2);
+
+        setLife(playerB, 2);
+
+        execute();
+
+        finishAndSave("sk_mogg_maniac_redirect", 1);
+    }
+
+    @Test
+    @org.junit.Ignore("OOT: Goblin Arsonist (M12) is not Pre-Modern. Tests out-of-distribution generalization.")
+    public void test_sk_death_trigger_attack_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 3
+        // Skill: T3.4 -- Attack into a blocker on purpose to trigger a death-trigger ability
+        // PreModern: [OOT] Goblin Arsonist is from M12/M13 (not Pre-Modern)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0battlefield=Goblin Arsonist;Grizzly Bears
+        // p1life=3
+        // p1battlefield=Giant Spider
+        //
+        // Win line: attack with both Goblin Arsonist and Grizzly Bears.
+        //   - Giant Spider (2/4, reach) blocks Goblin Arsonist.
+        //   - Goblin Arsonist dies -> "when this dies, deal 1 damage to any target" -> 1 to opponent.
+        //   - Grizzly Bears (2/2) is not blocked (Spider is blocked on Arsonist) -> 2 damage.
+        //   - Total: 1 + 2 = 3 = lethal.
+        // Attacking with only Bears: 2 damage, not lethal. Attacking with only Arsonist: blocked,
+        // dies, 1 damage, not lethal. Must attack with both to combine death trigger + combat damage.
+        setupPuzzle("test_sk_death_trigger_attack_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.BATTLEFIELD, playerA, "Goblin Arsonist");
+        addCard(Zone.BATTLEFIELD, playerA, "Grizzly Bears");
+
+        setLife(playerB, 3);
+        addCard(Zone.BATTLEFIELD, playerB, "Giant Spider");
+
+        execute();
+
+        finishAndSave("sk_death_trigger_attack", 1);
+    }
+
+    // -------------------------------------------------------------------------
+    // TIER 4 -- Multi-Step Combos
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void test_sk_triple_burn_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 4
+        // Skill: T4.1 -- Three burn spells for exact lethal; combat useless (Fog Bank)
+        // PreModern: Yes (Lightning Bolt 4th/5th, Shock Stronghold/6th/7th, Fog Bank Urza's Saga)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0hand=Lightning Bolt;Shock;Shock
+        // p0battlefield=Mountain;Mountain;Mountain
+        // p1life=7
+        // p1battlefield=Fog Bank
+        //
+        // Win line: Lightning Bolt (3) + Shock (2) + Shock (2) = 7 = lethal.
+        // Fog Bank (0/2, flying, prevents all combat damage) makes combat useless.
+        // All three spells are required; missing any one falls short of lethal.
+        setupPuzzle("test_sk_triple_burn_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Lightning Bolt");
+        addCard(Zone.HAND, playerA, "Shock");
+        addCard(Zone.HAND, playerA, "Shock");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 3);
+
+        setLife(playerB, 7);
+        addCard(Zone.BATTLEFIELD, playerB, "Fog Bank");
+
+        execute();
+
+        finishAndSave("sk_triple_burn", 1);
+    }
+
+    @Test
+    public void test_sk_remove_pump_attack_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 4
+        // Skill: T4.2 -- Three-step combo: remove blocker + pump own creature + attack
+        // PreModern: Yes (Terror 4th–6th, Giant Growth 4th–7th, Grizzly Bears 4th–7th,
+        //             Serra Angel 4th–7th)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0hand=Terror;Giant Growth
+        // p0battlefield=Grizzly Bears;Swamp;Swamp;Forest;Forest
+        // p1life=5
+        // p1battlefield=Serra Angel
+        //
+        // Win line: Terror Serra Angel (destroy blocker), Giant Growth on Grizzly Bears
+        // (now 5/5), attack for 5 = lethal.
+        //   - Without Terror: Serra Angel blocks Bears (Serra survives, 0 player damage).
+        //   - Without Giant Growth: Bears deal 2 after removal (not lethal vs 5 life).
+        //   - All three actions are individually necessary.
+        setupPuzzle("test_sk_remove_pump_attack_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Terror");
+        addCard(Zone.HAND, playerA, "Giant Growth");
+        addCard(Zone.BATTLEFIELD, playerA, "Grizzly Bears");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp", 2);
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 2);
+
+        setLife(playerB, 5);
+        addCard(Zone.BATTLEFIELD, playerB, "Serra Angel");
+
+        execute();
+
+        finishAndSave("sk_remove_pump_attack", 1);
+    }
+
+    @Test
+    public void test_sk_mogg_sacrifice_combo_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 4
+        // Skill: T4.3 -- Sacrifice Mogg Fanatic + burn spell combo; combat is useless
+        // PreModern: Yes (Mogg Fanatic Tempest, Shock Stronghold/6th/7th, Wall of Ice 4th/5th)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0hand=Shock
+        // p0battlefield=Mogg Fanatic;Grizzly Bears;Mountain;Mountain
+        // p1life=3
+        // p1battlefield=Wall of Ice
+        //
+        // Win line: sacrifice Mogg Fanatic targeting opponent (1 damage) + Shock opponent (2) = 3 = lethal.
+        // Wall of Ice (0/7 defender) blocks Grizzly Bears in combat -- no trample, 0 combat damage.
+        // Model must use the sacrifice ability + cast the burn spell; combat is irrelevant.
+        //   - Shock only: 2 damage, not lethal.
+        //   - Mogg Fanatic only: 1 damage, not lethal.
+        //   - Both together: 3 = lethal.
+        setupPuzzle("test_sk_mogg_sacrifice_combo_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Shock");
+        addCard(Zone.BATTLEFIELD, playerA, "Mogg Fanatic");
+        addCard(Zone.BATTLEFIELD, playerA, "Grizzly Bears");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 2);
+
+        setLife(playerB, 3);
+        addCard(Zone.BATTLEFIELD, playerB, "Wall of Ice");
+
+        execute();
+
+        finishAndSave("sk_mogg_sacrifice_combo", 1);
+    }
+
     @Test
     public void test_PS_MGOB_puzzle_llm_metrics() {
         // Full puzzle file included below as required by test-first policy:
