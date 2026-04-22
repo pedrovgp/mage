@@ -2376,6 +2376,204 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         finishAndSave("sk_mogg_sacrifice_combo", 1);
     }
 
+    // ── Cantrip / Card-Draw skill group ──────────────────────────────────────
+
+    @Test
+    public void test_sk_cantrip_then_win_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 2
+        // Skill: T2.8 -- Cast a cantrip (Opt) to dig for the winning card
+        // PreModern: Yes (Opt Invasion 2000, Lightning Bolt 4th/5th Ed)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0hand=Opt
+        // p0library_top=Lightning Bolt
+        // p0battlefield=Island;Island;Mountain
+        // p1life=3
+        //
+        // Win line: Opt (U) → scry (keep Bolt on top) → draw Lightning Bolt →
+        //           Lightning Bolt (R) → 3 damage → win.
+        // Opt costs U (1 mana). Brainstorm costs UU for the effect but Opt is just U.
+        // Mana: Island pays colorless, Island pays U for Opt; Mountain pays R for Bolt.
+        // Without the Opt cast, A has no damage spells and cannot win this turn.
+        setupPuzzle("test_sk_cantrip_then_win_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Opt");
+        // Library: Forest on bottom, Plains above it, Lightning Bolt on top (drawn first).
+        addCard(Zone.LIBRARY, playerA, "Forest");
+        addCard(Zone.LIBRARY, playerA, "Plains");
+        addCard(Zone.LIBRARY, playerA, "Lightning Bolt");
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 2);
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain");
+
+        setLife(playerB, 3);
+
+        execute();
+
+        finishAndSave("sk_cantrip_then_win", 1);
+    }
+
+    @Test
+    public void test_sk_loot_for_win_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 2
+        // Skill: T2.9 -- Activate a loot tap-ability to discard junk and draw the win card
+        // PreModern: Yes (Merfolk Looter 4th Ed, Lightning Bolt 4th Ed)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0hand=Forest (junk)
+        // p0library_top=Lightning Bolt
+        // p0battlefield=Merfolk Looter (untapped);Island;Island;Mountain
+        // p1life=3
+        //
+        // Win line: tap Merfolk Looter → draw Lightning Bolt, discard Forest →
+        //           Lightning Bolt (R) → 3 damage → win.
+        // Merfolk Looter's tap ability is free (no mana cost).
+        // Mountain pays R for Bolt after Looter draws it.
+        // Hand starts with only "Forest" (useless land) — must use Looter to find damage.
+        setupPuzzle("test_sk_loot_for_win_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Forest");
+        addCard(Zone.LIBRARY, playerA, "Plains");
+        addCard(Zone.LIBRARY, playerA, "Lightning Bolt");
+        addCard(Zone.BATTLEFIELD, playerA, "Merfolk Looter");
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 2);
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain");
+
+        setLife(playerB, 3);
+
+        execute();
+
+        finishAndSave("sk_loot_for_win", 1);
+    }
+
+    @Test
+    public void test_sk_brainstorm_for_lethal_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 3
+        // Skill: T3.6 -- Brainstorm: cast it AND correctly choose which 2 cards to put back
+        // PreModern: Yes (Brainstorm Ice Age, Lightning Bolt 4th Ed, Wall of Ice 4th Ed)
+        // [state]
+        // turn=1
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=20
+        // p0hand=Brainstorm
+        // p0library_top=Lightning Bolt (then Plains, then Forest below)
+        // p0battlefield=Island;Island;Mountain
+        // p1life=3
+        // p1battlefield=Wall of Ice
+        //
+        // Win line: Brainstorm (1U) → draw 3 (Lightning Bolt, Plains, Forest) →
+        //           put Plains + Forest back → cast Lightning Bolt (R) → 3 damage → win.
+        // Wall of Ice (0/7 defender) blocks all ground attackers — combat is useless.
+        // The key decision: put BACK the two junk cards, not the Bolt.
+        // Mana: Island + Island for Brainstorm (1U); Mountain for Lightning Bolt (R).
+        setupPuzzle("test_sk_brainstorm_for_lethal_puzzle_llm_metrics", 1);
+
+        setLife(playerA, 20);
+        addCard(Zone.HAND, playerA, "Brainstorm");
+        // Library order (last added = top of library = drawn first):
+        addCard(Zone.LIBRARY, playerA, "Forest");
+        addCard(Zone.LIBRARY, playerA, "Plains");
+        addCard(Zone.LIBRARY, playerA, "Lightning Bolt");
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 2);
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain");
+
+        setLife(playerB, 3);
+        addCard(Zone.BATTLEFIELD, playerB, "Wall of Ice");
+
+        execute();
+
+        finishAndSave("sk_brainstorm_for_lethal", 1);
+    }
+
+    // ── Hold-Mana / Reactive-Play skill group ────────────────────────────────
+
+    @Test
+    public void test_sk_hold_mana_counter_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 3
+        // Skill: T3.7 -- Don't spend the blue mana on Opt; preserve it for Counterspell (SURVIVAL)
+        // PreModern: Yes (Counterspell 4th–7th, Opt Invasion, Shock Stronghold/6th/7th)
+        // [state]
+        // turn=1 (playerA's main), then turn=2 (playerB's turn)
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=2
+        // p0hand=Counterspell;Opt
+        // p0battlefield=Island;Island
+        // p1life=20
+        // p1hand=Shock
+        // p1battlefield=Mountain
+        //
+        // Trap: casting Opt (U) taps 1 Island → only 1 Island left → cannot pay UU
+        //       for Counterspell → opponent casts Shock (2 damage) → PlayerA at 0 → dies.
+        // Correct line: pass A's main phase → B casts Shock → A counters with
+        //              Counterspell (UU, using both Islands) → A survives at 2.
+        // Win = PlayerA life > 0 (survival mode).  2-turn puzzle (A then B).
+        setupPuzzle("test_sk_hold_mana_counter_puzzle_llm_metrics", 2);
+
+        setLife(playerA, 2);
+        addCard(Zone.HAND, playerA, "Counterspell");
+        addCard(Zone.HAND, playerA, "Opt");
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 2);
+
+        setLife(playerB, 20);
+        addCard(Zone.HAND, playerB, "Shock");
+        addCard(Zone.BATTLEFIELD, playerB, "Mountain");
+
+        execute();
+
+        finishAndSave("sk_hold_mana_counter", 2, true);
+    }
+
+    @Test
+    public void test_sk_hold_mana_removal_puzzle_llm_metrics() {
+        // [skill-metadata]
+        // Tier: 3
+        // Skill: T3.8 -- Don't waste mana on Carnophage; hold both Swamps for Terror (SURVIVAL)
+        // PreModern: Yes (Terror 4th Ed, Carnophage Exodus, Craw Wurm 4th Ed)
+        // [state]
+        // turn=1 (playerA's main), then turn=2 (playerB attacks)
+        // activeplayer=p0
+        // activephase=MAIN1
+        // p0life=4
+        // p0hand=Terror;Carnophage
+        // p0battlefield=Swamp;Swamp
+        // p1life=20
+        // p1battlefield=Craw Wurm (6/4)
+        //
+        // Trap: casting Carnophage (B) taps 1 Swamp → 1 Swamp left → cannot pay 1B
+        //       (2 mana total) for Terror → B attacks with 6/4 Craw Wurm → A takes 6
+        //       → A at 4 - 6 = -2 → dies.
+        // Correct lines (both valid):
+        //   a) Terror Craw Wurm on A's main phase (BB = both Swamps) → B can't attack → win.
+        //   b) Pass, then Terror Craw Wurm in response to B's attack → A takes 0 → win.
+        // Win = PlayerA life > 0 (survival mode).  2-turn puzzle (A then B).
+        setupPuzzle("test_sk_hold_mana_removal_puzzle_llm_metrics", 2);
+
+        setLife(playerA, 4);
+        addCard(Zone.HAND, playerA, "Terror");
+        addCard(Zone.HAND, playerA, "Carnophage");
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp", 2);
+
+        setLife(playerB, 20);
+        addCard(Zone.BATTLEFIELD, playerB, "Craw Wurm");
+
+        execute();
+
+        finishAndSave("sk_hold_mana_removal", 2, true);
+    }
+
     @Test
     public void test_PS_MGOB_puzzle_llm_metrics() {
         // Full puzzle file included below as required by test-first policy:
