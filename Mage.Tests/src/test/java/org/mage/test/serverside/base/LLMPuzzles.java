@@ -2119,34 +2119,41 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         // [skill-metadata]
         // Tier: 3
         // Skill: T3.2 -- Counter a lethal spell from the opponent to survive (SURVIVAL PUZZLE)
-        // PreModern: Yes (Counterspell 4th–7th, Shock Stronghold/6th/7th)
+        // PreModern: Yes (Counterspell 4th–7th, Shock Stronghold/6th/7th, Brainstorm Legends/5th–7th)
         // [state]
         // turn=2
         // activeplayer=p1 (opponent's turn)
         // activephase=MAIN1
         // p0life=2
-        // p0hand=Counterspell
+        // p0hand=Counterspell;Brainstorm;Brainstorm
         // p0battlefield=Island;Island
         // p1life=20
         // p1hand=Shock
         // p1battlefield=Mountain
         //
-        // Setup: opponent's turn. Opponent (MageAI) has Shock and a Mountain.
-        // PlayerA has 2 life and Counterspell. If opponent casts Shock (2 damage),
-        // PlayerA must counter it to survive. Win = PlayerA life > 0 (survival mode).
-        // Tests: responding to opponent's spell on the stack with a counterspell.
-        // Note: if MageAI does not cast Shock (unlikely but possible), PlayerA survives
-        // without acting -- puzzle still records a win in survival mode.
+        // Setup: opponent's turn. Opponent casts Shock (forced) targeting PlayerA.
+        // PlayerA has 2 life, Counterspell, and Brainstorm. Must counter the Shock to survive.
+        // Win = PlayerA life > 0 (survival mode).
+        //
+        // Distractor: Brainstorm (U) looks attractive ("draw 3 is always good") but
+        // casting it first taps one Island, leaving only 1 Island untapped — not enough
+        // to pay UU for Counterspell. The model must recognise it needs to HOLD both
+        // Islands for the counter rather than spending one mana on the cantrip.
+        //
+        // castSpell forces PlayerB's Shock so the puzzle is always deterministic.
         setupPuzzle("test_sk_counterspell_to_survive_puzzle_llm_metrics",
                 playerB.getId(), PhaseStep.PRECOMBAT_MAIN, 2);
 
         setLife(playerA, 2);
         addCard(Zone.HAND, playerA, "Counterspell");
+        addCard(Zone.HAND, playerA, "Brainstorm", 2);
         addCard(Zone.BATTLEFIELD, playerA, "Island", 2);
 
         setLife(playerB, 20);
         addCard(Zone.HAND, playerB, "Shock");
         addCard(Zone.BATTLEFIELD, playerB, "Mountain");
+
+        castSpell(2, PhaseStep.PRECOMBAT_MAIN, playerB, "Shock", playerA);
 
         execute();
 
@@ -2202,13 +2209,19 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         // p0hand=Shock
         // p0battlefield=Mogg Maniac;Mountain;Mountain
         // p1life=2
-        // p1battlefield=
+        // p1battlefield=Llanowar Elves;Grizzly Bears
         //
         // Win line: Shock own Mogg Maniac (2 damage). Mogg Maniac's ability triggers:
         // deal 2 damage to target opponent = lethal.
-        // The non-obvious target is your OWN creature with a damage spell.
+        // Also wins by Shock face (opponent at 2 life).
+        // Distractor targets: Llanowar Elves and Grizzly Bears on PlayerB's board.
+        // Tempting wrong plays: Shock Llanowar Elves or Shock Grizzly Bears (removes
+        // the creature but opponent survives at 2 life — not lethal). Tests that the
+        // model does NOT waste its only spell removing a non-threatening creature when
+        // lethal is available via redirect or direct damage.
         // Mogg Maniac: "When Mogg Maniac is dealt damage, it deals that much damage to
-        // target opponent." Tests redirecting damage through own creature ability.
+        // target opponent." Tests redirecting damage through own creature ability while
+        // ignoring tempting but wrong creature-removal targets.
         setupPuzzle("test_sk_mogg_maniac_redirect_puzzle_llm_metrics", 1);
 
         setLife(playerA, 5);
@@ -2217,6 +2230,8 @@ public class LLMPuzzles extends LLMPuzzlesBase {
         addCard(Zone.BATTLEFIELD, playerA, "Mountain", 2);
 
         setLife(playerB, 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Llanowar Elves");
+        addCard(Zone.BATTLEFIELD, playerB, "Grizzly Bears");
 
         execute();
 
