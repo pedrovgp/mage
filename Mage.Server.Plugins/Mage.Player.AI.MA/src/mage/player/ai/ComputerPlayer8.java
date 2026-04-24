@@ -120,7 +120,9 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         PassAbility passAbility = new PassAbility();
         LinkedList<Ability> allActions = new LinkedList<>();
         allActions.add(passAbility);
+        long _gpStart = System.nanoTime();
         allActions.addAll(this.getPlayable(game, false));
+        DecisionStats.INSTANCE.recordGetPlayable(System.nanoTime() - _gpStart);
 
         int chosenActionIndex = 0;
         if (allActions.size() > 1) {
@@ -191,18 +193,18 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
     }
 
     private int selectActionViaRL(Game game, LinkedList<Ability> allActions, ComputerPlayer currentPlayer) {
+        // inform* is now called inside handleAction (with timing); do not call it again here
         DecisionResult result = decisionHandler.handleAction(game, currentPlayer, allActions,
                 getStrategyFromEnvironment());
-        decisionHandler.informChosenAction(game, currentPlayer, allActions, result);
         return result.getChosenIndex() != null ? result.getChosenIndex() : 0;
     }
 
     @Override
     public int selectChoiceViaRL(Game game, Player currentPlayer, Outcome outcome, Choice choice,
             String[] allChoices) {
+        // inform* is now called inside handleChoice (with timing); do not call it again here
         DecisionResult result = decisionHandler.handleChoice(game, currentPlayer, outcome, choice, allChoices,
                 getStrategyFromEnvironment());
-        decisionHandler.informChosenChoice(game, currentPlayer, allChoices, result);
         return result.getChosenIndex() != null ? result.getChosenIndex() : 0;
     }
 
@@ -275,9 +277,9 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
 
     private List<Permanent> selectAttackersViaRL(Game game, List<Permanent> possibleAttackers,
             List<Permanent> possibleBlockers, Player currentPlayer) {
+        // inform* is now called inside handleAttackers (with timing); do not call it again here
         DecisionResult dr = decisionHandler.handleAttackers(game, currentPlayer, possibleAttackers, possibleBlockers,
                 getStrategyFromEnvironment());
-        decisionHandler.informChosenAttackers(game, currentPlayer, possibleAttackers, dr);
         List<Permanent> chosen = new ArrayList<>();
         if (dr.getChosenUuids() != null) {
             for (UUID id : dr.getChosenUuids()) {
@@ -344,9 +346,9 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
                     allChoices[i2] = mo != null ? mo.toString() : "unknown";
                 }
                 Player currentPlayer = game.getPlayer(this.getId());
+                // inform* is now called inside handleTargets (with timing); do not call it again here
                 DecisionResult dr = decisionHandler.handleTargets(game, currentPlayer, outcome, allChoices,
                         getStrategyFromEnvironment());
-                decisionHandler.informChosenChoice(game, currentPlayer, allChoices, dr);
                 int idx = dr.getChosenIndex() != null ? dr.getChosenIndex() : 0;
                 if (idx >= 0 && idx < possibleTargetsUUIDArray.length) {
                     UUID chosen = possibleTargetsUUIDArray[idx];
@@ -359,6 +361,11 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         } catch (Exception e) {
             logger.error("LLM target choose failed, fallback to built-in", e);
         }
+
+        // Local heuristic fallback — time how long this takes.
+        // try-finally ensures every return and throw in the section is counted.
+        long _localTargetStart = System.nanoTime();
+        try {
 
         // TODO PV: Multi-target LLM selection can iterate until min/max satisfied
 
@@ -896,6 +903,10 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
 
         throw new IllegalStateException(
                 "Target wasn't handled in computer's chooseTarget method: " + target.getClass().getCanonicalName());
+
+        } finally {
+            DecisionStats.INSTANCE.recordLocalTarget(System.nanoTime() - _localTargetStart);
+        }
     } // end of chooseTarget method
 
     // private void declareBlockers(Game game, UUID activePlayerId) {
@@ -930,6 +941,13 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
     // super.selectBlockers(null, game, activePlayerId);
     // }
     // }
+
+    @Override
+    public void selectBlockers(mage.abilities.Ability source, Game game, UUID defendingPlayerId) {
+        long _t0 = System.nanoTime();
+        super.selectBlockers(source, game, defendingPlayerId);
+        DecisionStats.INSTANCE.recordLocalBlockers(System.nanoTime() - _t0);
+    }
 
     private String getStrategyFromEnvironment() {
         String strategy = System.getProperty("MAGELLM_STRATEGY", System.getenv("MAGELLM_STRATEGY"));

@@ -42,6 +42,193 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
+
+/**
+ * Per-game wall-clock timing statistics for all decision types.
+ *
+ * Single-instance per JVM via INSTANCE. A JVM shutdown hook prints the table
+ * to stdout so it is captured in the worker log regardless of how the JVM exits.
+ *
+ * Thread-safety: uses AtomicLong so concurrent games in the same JVM (rare in
+ * self-play, but possible) accumulate correctly.
+ */
+class DecisionStats {
+    static final DecisionStats INSTANCE = new DecisionStats();
+
+    static {
+        Runtime.getRuntime().addShutdownHook(new Thread(
+            () -> INSTANCE.printSummary(), "decision-stats-printer"));
+    }
+
+    // Per-endpoint: count, serialisation (payload build), http, informPlayers, total
+    private final AtomicLong actionCount    = new AtomicLong();
+    private final AtomicLong actionSerial   = new AtomicLong();
+    private final AtomicLong actionHttp     = new AtomicLong();
+    private final AtomicLong actionInform   = new AtomicLong();
+
+    private final AtomicLong choiceCount    = new AtomicLong();
+    private final AtomicLong choiceSerial   = new AtomicLong();
+    private final AtomicLong choiceHttp     = new AtomicLong();
+    private final AtomicLong choiceInform   = new AtomicLong();
+
+    private final AtomicLong attackerCount  = new AtomicLong();
+    private final AtomicLong attackerSerial = new AtomicLong();
+    private final AtomicLong attackerHttp   = new AtomicLong();
+    private final AtomicLong attackerInform = new AtomicLong();
+
+    private final AtomicLong targetCount    = new AtomicLong();
+    private final AtomicLong targetSerial   = new AtomicLong();
+    private final AtomicLong targetHttp     = new AtomicLong();
+    private final AtomicLong targetInform   = new AtomicLong();
+
+    // Local decisions (never go to RL server)
+    private final AtomicLong localTargetCount = new AtomicLong();
+    private final AtomicLong localTargetNs    = new AtomicLong();
+    private final AtomicLong localBlockerCount = new AtomicLong();
+    private final AtomicLong localBlockerNs    = new AtomicLong();
+
+    // getPlayable() calls (called before every RL action decision)
+    private final AtomicLong getPlayableCount = new AtomicLong();
+    private final AtomicLong getPlayableNs    = new AtomicLong();
+
+    void recordAction(long serialNs, long httpNs, long informNs) {
+        actionCount.incrementAndGet();
+        actionSerial.addAndGet(serialNs);
+        actionHttp.addAndGet(httpNs);
+        actionInform.addAndGet(informNs);
+    }
+
+    void recordChoice(long serialNs, long httpNs, long informNs) {
+        choiceCount.incrementAndGet();
+        choiceSerial.addAndGet(serialNs);
+        choiceHttp.addAndGet(httpNs);
+        choiceInform.addAndGet(informNs);
+    }
+
+    void recordAttackers(long serialNs, long httpNs, long informNs) {
+        attackerCount.incrementAndGet();
+        attackerSerial.addAndGet(serialNs);
+        attackerHttp.addAndGet(httpNs);
+        attackerInform.addAndGet(informNs);
+    }
+
+    void recordTarget(long serialNs, long httpNs, long informNs) {
+        targetCount.incrementAndGet();
+        targetSerial.addAndGet(serialNs);
+        targetHttp.addAndGet(httpNs);
+        targetInform.addAndGet(informNs);
+    }
+
+    void recordLocalTarget(long elapsedNs) {
+        localTargetCount.incrementAndGet();
+        localTargetNs.addAndGet(elapsedNs);
+    }
+
+    void recordLocalBlockers(long elapsedNs) {
+        localBlockerCount.incrementAndGet();
+        localBlockerNs.addAndGet(elapsedNs);
+    }
+
+    void recordGetPlayable(long elapsedNs) {
+        getPlayableCount.incrementAndGet();
+        getPlayableNs.addAndGet(elapsedNs);
+    }
+
+    private static String ms(long ns) {
+        return String.format("%8.1f", ns / 1_000_000.0);
+    }
+
+    void printSummary() {
+        long totalRlNs =
+            actionSerial.get() + actionHttp.get() + actionInform.get() +
+            choiceSerial.get() + choiceHttp.get() + choiceInform.get() +
+            attackerSerial.get() + attackerHttp.get() + attackerInform.get() +
+            targetSerial.get() + targetHttp.get() + targetInform.get();
+        long totalLocalNs = localTargetNs.get() + localBlockerNs.get();
+        long grandTotal = totalRlNs + totalLocalNs + getPlayableNs.get();
+
+        // Build the report as a String so we can write it to both stderr and a stats file.
+        // We write to System.err (not System.out) because Maven's -q flag suppresses
+        // System.out from the Surefire-forked JVM but does NOT suppress System.err.
+        StringBuilder sb = new StringBuilder();
+        sb.append("\n=== DECISION STATS (ms) ===\n");
+        sb.append(String.format("  %-28s  %6s  %10s  %10s  %10s  %10s%n",
+            "endpoint", "count", "serial", "http", "inform", "total"));
+        sb.append(String.format("  %-28s  %6s  %10s  %10s  %10s  %10s%n",
+            "----------------------------", "------",
+            "----------", "----------", "----------", "----------"));
+        appendRlRow(sb, "/choose_from_all_actions",
+            actionCount.get(), actionSerial.get(), actionHttp.get(), actionInform.get());
+        appendRlRow(sb, "/choose_from_choices",
+            choiceCount.get(), choiceSerial.get(), choiceHttp.get(), choiceInform.get());
+        appendRlRow(sb, "/choose_attackers",
+            attackerCount.get(), attackerSerial.get(), attackerHttp.get(), attackerInform.get());
+        appendRlRow(sb, "/choose_targets",
+            targetCount.get(), targetSerial.get(), targetHttp.get(), targetInform.get());
+        appendLocalRow(sb, "LOCAL chooseTarget",   localTargetCount.get(),  localTargetNs.get());
+        appendLocalRow(sb, "LOCAL selectBlockers", localBlockerCount.get(), localBlockerNs.get());
+        appendLocalRow(sb, "getPlayable()",        getPlayableCount.get(),  getPlayableNs.get());
+        sb.append(String.format("  %-28s  %6s  %10s  %10s  %10s  %10s%n",
+            "----------------------------", "------",
+            "----------", "----------", "----------", "----------"));
+        sb.append(String.format("  %-28s  %30s  %10s%n",
+            "TOTAL (RL decisions)",  "", ms(totalRlNs)));
+        sb.append(String.format("  %-28s  %30s  %10s%n",
+            "TOTAL (all incl local)", "", ms(grandTotal)));
+        sb.append("===========================\n");
+
+        String report = sb.toString();
+
+        // 1. Write to stderr — bypasses Maven's -q stdout filter and lands in the
+        //    Maven log file (Python captures both stdout+stderr to game_N_mvn.log).
+        System.err.print(report);
+
+        // 2. Write to a dedicated stats file so results are always findable even
+        //    if the stderr stream is lost.  File name matches the JFR file.
+        //    Location: <repo>/logs/sp_profiles/stats/game_{seed}.txt
+        //    We derive the repo root by going two levels up from the mage/ dir
+        //    (Maven cwd is <repo>/mage/).
+        try {
+            String dbDir = System.getProperty("mage.dbDir", "");
+            // dbDir pattern: /tmp/mage_db_sp_g{seed}_{random}
+            String seedTag;
+            java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("mage_db_sp_g(\\d+)_").matcher(dbDir);
+            if (m.find()) {
+                seedTag = "game_" + m.group(1);
+            } else {
+                seedTag = "game_" + System.currentTimeMillis();
+            }
+            // Surefire forks the test JVM with cwd = <module-dir> (mage/Mage.Tests/),
+            // so we need to go up TWO levels to reach the repo root.
+            java.io.File repoRoot = new java.io.File(System.getProperty("user.dir", "."))
+                .getParentFile()   // mage/Mage.Tests → mage/
+                .getParentFile();  // mage/ → repo root
+            java.io.File statsDir = new java.io.File(repoRoot, "logs/sp_profiles/stats");
+            statsDir.mkdirs();
+            java.io.File statsFile = new java.io.File(statsDir, seedTag + ".txt");
+            try (java.io.PrintWriter pw = new java.io.PrintWriter(
+                    new java.io.FileWriter(statsFile, java.nio.charset.StandardCharsets.UTF_8))) {
+                pw.print(report);
+            }
+        } catch (Exception e) {
+            System.err.println("[DecisionStats] Could not write stats file: " + e.getMessage());
+        }
+    }
+
+    private static void appendRlRow(StringBuilder sb, String name,
+            long count, long serial, long http, long inform) {
+        long total = serial + http + inform;
+        sb.append(String.format("  %-28s  %6d  %10s  %10s  %10s  %10s%n",
+            name, count, ms(serial), ms(http), ms(inform), ms(total)));
+    }
+
+    private static void appendLocalRow(StringBuilder sb, String name, long count, long ns) {
+        sb.append(String.format("  %-28s  %6d  %10s  %10s  %10s  %10s%n",
+            name, count, ms(ns), "", "", ms(ns)));
+    }
+}
 
 /**
  * Unified decision handler that consolidates all LLM decision logic.
@@ -74,14 +261,20 @@ public class DecisionHandler {
     }
 
     /**
-     * Handle action selection decisions (choosing from list of abilities)
+     * Handle action selection decisions (choosing from list of abilities).
+     * Times serialisation, HTTP, and informPlayers separately and records to DecisionStats.
      */
     public DecisionResult handleAction(Game game, Player currentPlayer, List<Ability> allActions, String strategy) {
         try {
+            long t0 = System.nanoTime();
             JSONObject payload = buildChooseFromAllActionsPayload(game, currentPlayer, allActions, strategy);
+            long t1 = System.nanoTime();
             DecisionPayload dp = new DecisionPayload(ENDPOINT_CHOOSE_FROM_ALL_ACTIONS, payload);
             DecisionResult result = client.requestDecision(dp);
-
+            long t2 = System.nanoTime();
+            informChosenAction(game, currentPlayer, allActions, result);
+            long t3 = System.nanoTime();
+            DecisionStats.INSTANCE.recordAction(t1 - t0, t2 - t1, t3 - t2);
             logDecision("ACTION", allActions.size(), result);
             return result;
         } catch (Exception e) {
@@ -91,16 +284,22 @@ public class DecisionHandler {
     }
 
     /**
-     * Handle choice selection decisions (choosing from array of choices)
+     * Handle choice selection decisions (choosing from array of choices).
+     * Times serialisation, HTTP, and informPlayers separately and records to DecisionStats.
      */
     public DecisionResult handleChoice(Game game, Player currentPlayer, Outcome outcome,
             Choice choice, String[] allChoices, String strategy) {
         try {
+            long t0 = System.nanoTime();
             JSONObject payload = buildChooseFromChoicesPayload(game, currentPlayer, outcome, choice, allChoices,
                     strategy);
+            long t1 = System.nanoTime();
             DecisionPayload dp = new DecisionPayload(ENDPOINT_CHOOSE_FROM_CHOICES, payload);
             DecisionResult result = client.requestDecision(dp);
-
+            long t2 = System.nanoTime();
+            informChosenChoice(game, currentPlayer, allChoices, result);
+            long t3 = System.nanoTime();
+            DecisionStats.INSTANCE.recordChoice(t1 - t0, t2 - t1, t3 - t2);
             logDecision("CHOICE", allChoices.length, result);
             return result;
         } catch (Exception e) {
@@ -110,17 +309,23 @@ public class DecisionHandler {
     }
 
     /**
-     * Handle attacker selection decisions
+     * Handle attacker selection decisions.
+     * Times serialisation, HTTP, and informPlayers separately and records to DecisionStats.
      */
     public DecisionResult handleAttackers(Game game, Player currentPlayer,
             List<Permanent> possibleAttackers,
             List<Permanent> possibleBlockers, String strategy) {
         try {
+            long t0 = System.nanoTime();
             JSONObject payload = buildChooseAttackersPayload(game, currentPlayer, possibleAttackers, possibleBlockers,
                     strategy);
+            long t1 = System.nanoTime();
             DecisionPayload dp = new DecisionPayload(ENDPOINT_CHOOSE_ATTACKERS, payload);
             DecisionResult result = client.requestDecision(dp);
-
+            long t2 = System.nanoTime();
+            informChosenAttackers(game, currentPlayer, possibleAttackers, result);
+            long t3 = System.nanoTime();
+            DecisionStats.INSTANCE.recordAttackers(t1 - t0, t2 - t1, t3 - t2);
             logDecision("ATTACKERS", possibleAttackers.size(), result);
             return result;
         } catch (Exception e) {
@@ -130,20 +335,26 @@ public class DecisionHandler {
     }
 
     /**
-     * Handle target selection decisions
+     * Handle target selection decisions.
+     * Times serialisation, HTTP, and informPlayers separately and records to DecisionStats.
      */
     public DecisionResult handleTargets(Game game, Player currentPlayer, Outcome outcome,
             String[] allChoices, String strategy) {
         try {
+            long t0 = System.nanoTime();
             // Create a dummy choice object since the endpoint requires it
             Choice choice = new mage.choices.ChoiceImpl(true);
             choice.setMessage("Choose target");
 
             JSONObject payload = buildChooseFromChoicesPayload(game, currentPlayer, outcome, choice, allChoices,
                     strategy);
+            long t1 = System.nanoTime();
             DecisionPayload dp = new DecisionPayload(ENDPOINT_CHOOSE_TARGETS, payload);
             DecisionResult result = client.requestDecision(dp);
-
+            long t2 = System.nanoTime();
+            informChosenReason(game, currentPlayer, "TARGET", result);
+            long t3 = System.nanoTime();
+            DecisionStats.INSTANCE.recordTarget(t1 - t0, t2 - t1, t3 - t2);
             logDecision("TARGET", allChoices.length, result);
             return result;
         } catch (Exception e) {
