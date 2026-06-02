@@ -41,6 +41,16 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
     public static final int MAX_TURNS = Integer.parseInt(System.getProperty("max_turns", "200"));
     public static final int NUM_GAMES = Integer.parseInt(System.getProperty("num_games", "10"));
 
+    // Base URL of the magellmfast inference server the AI players talk to.
+    // MUST match -Dmagellmfast.url (set by run_fullgame_benchmark.py to the
+    // per-run inference port, e.g. :9200) so the game_result POST lands on the
+    // SAME server that logged the per-decision value predictions — otherwise
+    // value_inference_log.jsonl and game_results.jsonl live on different
+    // servers and the Value-Precision-by-turn join can never match
+    // (see memory-bank/progress/bc_value_belief_heads.md D-9).
+    public static final String MAGELLMFAST_URL =
+            System.getProperty("magellmfast.url", "http://localhost:9000");
+
     // Tests selection: provide a comma-separated list via -Dtests="test_A,test_B".
     public static final Set<String> SELECTED_TESTS = getSelectedTests();
 
@@ -240,7 +250,7 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
             try {
                 // Reset trajectory counters for this game (non-fatal if server not reachable)
                 try {
-                    httpPost("http://localhost:9000/__test__/reset_counters", "{}");
+                    httpPost(MAGELLMFAST_URL + "/__test__/reset_counters", "{}");
                 } catch (Exception resetEx) {
                     System.err.println("[SIMULATION] Warning: could not reset counters: " + resetEx.getMessage());
                 }
@@ -309,7 +319,7 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
                         payload.put("turns",              turnsPlayed);
                         payload.put("strategy_winner",    config.strategy);
                         payload.put("strategy_loser",     config.strategy);
-                        httpPost("http://localhost:9000/v1/game_result", payload.toString());
+                        httpPost(MAGELLMFAST_URL + "/v1/game_result", payload.toString());
                     }
                 } catch (Exception resultEx) {
                     System.err.println("[SIMULATION] Warning: could not post game_result: " + resultEx.getMessage());
