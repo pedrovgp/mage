@@ -300,27 +300,40 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
                 results.add(new GameResult(gameIndex, winner, turnsPlayed, null, gameDuration));
 
                 // Post game result to magellmfast for DN2 value function training
+                // AND the monitor "Game Rates" panel.  Fire for EVERY terminal
+                // outcome — decisive win, draw, AND timeout — not just decisive
+                // games, so REMOTE BC worker pods report draws/timeouts identically
+                // to LOCAL workers (parity).  The decisive-win payload keeps its
+                // exact pre-existing shape (winner_player_id/loser_player_id/lives)
+                // so DN2 value labelling is unaffected; the new "outcome" field lets
+                // the server/monitor categorise without guessing.
                 try {
                     mage.players.Player pA = game.getPlayer(playerA.getId());
                     mage.players.Player pB = game.getPlayer(playerB.getId());
-                    if (pA != null && pB != null && !"Timeout".equals(winner) && !"Draw".equals(winner)) {
+                    String gameId  = game.getId() != null ? game.getId().toString() : "unknown";
+                    JSONObject payload = new JSONObject();
+                    payload.put("game_id",            gameId);
+                    payload.put("match_id",           config.deck1Path + "_vs_" + config.deck2Path);
+                    payload.put("turns",              turnsPlayed);
+                    payload.put("strategy_winner",    config.strategy);
+                    payload.put("strategy_loser",     config.strategy);
+                    if (("PlayerA".equals(winner) || "PlayerB".equals(winner)) && pA != null && pB != null) {
+                        // Decisive game — preserve the legacy decisive-win payload.
                         String winnerPlayerId = "PlayerA".equals(winner) ? playerA.getId().toString() : playerB.getId().toString();
                         String loserPlayerId  = "PlayerA".equals(winner) ? playerB.getId().toString() : playerA.getId().toString();
                         int winnerLife = "PlayerA".equals(winner) ? pA.getLife() : pB.getLife();
                         int loserLife  = "PlayerA".equals(winner) ? pB.getLife() : pA.getLife();
-                        String gameId  = game.getId() != null ? game.getId().toString() : "unknown";
-                        JSONObject payload = new JSONObject();
-                        payload.put("game_id",            gameId);
-                        payload.put("match_id",           config.deck1Path + "_vs_" + config.deck2Path);
+                        payload.put("outcome",            "win");
                         payload.put("winner_player_id",   winnerPlayerId);
                         payload.put("loser_player_id",    loserPlayerId);
                         payload.put("winner_final_life",  winnerLife);
                         payload.put("loser_final_life",   loserLife);
-                        payload.put("turns",              turnsPlayed);
-                        payload.put("strategy_winner",    config.strategy);
-                        payload.put("strategy_loser",     config.strategy);
-                        httpPost(MAGELLMFAST_URL + "/v1/game_result", payload.toString());
+                    } else if ("Timeout".equals(winner)) {
+                        payload.put("outcome", "timeout");
+                    } else {
+                        payload.put("outcome", "draw");
                     }
+                    httpPost(MAGELLMFAST_URL + "/v1/game_result", payload.toString());
                 } catch (Exception resultEx) {
                     System.err.println("[SIMULATION] Warning: could not post game_result: " + resultEx.getMessage());
                 }
@@ -335,6 +348,21 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
                 boolean isStall = msg.contains("Too much priority calls");
                 String winner = isStall ? "Timeout" : "Error";
                 results.add(new GameResult(gameIndex, winner, 0, msg, gameDuration));
+                // Parity: also stream the non-decisive terminal outcome so remote
+                // BC workers report timeouts/errors (an aborted game has no winner
+                // or reliable life totals, so only the classification is posted).
+                try {
+                    JSONObject payload = new JSONObject();
+                    payload.put("game_id",         "unknown");
+                    payload.put("match_id",        config.deck1Path + "_vs_" + config.deck2Path);
+                    payload.put("turns",           0);
+                    payload.put("strategy_winner", config.strategy);
+                    payload.put("strategy_loser",  config.strategy);
+                    payload.put("outcome",         isStall ? "timeout" : "error");
+                    httpPost(MAGELLMFAST_URL + "/v1/game_result", payload.toString());
+                } catch (Exception postEx) {
+                    System.err.println("[SIMULATION] Warning: could not post error game_result: " + postEx.getMessage());
+                }
                 System.err.println(String.format("[SIMULATION] Game %d/%d %s: %s",
                         gameIndex + 1, config.numGames, winner.toLowerCase(), msg));
             }
