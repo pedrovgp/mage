@@ -1050,9 +1050,12 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
     }
 
     /**
-     * Shadow probe for the attackers declaration. The shadow think's combat field
-     * (root.combat from the alpha-beta search) provides CP7's attacker set; both
-     * sides are serialized as sorted attacker names and compared as text.
+     * Shadow probe for the attackers declaration. CP7's LIVE attacker behavior is
+     * the CP6 heuristic (selectAttackers -> declareAttackers), NOT the alpha-beta
+     * tree: calculateActions at the declare-attackers point leaves shadow.combat
+     * null (observed live: 100% empty CP7 attacker sets). So run the real
+     * heuristic on a simulation copy and read the declared attackers from the
+     * SIM's combat — the live game is never mutated.
      * Convention: rl_choice_index = 0, matched_index = 0 on agreement else null.
      */
     private void shadowProbeAttackers(Game game, List<Permanent> possibleAttackers,
@@ -1062,13 +1065,18 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
                 return;
             }
             ComputerPlayer7 shadow = newShadowCp7();
-            shadow.calculateActions(game);
+            Game sim = shadow.createSimulation(game);
+            RandomUtil.enterSimulation();
+            try {
+                shadow.selectAttackers(sim, playerId);
+            } finally {
+                RandomUtil.exitSimulation();
+            }
             List<String> cp7Names = new ArrayList<>();
-            if (shadow.combat != null) {
-                for (UUID attackerId : shadow.combat.getAttackers()) {
-                    Permanent permanent = game.getPermanent(attackerId);
-                    cp7Names.add(permanent != null ? permanent.getName() : attackerId.toString());
-                }
+            for (UUID attackerId : sim.getCombat().getAttackers()) {
+                // ids are stable across the copy; resolve names on the live game
+                Permanent permanent = game.getPermanent(attackerId);
+                cp7Names.add(permanent != null ? permanent.getName() : attackerId.toString());
             }
             Collections.sort(cp7Names);
             List<String> rlNames = new ArrayList<>();
