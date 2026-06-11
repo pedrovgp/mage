@@ -246,6 +246,7 @@ public class DecisionHandler {
     private static final String ENDPOINT_CHOOSE_TARGETS = "/choose_targets";
     private static final String ENDPOINT_CHOOSE_TARGET_AMOUNT = "/chooseTargetAmount";
     private static final String ENDPOINT_LOG_TRAJECTORY = "/v1/log_trajectory";
+    private static final String ENDPOINT_SHADOW_AGREEMENT = "/v1/shadow_agreement";
 
     private final LlmDecisionClient client;
     private final ObjectMapper objectMapper;
@@ -401,6 +402,20 @@ public class DecisionHandler {
             logger.error("Failed to handle trajectory logging", e);
             // Include 'fallback' in reason to satisfy tests that assert fallback wording
             return new DecisionResult(null, null, "fallback_trajectory_logging");
+        }
+    }
+
+    /**
+     * Best-effort POST of a CP7-shadow-vs-RL agreement record to
+     * /v1/shadow_agreement (read-only research probe; see ComputerPlayer8).
+     * Failures are swallowed: a logging outage must never affect the game.
+     */
+    public void postShadowAgreement(JSONObject payload) {
+        try {
+            DecisionPayload dp = new DecisionPayload(ENDPOINT_SHADOW_AGREEMENT, payload);
+            client.requestDecision(dp);
+        } catch (Exception e) {
+            logger.debug("shadow_agreement post failed (ignored): " + e.getMessage());
         }
     }
 

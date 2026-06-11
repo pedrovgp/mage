@@ -69,12 +69,14 @@ import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.io.OutputStream;
 import java.net.URL;
 
@@ -86,6 +88,22 @@ import java.net.URL;
 public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8Interface {
 
     private static final Logger logger = Logger.getLogger(ComputerPlayer8.class);
+
+    // CP7 shadow agreement probe (read-only research instrumentation).
+    // When -Dmagellm.cp7Shadow=true, a sampled fraction of RL decisions also run a
+    // shadow CP7 alpha-beta think on the same state; the expert's choice is logged
+    // (POST /v1/shadow_agreement) but NEVER acted on. Default OFF: the only cost
+    // when unset is this static boolean check.
+    private static final boolean CP7_SHADOW_ENABLED = Boolean.getBoolean("magellm.cp7Shadow");
+    private static final double CP7_SHADOW_RATE = parseShadowRate();
+
+    private static double parseShadowRate() {
+        try {
+            return Double.parseDouble(System.getProperty("magellm.cp7ShadowRate", "0.25"));
+        } catch (NumberFormatException e) {
+            return 0.25;
+        }
+    }
 
     private boolean allowBadMoves;
     private final DecisionHandler decisionHandler;
@@ -133,6 +151,13 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
 
         if (logger.isInfoEnabled()) {
             logger.info("LLM chosen action: " + chosenAction.toString());
+        }
+
+        // Shadow CP7 probe: run BEFORE the chosen action executes so the expert
+        // thinks on exactly the state the RL agent saw. Only when a real decision
+        // was made (forced single-Pass states never hit the RL server).
+        if (CP7_SHADOW_ENABLED && allActions.size() > 1) {
+            shadowProbePriority(game, allActions, chosenActionIndex);
         }
 
         if (chosenAction instanceof PassAbility) {
@@ -267,6 +292,12 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
 
                 List<Permanent> selectedAttackers = selectAttackersViaRL(game, attackersList, possibleBlockers,
                         attackingPlayer);
+
+                // Shadow CP7 probe: BEFORE declaring, so the expert sees the same
+                // pre-declaration state the RL agent decided on.
+                if (CP7_SHADOW_ENABLED) {
+                    shadowProbeAttackers(game, attackersList, selectedAttackers);
+                }
 
                 for (Permanent attacker : selectedAttackers) {
                     attackingPlayer.declareAttacker(attacker.getId(), defenderId, game, true);
@@ -947,6 +978,135 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         long _t0 = System.nanoTime();
         super.selectBlockers(source, game, defendingPlayerId);
         DecisionStats.INSTANCE.recordLocalBlockers(System.nanoTime() - _t0);
+    }
+
+    // ================================================================================
+    // CP7 SHADOW AGREEMENT PROBE (read-only; results are logged, never acted on)
+    // ================================================================================
+
+    /**
+     * Build a fresh shadow CP7 instance for a probe think.
+     *
+     * The copy constructor shares playerId (so the shadow searches from this seat)
+     * but the CP6 copy ctor SHARES the actionCache reference and COPIES
+     * actions/combat. All three are reset so that:
+     *  - the shadow's first choice is the raw alpha-beta answer (no repeat
+     *    suppression from the live player's history),
+     *  - the shadow can never write into the live player's actionCache,
+     *  - a think that yields no result cannot leave a stale copied combat behind.
+     * root is not copied by the ctor (null => calculateActions does a fresh search).
+     */
+    private ComputerPlayer7 newShadowCp7() {
+        ComputerPlayer7 shadow = new ComputerPlayer7(this);
+        shadow.actionCache = new HashSet<>();
+        shadow.actions = new LinkedList<>();
+        shadow.combat = null;
+        shadow.root = null;
+        return shadow;
+    }
+
+    /** Match key identical to the one actionCache uses (rule + source id). */
+    private static String shadowAbilityKey(Ability ability) {
+        return ability.getRule() + '_' + ability.getSourceId();
+    }
+
+    /**
+     * Shadow probe for priority decisions. Sample-rate gated BEFORE the expensive
+     * think; the gate uses ThreadLocalRandom so the game's RandomUtil sequences are
+     * never advanced. calculateActions itself searches on createSimulation(game)
+     * inside RandomUtil.enterSimulation()/exitSimulation(), so the live game is
+     * not mutated. Any failure is swallowed (probe must never affect the game).
+     */
+    private void shadowProbePriority(Game game, List<Ability> allActions, int rlChosenIndex) {
+        try {
+            if (ThreadLocalRandom.current().nextDouble() >= CP7_SHADOW_RATE) {
+                return;
+            }
+            ComputerPlayer7 shadow = newShadowCp7();
+            shadow.calculateActions(game);
+            // Take the first/root choice directly from the shadow's actions queue.
+            Ability cp7Choice = shadow.actions.isEmpty() ? null : shadow.actions.peek();
+            // CP7 with no calculated actions passes (act() -> pass), so treat null as Pass.
+            String cp7Text = cp7Choice != null ? cp7Choice.toString() : "Pass";
+            Integer matchedIndex = null;
+            for (int i = 0; i < allActions.size(); i++) {
+                Ability candidate = allActions.get(i);
+                if (cp7Choice == null) {
+                    if (candidate instanceof PassAbility) {
+                        matchedIndex = i;
+                        break;
+                    }
+                } else if (shadowAbilityKey(candidate).equals(shadowAbilityKey(cp7Choice))) {
+                    matchedIndex = i;
+                    break;
+                }
+            }
+            postShadowAgreement(game, "priority",
+                    allActions.get(rlChosenIndex).toString(), rlChosenIndex,
+                    cp7Text, matchedIndex, allActions.size());
+        } catch (Throwable t) {
+            logger.warn("CP7 shadow probe (priority) failed - ignored", t);
+        }
+    }
+
+    /**
+     * Shadow probe for the attackers declaration. The shadow think's combat field
+     * (root.combat from the alpha-beta search) provides CP7's attacker set; both
+     * sides are serialized as sorted attacker names and compared as text.
+     * Convention: rl_choice_index = 0, matched_index = 0 on agreement else null.
+     */
+    private void shadowProbeAttackers(Game game, List<Permanent> possibleAttackers,
+            List<Permanent> rlSelectedAttackers) {
+        try {
+            if (ThreadLocalRandom.current().nextDouble() >= CP7_SHADOW_RATE) {
+                return;
+            }
+            ComputerPlayer7 shadow = newShadowCp7();
+            shadow.calculateActions(game);
+            List<String> cp7Names = new ArrayList<>();
+            if (shadow.combat != null) {
+                for (UUID attackerId : shadow.combat.getAttackers()) {
+                    Permanent permanent = game.getPermanent(attackerId);
+                    cp7Names.add(permanent != null ? permanent.getName() : attackerId.toString());
+                }
+            }
+            Collections.sort(cp7Names);
+            List<String> rlNames = new ArrayList<>();
+            for (Permanent permanent : rlSelectedAttackers) {
+                rlNames.add(permanent.getName());
+            }
+            Collections.sort(rlNames);
+            String rlText = String.join(", ", rlNames);
+            String cp7Text = String.join(", ", cp7Names);
+            Integer matchedIndex = rlText.equals(cp7Text) ? Integer.valueOf(0) : null;
+            postShadowAgreement(game, "attackers", rlText, 0, cp7Text, matchedIndex,
+                    possibleAttackers.size());
+        } catch (Throwable t) {
+            logger.warn("CP7 shadow probe (attackers) failed - ignored", t);
+        }
+    }
+
+    /** Build the comparison payload and POST it best-effort via DecisionHandler. */
+    private void postShadowAgreement(Game game, String decisionType, String rlChoiceText,
+            int rlChoiceIndex, String cp7ChoiceText, Integer matchedIndex, int nActions) {
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put("game_id", game.getId().toString());
+            payload.put("turn", game.getTurnNum());
+            payload.put("phase", game.getPhase() != null && game.getPhase().getType() != null
+                    ? game.getPhase().getType().toString() : "");
+            payload.put("step", game.getTurnStepType() != null
+                    ? game.getTurnStepType().toString() : "");
+            payload.put("decision_type", decisionType);
+            payload.put("rl_choice_text", rlChoiceText);
+            payload.put("rl_choice_index", rlChoiceIndex);
+            payload.put("cp7_choice_text", cp7ChoiceText);
+            payload.put("matched_index", matchedIndex != null ? matchedIndex : JSONObject.NULL);
+            payload.put("n_actions", nActions);
+            decisionHandler.postShadowAgreement(payload);
+        } catch (Throwable t) {
+            logger.debug("CP7 shadow agreement post failed - ignored: " + t.getMessage());
+        }
     }
 
     private String getStrategyFromEnvironment() {
