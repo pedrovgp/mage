@@ -71,6 +71,42 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
         return SELECTED_TESTS.isEmpty() || SELECTED_TESTS.contains(testName);
     }
 
+    // ── DAgger mixture mode (-Dstrategy=dagger) ─────────────────────────
+    // ONE seeded draw at game setup decides PlayerA's pilot for the ENTIRE
+    // game: student (CP8, RL via HTTP, shadow CP7 labels every decision) or
+    // teacher (CP7Instrumented — an ordinary expert game).  PlayerB is always
+    // CP7Instrumented (learnings §9: consistent reference opponent).
+    //
+    // The draw is dedicated and deterministic — a SplitMix64 hash of
+    // gameSeed ^ fixed salt — NOT RandomUtil per-player streams (consuming
+    // engine RNG would perturb game evolution; learnings §10) and NOT
+    // wall-clock randomness.  A game is therefore exactly reproducible from
+    // (seed, decks, fraction).  SplitMix64 rather than
+    // new java.util.Random(seed).nextDouble(): java.util.Random's seed
+    // scrambler is weak, so SEQUENTIAL game seeds yield strongly correlated
+    // first draws (measured ~26% realized share at fraction 0.30 — see
+    // DaggerDrawTest).
+    private static final long DAGGER_DRAW_SALT = 0xDA66E201L;
+
+    /** Per-game pilot draw: true → student (CP8) pilots PlayerA. */
+    public static boolean daggerStudentDraw(long gameSeed, double fraction) {
+        long z = gameSeed ^ DAGGER_DRAW_SALT;
+        z = (z ^ (z >>> 30)) * 0xBF58476D1CE4E5B9L;
+        z = (z ^ (z >>> 27)) * 0x94D049BB133111EBL;
+        z = z ^ (z >>> 31);
+        double u = (z >>> 11) * 0x1.0p-53;  // uniform in [0, 1)
+        return u < fraction;
+    }
+
+    /** Mixture parameter P(student game), set per spawn by the worker. */
+    public static double daggerFraction() {
+        try {
+            return Double.parseDouble(System.getProperty("magellm.daggerFraction", "0.0"));
+        } catch (NumberFormatException e) {
+            return 0.0;
+        }
+    }
+
     /**
      * Configuration class for simulation parameters
      */
@@ -257,6 +293,18 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
 
                 // Create new game with seeded random
                 long gameSeed = random.nextLong();
+
+                // DAgger mixture: resolve the per-game pilot BEFORE player
+                // creation; createNewPlayer and the players' provenance
+                // stamps read magellm.daggerPilot.
+                if ("dagger".equals(config.strategy)) {
+                    double fraction = daggerFraction();
+                    boolean student = daggerStudentDraw(gameSeed, fraction);
+                    System.setProperty("magellm.daggerPilot", student ? "student" : "teacher");
+                    System.out.println("[DAGGER] pilot=" + (student ? "student" : "teacher")
+                            + " fraction=" + fraction + " gameSeed=" + gameSeed);
+                }
+
                 Game game = createGameWithDecks(gameDeck1, gameDeck2, gameSeed);
 
                 GameOptions gameOptions = new GameOptions();
@@ -421,6 +469,21 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
             // Trajectories from both players are logged by the server for online training.
             player = new TestPlayer(
                     new org.mage.test.player.TestComputerPlayer8(playerName, rangeOfInfluence, 8));
+        } else if ("dagger".equals(currentStrategy)) {
+            // DAgger mixture mode: the per-game seeded draw (set in
+            // runSimulationSeries via magellm.daggerPilot) decides PlayerA's
+            // pilot for the whole game.  Student game: CP8 (RL) with shadow
+            // CP7 labels; teacher game: CP7Instrumented — an ordinary expert
+            // game.  PlayerB is always CP7Instrumented (learnings §9).
+            boolean studentGame = "student".equals(
+                    System.getProperty("magellm.daggerPilot", "teacher"));
+            if (studentGame && "PlayerA".equals(playerName)) {
+                player = new TestPlayer(
+                        new org.mage.test.player.TestComputerPlayer8(playerName, rangeOfInfluence, 8));
+            } else {
+                player = new TestPlayer(
+                        new org.mage.test.player.TestComputerPlayer7Instrumented(playerName, rangeOfInfluence, 8));
+            }
         } else {
             // Data collection mode (strategy=mageai or default): both players instrumented
             // so trajectories are logged for BC training.

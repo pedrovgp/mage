@@ -97,22 +97,34 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
     private static final boolean CP7_SHADOW_ENABLED = Boolean.getBoolean("magellm.cp7Shadow");
     private static final double CP7_SHADOW_RATE = parseShadowRate();
 
-    // DAgger Phase 2 collection mode (-Dmagellm.dagger=true): the shadow CP7
-    // runs on EVERY decision (rate gate bypassed) and its choice is written as
-    // the trajectory label via CP7Instrumented-style /v1/log_trajectory event
+    // DAgger collection: in mixture games (-Dstrategy=dagger) a PER-GAME
+    // seeded draw at setup decides PlayerA's pilot for the ENTIRE game (see
+    // FullGameSimulationInstrumentedBase).  When the STUDENT pilot is drawn,
+    // PlayerA is this CP8 with -Dmagellm.dagger=true: the shadow CP7 runs on
+    // EVERY decision (rate gate bypassed) and its choice is written as the
+    // trajectory label via CP7Instrumented-style /v1/log_trajectory event
     // pairs (the RL's own action is executed but NEVER logged as the label —
     // learnings §15: RL-chosen actions are not expert labels).  The JVM runs
-    // with -Dmagellmfast.logTrajectory=false so the inference server writes no
-    // RL-side records; the explicit DAgger posts force logTrajectory=true in
-    // the payload.  Agreement posts are SKIPPED in this mode so the benchmark
-    // probe data stays clean.
+    // with -Dmagellmfast.logTrajectory=false so the inference server writes
+    // no RL-side records; the explicit DAgger posts force logTrajectory=true
+    // in the payload.  Agreement posts are SKIPPED in this mode so the
+    // benchmark probe data stays clean.
+    //
+    // -Dmagellm.daggerFraction is the mixture parameter P(student game) in
+    // effect at spawn (stamped into provenance for audit; the draw itself
+    // happens in the test harness).
     private static final boolean DAGGER_MODE = Boolean.getBoolean("magellm.dagger");
+    private static final double DAGGER_FRACTION = parseDoubleProp("magellm.daggerFraction", 1.0);
 
     private static double parseShadowRate() {
+        return parseDoubleProp("magellm.cp7ShadowRate", 0.25);
+    }
+
+    private static double parseDoubleProp(String key, double dflt) {
         try {
-            return Double.parseDouble(System.getProperty("magellm.cp7ShadowRate", "0.25"));
+            return Double.parseDouble(System.getProperty(key, Double.toString(dflt)));
         } catch (NumberFormatException e) {
-            return 0.25;
+            return dflt;
         }
     }
 
@@ -1018,6 +1030,16 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         shadow.actions = new LinkedList<>();
         shadow.combat = null;
         shadow.root = null;
+        // CRITICAL FIX (2026-06-12): the CP6 COPY constructor copies maxDepth
+        // but NOT maxThinkTimeSecs / maxNodes — both stayed 0, so every
+        // shadow alpha-beta think timed out instantly (task.get(0, SECONDS))
+        // and/or aborted at the first node (nodeCount > 0), making the shadow
+        // ALWAYS "pass".  Observed live: 49,556/49,556 probe rows with
+        // matched_index==0 and 100% pass DAgger labels.  Give the shadow the
+        // same budget a real CP7 of this skill gets (named ctor: skill*3 s).
+        shadow.maxThinkTimeSecs = Math.max(shadow.maxThinkTimeSecs, maxDepth * 3);
+        // 5000 = CP6.MAX_SIMULATED_NODES_PER_CALC (private there).
+        shadow.maxNodes = Math.max(shadow.maxNodes, 5000);
         return shadow;
     }
 
@@ -1058,9 +1080,9 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
                 }
             }
             if (DAGGER_MODE) {
-                // Collection mode: the shadow choice IS the training label.
-                // Unmatched choices are dropped (never logged) so no sample can
-                // carry a non-expert label.
+                // Collection mode (student acted): the shadow choice IS the
+                // training label.  Unmatched choices are dropped (never
+                // logged) so no sample can carry a non-expert label.
                 if (matchedIndex == null) {
                     logger.warn("DAgger: shadow choice '" + cp7Text
                             + "' not in RL action list (" + allActions.size()
@@ -1116,10 +1138,18 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         }
     }
 
-    /** Fresh additionalContext map carrying DAgger provenance + ordering seq. */
+    /**
+     * Fresh additionalContext map carrying DAgger provenance + ordering seq.
+     * CP8 only acts in STUDENT-pilot games (the per-game draw assigned CP8 as
+     * PlayerA), so dagger_pilot is always "student" here; dagger_fraction is
+     * the mixture parameter P(student game) in effect at spawn — both are
+     * needed for later weighting/ablation and to audit the realized mix.
+     */
     private Map<String, Object> newDaggerContext() {
         Map<String, Object> ctx = new java.util.HashMap<>();
         ctx.put("dagger", true);
+        ctx.put("dagger_pilot", "student");
+        ctx.put("dagger_fraction", DAGGER_FRACTION);
         ctx.put("loggedAt", System.currentTimeMillis());
         ctx.put("log_seq", daggerLogSeq++);
         return ctx;
@@ -1165,8 +1195,8 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
                 RandomUtil.exitSimulation();
             }
             if (DAGGER_MODE) {
-                // Collection mode: the shadow's attacker set IS the training
-                // label (ids are stable across the simulation copy).
+                // Collection mode (student acted): the shadow's attacker set
+                // IS the training label (ids are stable across the sim copy).
                 List<UUID> cp7AttackerIds = new ArrayList<>(sim.getCombat().getAttackers());
                 logDaggerAttackers(game, possibleAttackers, possibleBlockers, cp7AttackerIds);
                 return;

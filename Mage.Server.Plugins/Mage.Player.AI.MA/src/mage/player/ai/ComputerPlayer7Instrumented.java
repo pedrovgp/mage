@@ -45,6 +45,26 @@ public class ComputerPlayer7Instrumented extends ComputerPlayer7 {
     // Decision handler for centralized payload generation
     private static final DecisionHandler decisionHandler = new DecisionHandler(decisionClient);
 
+    // DAgger mixture-game JVM (-Dmagellm.dagger=true): the per-game pilot draw
+    // (FullGameSimulationInstrumentedBase) may seat this CP7I as PlayerA
+    // ("teacher" game) or as the PlayerB reference opponent of a CP8 student
+    // game.  Either way its decisions ARE expert labels, so:
+    //  * its posts FORCE logTrajectory=true (the JVM runs with
+    //    -Dmagellmfast.logTrajectory=false to suppress the server-side records
+    //    of CP8's RL decision calls — that must not silence expert data);
+    //  * additionalContext carries the realized pilot + fraction so the mix is
+    //    auditable and reproducible from (seed, decks, fraction).
+    private static final boolean DAGGER_JVM = Boolean.getBoolean("magellm.dagger");
+    private static final double DAGGER_FRACTION_PROP = parseDaggerFraction();
+
+    private static double parseDaggerFraction() {
+        try {
+            return Double.parseDouble(System.getProperty("magellm.daggerFraction", "1.0"));
+        } catch (NumberFormatException e) {
+            return 1.0;
+        }
+    }
+
     // Performance tracking
     private long totalLoggingTime = 0;
     private int loggingCallCount = 0;
@@ -652,8 +672,23 @@ public class ComputerPlayer7Instrumented extends ComputerPlayer7 {
             // delivery causes out-of-order arrivals at the server.
             additionalContext.put("log_seq", logSeq++);
 
+            if (DAGGER_JVM) {
+                // Realized per-game pilot ("student"|"teacher", set by the
+                // harness right after the seeded draw) + fraction in effect.
+                additionalContext.put("dagger_pilot",
+                        System.getProperty("magellm.daggerPilot", "teacher"));
+                additionalContext.put("dagger_fraction", DAGGER_FRACTION_PROP);
+            }
+
             JSONObject payload = decisionHandler.buildTrajectoryPayload(
                     game, this, decisionType, availableActions, chosenAction, additionalContext);
+
+            if (DAGGER_JVM) {
+                // Override the JVM-wide -Dmagellmfast.logTrajectory=false (which
+                // only exists to suppress server-side records of CP8's RL
+                // decision calls): CP7I decisions are expert labels, always log.
+                payload.put("logTrajectory", true);
+            }
 
             sendTrajectoryDataAsync(payload);
 
