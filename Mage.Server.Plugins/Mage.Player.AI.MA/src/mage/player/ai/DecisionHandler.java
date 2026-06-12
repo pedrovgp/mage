@@ -420,6 +420,22 @@ public class DecisionHandler {
     }
 
     /**
+     * Best-effort POST of a pre-built trajectory payload to /v1/log_trajectory.
+     * Used by ComputerPlayer8's DAgger collection mode, which builds the payload
+     * itself (via buildTrajectoryPayload) so it can override the logTrajectory
+     * flag per-payload.  Failures are swallowed: a logging outage must never
+     * affect the game.
+     */
+    public void postTrajectory(JSONObject payload) {
+        try {
+            DecisionPayload dp = new DecisionPayload(ENDPOINT_LOG_TRAJECTORY, payload);
+            client.requestDecision(dp);
+        } catch (Exception e) {
+            logger.debug("trajectory post failed (ignored): " + e.getMessage());
+        }
+    }
+
+    /**
      * Build trajectory logging payload for RL training data collection.
      * This is used by ComputerPlayer7Instrumented to log decision trajectories.
      */

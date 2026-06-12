@@ -97,6 +97,17 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
     private static final boolean CP7_SHADOW_ENABLED = Boolean.getBoolean("magellm.cp7Shadow");
     private static final double CP7_SHADOW_RATE = parseShadowRate();
 
+    // DAgger Phase 2 collection mode (-Dmagellm.dagger=true): the shadow CP7
+    // runs on EVERY decision (rate gate bypassed) and its choice is written as
+    // the trajectory label via CP7Instrumented-style /v1/log_trajectory event
+    // pairs (the RL's own action is executed but NEVER logged as the label —
+    // learnings §15: RL-chosen actions are not expert labels).  The JVM runs
+    // with -Dmagellmfast.logTrajectory=false so the inference server writes no
+    // RL-side records; the explicit DAgger posts force logTrajectory=true in
+    // the payload.  Agreement posts are SKIPPED in this mode so the benchmark
+    // probe data stays clean.
+    private static final boolean DAGGER_MODE = Boolean.getBoolean("magellm.dagger");
+
     private static double parseShadowRate() {
         try {
             return Double.parseDouble(System.getProperty("magellm.cp7ShadowRate", "0.25"));
@@ -104,6 +115,11 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
             return 0.25;
         }
     }
+
+    // Synchronous sequence counter for DAgger trajectory entries (mirrors
+    // CP7Instrumented.logSeq) so the Python filter can restore logical order
+    // despite async HTTP delivery.
+    private long daggerLogSeq = 0;
 
     private boolean allowBadMoves;
     private final DecisionHandler decisionHandler;
@@ -156,7 +172,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         // Shadow CP7 probe: run BEFORE the chosen action executes so the expert
         // thinks on exactly the state the RL agent saw. Only when a real decision
         // was made (forced single-Pass states never hit the RL server).
-        if (CP7_SHADOW_ENABLED && allActions.size() > 1) {
+        if ((CP7_SHADOW_ENABLED || DAGGER_MODE) && allActions.size() > 1) {
             shadowProbePriority(game, allActions, chosenActionIndex);
         }
 
@@ -295,8 +311,8 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
 
                 // Shadow CP7 probe: BEFORE declaring, so the expert sees the same
                 // pre-declaration state the RL agent decided on.
-                if (CP7_SHADOW_ENABLED) {
-                    shadowProbeAttackers(game, attackersList, selectedAttackers);
+                if (CP7_SHADOW_ENABLED || DAGGER_MODE) {
+                    shadowProbeAttackers(game, attackersList, possibleBlockers, selectedAttackers);
                 }
 
                 for (Permanent attacker : selectedAttackers) {
@@ -1019,7 +1035,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
      */
     private void shadowProbePriority(Game game, List<Ability> allActions, int rlChosenIndex) {
         try {
-            if (ThreadLocalRandom.current().nextDouble() >= CP7_SHADOW_RATE) {
+            if (!DAGGER_MODE && ThreadLocalRandom.current().nextDouble() >= CP7_SHADOW_RATE) {
                 return;
             }
             ComputerPlayer7 shadow = newShadowCp7();
@@ -1041,12 +1057,88 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
                     break;
                 }
             }
+            if (DAGGER_MODE) {
+                // Collection mode: the shadow choice IS the training label.
+                // Unmatched choices are dropped (never logged) so no sample can
+                // carry a non-expert label.
+                if (matchedIndex == null) {
+                    logger.warn("DAgger: shadow choice '" + cp7Text
+                            + "' not in RL action list (" + allActions.size()
+                            + " actions) - decision dropped");
+                    return;
+                }
+                logDaggerPriority(game, allActions, cp7Choice, matchedIndex);
+                return;
+            }
             postShadowAgreement(game, "priority",
                     allActions.get(rlChosenIndex).toString(), rlChosenIndex,
                     cp7Text, matchedIndex, allActions.size());
         } catch (Throwable t) {
             logger.warn("CP7 shadow probe (priority) failed - ignored", t);
         }
+    }
+
+    /**
+     * DAgger: emit the CP7Instrumented-style (priority, priority_result) event
+     * pair with the SHADOW choice as the chosen action.  Payloads are built
+     * synchronously (the game state must be captured before the RL action
+     * executes); the HTTP posts are async best-effort.
+     */
+    private void logDaggerPriority(Game game, List<Ability> allActions,
+            Ability cp7Choice, int matchedIndex) {
+        try {
+            Map<String, Object> triggerCtx = newDaggerContext();
+            JSONObject trigger = decisionHandler.buildTrajectoryPayload(
+                    game, this, "priority", allActions, null, triggerCtx);
+
+            boolean passed = cp7Choice == null || cp7Choice instanceof PassAbility
+                    || matchedIndex == 0;
+            Map<String, Object> chosenAction = new java.util.HashMap<>();
+            chosenAction.put("result", true);
+            chosenAction.put("step_type", game.getTurnStepType() != null
+                    ? game.getTurnStepType().toString() : "");
+            chosenAction.put("passed", passed);
+            List<Object> chosenList = new ArrayList<>();
+            if (!passed) {
+                chosenList.add(allActions.get(matchedIndex));
+            }
+            chosenAction.put("chosen_actions", chosenList);
+            chosenAction.put("actions_taken", chosenList.size());
+            chosenAction.put("available_actions_count", allActions.size());
+            Map<String, Object> resultCtx = newDaggerContext();
+            JSONObject result = decisionHandler.buildTrajectoryPayload(
+                    game, this, "priority_result", null, chosenAction, resultCtx);
+
+            sendDaggerTrajectory(trigger);
+            sendDaggerTrajectory(result);
+        } catch (Throwable t) {
+            logger.warn("DAgger priority trajectory logging failed - ignored", t);
+        }
+    }
+
+    /** Fresh additionalContext map carrying DAgger provenance + ordering seq. */
+    private Map<String, Object> newDaggerContext() {
+        Map<String, Object> ctx = new java.util.HashMap<>();
+        ctx.put("dagger", true);
+        ctx.put("loggedAt", System.currentTimeMillis());
+        ctx.put("log_seq", daggerLogSeq++);
+        return ctx;
+    }
+
+    /**
+     * Async best-effort POST of a DAgger trajectory payload.  The JVM-wide
+     * -Dmagellmfast.logTrajectory=false (which suppresses the inference
+     * server's RL-side records) is overridden per-payload here: these explicit
+     * shadow-labeled posts are the ONLY trajectory records DAgger games emit.
+     */
+    private void sendDaggerTrajectory(JSONObject payload) {
+        try {
+            payload.put("logTrajectory", true);
+        } catch (Exception e) {
+            logger.warn("DAgger: could not stamp logTrajectory=true: " + e.getMessage());
+            return;
+        }
+        Thread.ofVirtual().start(() -> decisionHandler.postTrajectory(payload));
     }
 
     /**
@@ -1059,9 +1151,9 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
      * Convention: rl_choice_index = 0, matched_index = 0 on agreement else null.
      */
     private void shadowProbeAttackers(Game game, List<Permanent> possibleAttackers,
-            List<Permanent> rlSelectedAttackers) {
+            List<Permanent> possibleBlockers, List<Permanent> rlSelectedAttackers) {
         try {
-            if (ThreadLocalRandom.current().nextDouble() >= CP7_SHADOW_RATE) {
+            if (!DAGGER_MODE && ThreadLocalRandom.current().nextDouble() >= CP7_SHADOW_RATE) {
                 return;
             }
             ComputerPlayer7 shadow = newShadowCp7();
@@ -1071,6 +1163,13 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
                 shadow.selectAttackers(sim, playerId);
             } finally {
                 RandomUtil.exitSimulation();
+            }
+            if (DAGGER_MODE) {
+                // Collection mode: the shadow's attacker set IS the training
+                // label (ids are stable across the simulation copy).
+                List<UUID> cp7AttackerIds = new ArrayList<>(sim.getCombat().getAttackers());
+                logDaggerAttackers(game, possibleAttackers, possibleBlockers, cp7AttackerIds);
+                return;
             }
             List<String> cp7Names = new ArrayList<>();
             for (UUID attackerId : sim.getCombat().getAttackers()) {
@@ -1092,6 +1191,73 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         } catch (Throwable t) {
             logger.warn("CP7 shadow probe (attackers) failed - ignored", t);
         }
+    }
+
+    /**
+     * DAgger: emit the CP7Instrumented-style (attackers, attackers_result)
+     * event pair with the SHADOW's declared attacker set as the label.
+     * Context/result shapes mirror ComputerPlayer7Instrumented exactly so
+     * parse_trajectories.py consumes these files unchanged.
+     */
+    private void logDaggerAttackers(Game game, List<Permanent> possibleAttackers,
+            List<Permanent> possibleBlockers, List<UUID> cp7AttackerIds) {
+        try {
+            List<Map<String, Object>> atksJson = new ArrayList<>();
+            for (Permanent atk : possibleAttackers) {
+                atksJson.add(daggerPermanentToSimpleMap(atk));
+            }
+            List<Map<String, Object>> blksJson = new ArrayList<>();
+            for (Permanent blk : possibleBlockers) {
+                blksJson.add(daggerPermanentToSimpleMap(blk));
+            }
+            Map<String, Object> triggerCtx = newDaggerContext();
+            triggerCtx.put("possibleAttackers", atksJson);
+            triggerCtx.put("possibleBlockers", blksJson);
+            JSONObject trigger = decisionHandler.buildTrajectoryPayload(
+                    game, this, "attackers", null, null, triggerCtx);
+
+            Map<String, Object> chosenAction = new java.util.HashMap<>();
+            chosenAction.put("declared_attackers", cp7AttackerIds.size());
+            List<String> attackerUuids = new ArrayList<>();
+            for (UUID id : cp7AttackerIds) {
+                attackerUuids.add(id.toString());
+            }
+            chosenAction.put("attacker_uuids", attackerUuids);
+            Map<String, Object> resultCtx = newDaggerContext();
+            JSONObject result = decisionHandler.buildTrajectoryPayload(
+                    game, this, "attackers_result", null, chosenAction, resultCtx);
+
+            sendDaggerTrajectory(trigger);
+            sendDaggerTrajectory(result);
+        } catch (Throwable t) {
+            logger.warn("DAgger attackers trajectory logging failed - ignored", t);
+        }
+    }
+
+    /**
+     * Serialize a Permanent for the attackers trajectory context.  Field-for-
+     * field copy of ComputerPlayer7Instrumented.permanentToSimpleMap (private
+     * there; CP8 extends CP7, not CP7Instrumented) so the Python Permanent
+     * pydantic model parses DAgger and mageai records identically.
+     */
+    private Map<String, Object> daggerPermanentToSimpleMap(Permanent p) {
+        Map<String, Object> m = new java.util.HashMap<>();
+        m.put("permanentId", p.getId().toString());
+        m.put("id", p.getId().toString());
+        m.put("name", p.getName());
+        m.put("power", p.getPower() != null ? p.getPower().getValue() : 0);
+        m.put("toughness", p.getToughness() != null ? p.getToughness().getValue() : 0);
+        m.put("abilities", p.getAbilities().stream()
+                .map(a -> a.getRule())
+                .filter(r -> r != null && !r.isEmpty())
+                .collect(java.util.stream.Collectors.joining("; ")));
+        m.put("cardType", p.getCardType() != null ? p.getCardType().toString() : "");
+        m.put("supertype", p.getSuperType() != null ? p.getSuperType().toString() : "");
+        m.put("subtype", p.getSubtype() != null ? p.getSubtype().toString() : "");
+        m.put("color", p.getColor() != null ? p.getColor().toString() : "");
+        m.put("manaCost", p.getManaCost() != null ? p.getManaCost().toString() : "");
+        m.put("ownerId", p.getOwnerId() != null ? p.getOwnerId().toString() : "");
+        return m;
     }
 
     /** Build the comparison payload and POST it best-effort via DecisionHandler. */
