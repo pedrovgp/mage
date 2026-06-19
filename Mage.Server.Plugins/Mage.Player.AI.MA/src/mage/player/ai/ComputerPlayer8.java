@@ -269,6 +269,11 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
     @Override
     public boolean choose(Outcome outcome, Choice choice, Game game) {
         logger.debug("choose 8");
+        // DAgger: log this choice decision (with the expert/CP7-heuristic label)
+        // BEFORE the student acts, so the logged state precedes the decision.
+        if (DAGGER_MODE) {
+            logDaggerChoice(game, outcome, choice);
+        }
         // Delegate general choice selection to RL decision engine when multiple options exist
         if (!choice.isChosen() && choice.getChoices() != null && !choice.getChoices().isEmpty()) {
             try {
@@ -391,6 +396,13 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         for (int i = 0; i < sortedPairs.size(); i++) {
             possibleTargetsUUIDArray[i] = sortedPairs.get(i).getKey();
             possibleTargetsArray[i] = sortedPairs.get(i).getValue();
+        }
+
+        // DAgger: log this target decision (with the expert/CP7-heuristic label)
+        // BEFORE the student picks.  Mirrors CP7Instrumented's >=2-candidate gate.
+        if (DAGGER_MODE && sortedPairs.size() >= 2) {
+            logDaggerTarget(game, outcome, target, source, abilityControllerId,
+                    possibleTargetsUUIDArray, possibleTargetsArray);
         }
 
         // LLM single-target selection (smoke coverage): if there is exactly one pick to
@@ -1003,9 +1015,18 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
 
     @Override
     public void selectBlockers(mage.abilities.Ability source, Game game, UUID defendingPlayerId) {
+        // DAgger: log the pre-blocker state, then the declared blockers, mirroring
+        // ComputerPlayer7Instrumented.  CP8's blocker logic IS the CP6 heuristic
+        // (super.selectBlockers), so the student's own declaration is the label.
+        if (DAGGER_MODE) {
+            logDaggerBlockersPre(game, source, defendingPlayerId);
+        }
         long _t0 = System.nanoTime();
         super.selectBlockers(source, game, defendingPlayerId);
         DecisionStats.INSTANCE.recordLocalBlockers(System.nanoTime() - _t0);
+        if (DAGGER_MODE) {
+            logDaggerBlockersResult(game, source);
+        }
     }
 
     // ================================================================================
@@ -1081,13 +1102,18 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
             }
             if (DAGGER_MODE) {
                 // Collection mode (student acted): the shadow choice IS the
-                // training label.  Unmatched choices are dropped (never
-                // logged) so no sample can carry a non-expert label.
+                // training label.  We ALWAYS log multi-action priority
+                // decisions now.  Previously an unmatched shadow choice
+                // (matchedIndex == null) was silently dropped, discarding a
+                // learnable priority decision on every serialization mismatch.
+                // Instead, when matched we log the exact RL action (guarantees
+                // serialization parity); when unmatched we log the shadow
+                // ability directly and let the Python parser's fuzzy
+                // match_chosen_to_available recover the index.
                 if (matchedIndex == null) {
-                    logger.warn("DAgger: shadow choice '" + cp7Text
+                    logger.debug("DAgger: shadow choice '" + cp7Text
                             + "' not in RL action list (" + allActions.size()
-                            + " actions) - decision dropped");
-                    return;
+                            + " actions) - logging shadow ability for fuzzy match");
                 }
                 logDaggerPriority(game, allActions, cp7Choice, matchedIndex);
                 return;
@@ -1107,14 +1133,14 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
      * executes); the HTTP posts are async best-effort.
      */
     private void logDaggerPriority(Game game, List<Ability> allActions,
-            Ability cp7Choice, int matchedIndex) {
+            Ability cp7Choice, Integer matchedIndex) {
         try {
             Map<String, Object> triggerCtx = newDaggerContext();
             JSONObject trigger = decisionHandler.buildTrajectoryPayload(
                     game, this, "priority", allActions, null, triggerCtx);
 
             boolean passed = cp7Choice == null || cp7Choice instanceof PassAbility
-                    || matchedIndex == 0;
+                    || (matchedIndex != null && matchedIndex == 0);
             Map<String, Object> chosenAction = new java.util.HashMap<>();
             chosenAction.put("result", true);
             chosenAction.put("step_type", game.getTurnStepType() != null
@@ -1122,7 +1148,14 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
             chosenAction.put("passed", passed);
             List<Object> chosenList = new ArrayList<>();
             if (!passed) {
-                chosenList.add(allActions.get(matchedIndex));
+                // matched -> log the exact RL action (serialization parity);
+                // unmatched -> log the shadow ability and rely on the parser's
+                // fuzzy description match to recover the index downstream.
+                if (matchedIndex != null) {
+                    chosenList.add(allActions.get(matchedIndex));
+                } else if (cp7Choice != null) {
+                    chosenList.add(cp7Choice);
+                }
             }
             chosenAction.put("chosen_actions", chosenList);
             chosenAction.put("actions_taken", chosenList.size());
@@ -1288,6 +1321,220 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         m.put("manaCost", p.getManaCost() != null ? p.getManaCost().toString() : "");
         m.put("ownerId", p.getOwnerId() != null ? p.getOwnerId().toString() : "");
         return m;
+    }
+
+    /**
+     * DAgger: emit the CP7Instrumented-style (choice, choice_result) pair for a
+     * general {@link Choice} decision.  The expert/teacher label is computed by
+     * running the base CP heuristic ({@code super.choose}) on a COPY of the
+     * choice so the live choice is never mutated; the run is wrapped in
+     * RandomUtil.enterSimulation()/exitSimulation() because the heuristic may
+     * fall back to a random pick that would otherwise advance the live game's
+     * RNG sequence.  Only logged when there are >=2 options (single-option
+     * "choices" are not learnable decisions).  Best-effort: any failure is
+     * swallowed so a logging problem can never abort the game.
+     */
+    private void logDaggerChoice(Game game, Outcome outcome, Choice choice) {
+        try {
+            if (choice == null || choice.isChosen()
+                    || choice.getChoices() == null || choice.getChoices().size() < 2) {
+                return;
+            }
+            // Expert label on an isolated copy (no live mutation, RNG-guarded).
+            String expert = null;
+            try {
+                Choice copy = choice.copy();
+                copy.clearChoice();
+                RandomUtil.enterSimulation();
+                try {
+                    super.choose(outcome, copy, game);
+                } finally {
+                    RandomUtil.exitSimulation();
+                }
+                expert = copy.getChoice();
+            } catch (Throwable t) {
+                logger.debug("DAgger choice expert probe failed - logging without label: "
+                        + t.getMessage());
+            }
+
+            Map<String, Object> available = new java.util.HashMap<>();
+            available.put("outcome", outcome != null ? outcome.toString() : "");
+            available.put("choice_type", choice.getClass().getSimpleName());
+            available.put("message", choice.getMessage());
+            available.put("choices", choice.getChoices());
+            Map<String, Object> triggerCtx = newDaggerContext();
+            JSONObject trigger = decisionHandler.buildTrajectoryPayload(
+                    game, this, "choice", available, null, triggerCtx);
+
+            Map<String, Object> chosenAction = new java.util.HashMap<>();
+            chosenAction.put("chosen", expert);
+            chosenAction.put("result", expert != null);
+            Map<String, Object> resultCtx = newDaggerContext();
+            JSONObject result = decisionHandler.buildTrajectoryPayload(
+                    game, this, "choice_result", null, chosenAction, resultCtx);
+
+            sendDaggerTrajectory(trigger);
+            sendDaggerTrajectory(result);
+        } catch (Throwable t) {
+            logger.warn("DAgger choice trajectory logging failed - ignored", t);
+        }
+    }
+
+    /**
+     * DAgger: emit the CP7Instrumented-style (target, target_result) pair for a
+     * target selection.  The available_actions list mirrors CP7Instrumented's
+     * "Target" Action-like shape (alphabetically sorted candidates).  The expert
+     * label is the CP7 heuristic's target choice, computed by running a shadow
+     * CP7 chooseTarget on a SIMULATION copy of the game + a copy of the target
+     * (so neither the live game nor the live target is mutated; addTarget fires
+     * its TARGET/TARGETED events only on the throwaway sim).  ids are stable
+     * across the sim copy, so the chosen ids map back to the live candidate list.
+     */
+    private void logDaggerTarget(Game game, Outcome outcome, Target target, Ability source,
+            UUID abilityControllerId, UUID[] candidateUuids, MageObject[] candidateObjects) {
+        try {
+            // available_actions: one map per candidate, CP7Instrumented format.
+            List<Map<String, Object>> availableActions = new ArrayList<>();
+            for (int i = 0; i < candidateUuids.length; i++) {
+                Map<String, Object> actionMap = new java.util.HashMap<>();
+                actionMap.put("description",
+                        candidateObjects[i] != null ? candidateObjects[i].toString() : "unknown");
+                actionMap.put("sourceId", candidateUuids[i].toString());
+                actionMap.put("abilityType", "Target");
+                actionMap.put("className", target.getClass().getSimpleName());
+                actionMap.put("costs", "[]");
+                actionMap.put("targets", "[]");
+                availableActions.add(actionMap);
+            }
+
+            // Expert label: shadow CP7 targeting on an isolated simulation copy.
+            List<UUID> expertChosen = new ArrayList<>();
+            try {
+                ComputerPlayer7 shadow = newShadowCp7();
+                Game sim = shadow.createSimulation(game);
+                Target targetCopy = target.copy();
+                targetCopy.clearChosen();
+                RandomUtil.enterSimulation();
+                try {
+                    shadow.chooseTarget(outcome, targetCopy, source, sim);
+                } finally {
+                    RandomUtil.exitSimulation();
+                }
+                expertChosen.addAll(targetCopy.getTargets());
+            } catch (Throwable t) {
+                logger.debug("DAgger target expert probe failed - logging without label: "
+                        + t.getMessage());
+            }
+
+            Map<String, Object> triggerCtx = newDaggerContext();
+            triggerCtx.put("targetName", target.getTargetName());
+            triggerCtx.put("targetType", target.getClass().getSimpleName());
+            triggerCtx.put("outcome", outcome != null ? outcome.toString() : "");
+            if (source != null) {
+                triggerCtx.put("sourceAbility", source.toString());
+                if (source.getSourceId() != null) {
+                    triggerCtx.put("sourceId", source.getSourceId().toString());
+                }
+            }
+            JSONObject trigger = decisionHandler.buildTrajectoryPayload(
+                    game, this, "target", availableActions, null, triggerCtx);
+
+            // Map expert-chosen ids back to indices in the (live) candidate list.
+            List<String> chosenDescriptions = new ArrayList<>();
+            List<String> chosenUuids = new ArrayList<>();
+            List<Integer> chosenIndices = new ArrayList<>();
+            for (UUID chosen : expertChosen) {
+                int idx = -1;
+                String desc = "unknown";
+                for (int i = 0; i < candidateUuids.length; i++) {
+                    if (candidateUuids[i].equals(chosen)) {
+                        idx = i;
+                        desc = candidateObjects[i] != null ? candidateObjects[i].toString() : "unknown";
+                        break;
+                    }
+                }
+                chosenDescriptions.add(desc);
+                chosenUuids.add(chosen.toString());
+                chosenIndices.add(idx);
+            }
+
+            Map<String, Object> chosenAction = new java.util.HashMap<>();
+            chosenAction.put("chosen_descriptions", chosenDescriptions);
+            chosenAction.put("chosen_uuids", chosenUuids);
+            chosenAction.put("chosen_indices", chosenIndices);
+            chosenAction.put("result", !expertChosen.isEmpty());
+            Map<String, Object> resultCtx = newDaggerContext();
+            JSONObject result = decisionHandler.buildTrajectoryPayload(
+                    game, this, "target_result", null, chosenAction, resultCtx);
+
+            sendDaggerTrajectory(trigger);
+            sendDaggerTrajectory(result);
+        } catch (Throwable t) {
+            logger.warn("DAgger target trajectory logging failed - ignored", t);
+        }
+    }
+
+    /**
+     * DAgger: emit the CP7Instrumented-style "blockers" pre-decision event with
+     * the available blockers, attacking creatures, and defending player.  CP8's
+     * blocker selection is the CP6 heuristic, so the student's own declaration
+     * (read back in {@link #logDaggerBlockersResult}) is the label.
+     */
+    private void logDaggerBlockersPre(Game game, Ability source, UUID defendingPlayerId) {
+        try {
+            List<Map<String, Object>> availableBlockers = new ArrayList<>();
+            for (Permanent blocker : super.getAvailableBlockers(game)) {
+                availableBlockers.add(daggerPermanentToSimpleMap(blocker));
+            }
+            List<Map<String, Object>> attackingCreatures = new ArrayList<>();
+            if (game.getCombat() != null) {
+                for (UUID atkId : game.getCombat().getAttackers()) {
+                    Permanent atk = game.getPermanent(atkId);
+                    if (atk != null) {
+                        attackingCreatures.add(daggerPermanentToSimpleMap(atk));
+                    }
+                }
+            }
+            Map<String, Object> available = new java.util.HashMap<>();
+            available.put("available_blockers", availableBlockers);
+            available.put("attacking_creatures", attackingCreatures);
+            available.put("defending_player",
+                    defendingPlayerId != null ? defendingPlayerId.toString() : "");
+
+            Map<String, Object> triggerCtx = newDaggerContext();
+            if (source != null) {
+                triggerCtx.put("sourceAbility", source.toString());
+                if (source.getSourceId() != null) {
+                    triggerCtx.put("sourceId", source.getSourceId().toString());
+                }
+            }
+            JSONObject trigger = decisionHandler.buildTrajectoryPayload(
+                    game, this, "blockers", available, null, triggerCtx);
+            sendDaggerTrajectory(trigger);
+        } catch (Throwable t) {
+            logger.warn("DAgger blockers (pre) trajectory logging failed - ignored", t);
+        }
+    }
+
+    /** DAgger: emit the "blockers_result" event after the student declares blockers. */
+    private void logDaggerBlockersResult(Game game, Ability source) {
+        try {
+            Map<String, Object> chosenAction = new java.util.HashMap<>();
+            chosenAction.put("declared_blockers",
+                    game.getCombat() != null ? game.getCombat().getBlockers().size() : 0);
+            Map<String, Object> resultCtx = newDaggerContext();
+            if (source != null) {
+                resultCtx.put("sourceAbility", source.toString());
+                if (source.getSourceId() != null) {
+                    resultCtx.put("sourceId", source.getSourceId().toString());
+                }
+            }
+            JSONObject result = decisionHandler.buildTrajectoryPayload(
+                    game, this, "blockers_result", null, chosenAction, resultCtx);
+            sendDaggerTrajectory(result);
+        } catch (Throwable t) {
+            logger.warn("DAgger blockers (result) trajectory logging failed - ignored", t);
+        }
     }
 
     /** Build the comparison payload and POST it best-effort via DecisionHandler. */
