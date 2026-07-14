@@ -9,6 +9,7 @@ import mage.game.Game;
 import mage.game.GameState;
 import mage.game.match.MatchPlayer;
 import mage.game.permanent.Permanent;
+import mage.game.stack.StackObject;
 import mage.players.Player;
 import mage.abilities.costs.mana.ColoredManaCost;
 import mage.abilities.costs.mana.GenericManaCost;
@@ -19,6 +20,7 @@ import mage.view.PlayerView;
 import mage.view.PermanentView;
 import mage.view.CardView;
 import mage.view.CardsView;
+import mage.view.StackAbilityView;
 import mage.view.ManaPoolView;
 import mage.view.CombatGroupView;
 
@@ -39,6 +41,7 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -597,7 +600,7 @@ public class DecisionHandler {
     private JSONObject buildGameViewJson(Game game, Player currentPlayer) {
         try {
             GameView gameView = new GameView(game.getState(), game, currentPlayer.getId(), null);
-            return serializeGameView(gameView);
+            return serializeGameView(gameView, game);
         } catch (Exception e) {
             logger.error("[DN1a] Failed to build GameView for player " + currentPlayer.getId() + ": " + e.getMessage(), e);
             return new JSONObject();
@@ -609,7 +612,7 @@ public class DecisionHandler {
      * relevant fields. Does NOT reimplement information hiding — that is handled
      * by XMage's GameView/PlayerView constructors.
      */
-    private JSONObject serializeGameView(GameView gameView) {
+    private JSONObject serializeGameView(GameView gameView, Game game) {
         JSONObject result = new JSONObject();
 
         // Phase / turn metadata
@@ -641,8 +644,9 @@ public class DecisionHandler {
             result.put("opponentPlayer", new JSONObject());
         }
 
-        // Stack (public)
-        result.put("stack", serializeCardsView(gameView.getStack()));
+        // Stack (public) — enriched with chosen targets, source, and controller so the
+        // policy can ground each stack effect to the entities it relates to.
+        result.put("stack", serializeStack(gameView.getStack(), game));
 
         // Combat groups
         JSONArray combatArray = new JSONArray();
@@ -702,6 +706,77 @@ public class DecisionHandler {
         obj.put("manaPool", serializeManaPool(pv.getManaPool()));
 
         return obj;
+    }
+
+    /**
+     * Serialize the stack, enriching each object with the PUBLIC relational fields
+     * the plain {@link #serializeCardView} drops: the chosen {@code targets} (UUIDs),
+     * the {@code sourceId} (the source permanent for an ability; the spell itself for a
+     * spell), and the {@code controllerId}. These let the policy ground a stack effect
+     * to its source and target entities (e.g. respond to a red source with protection
+     * from red). All three are public information — no true-state leak.
+     */
+    private JSONArray serializeStack(CardsView stack, Game game) {
+        JSONArray arr = new JSONArray();
+        if (stack == null) {
+            return arr;
+        }
+        // Controller/source lookups from the true (public) stack, keyed by object id.
+        Map<UUID, String> controllerById = new HashMap<>();
+        Map<UUID, String> sourceById = new HashMap<>();
+        try {
+            for (StackObject so : game.getStack()) {
+                if (so.getId() == null) {
+                    continue;
+                }
+                if (so.getControllerId() != null) {
+                    controllerById.put(so.getId(), so.getControllerId().toString());
+                }
+                if (so.getSourceId() != null) {
+                    sourceById.put(so.getId(), so.getSourceId().toString());
+                }
+            }
+        } catch (Exception e) {
+            // Best-effort enrichment; fall back to view-only fields below.
+            logger.warn("[DN1a] Could not read true stack for controller/source: " + e.getMessage());
+        }
+        for (CardView cardView : stack.values()) {
+            JSONObject obj = serializeCardView(cardView);
+            UUID id = cardView.getId();
+
+            // Chosen targets (public).
+            JSONArray targets = new JSONArray();
+            if (cardView.getTargets() != null) {
+                for (UUID t : cardView.getTargets()) {
+                    if (t != null) {
+                        targets.put(t.toString());
+                    }
+                }
+            }
+            obj.put("targets", targets);
+
+            // Source: ability -> source permanent; otherwise the StackObject source or own id.
+            String sourceId = "";
+            if (cardView instanceof StackAbilityView) {
+                CardView src = ((StackAbilityView) cardView).getSourceCard();
+                if (src != null && src.getId() != null) {
+                    sourceId = src.getId().toString();
+                }
+            }
+            if (sourceId.isEmpty() && id != null) {
+                String soSource = sourceById.get(id);
+                sourceId = (soSource != null) ? soSource : id.toString();
+            }
+            obj.put("sourceId", sourceId);
+
+            // Controller (public).
+            String controllerId = (id != null && controllerById.containsKey(id))
+                    ? controllerById.get(id) : "";
+            obj.put("controllerId", controllerId);
+
+            arr.put(obj);
+        }
+        return arr;
     }
 
     /**
