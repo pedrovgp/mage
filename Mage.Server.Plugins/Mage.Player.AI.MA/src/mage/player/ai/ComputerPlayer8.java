@@ -115,6 +115,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
     // happens in the test harness).
     private static final boolean DAGGER_MODE = Boolean.getBoolean("magellm.dagger");
     private static final double DAGGER_FRACTION = parseDoubleProp("magellm.daggerFraction", 1.0);
+    private static final String TARGET_STOP_CHOICE = "Done selecting targets";
 
     private static double parseShadowRate() {
         return parseDoubleProp("magellm.cp7ShadowRate", 0.25);
@@ -258,7 +259,8 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         // inform* is now called inside handleChoice (with timing); do not call it again here
         DecisionResult result = decisionHandler.handleChoice(game, currentPlayer, outcome, choice, allChoices,
                 getStrategyFromEnvironment());
-        return result.getChosenIndex() != null ? result.getChosenIndex() : 0;
+        return result.isSuccessful() && result.getChosenIndex() != null
+                ? result.getChosenIndex() : -1;
     }
 
     @Override
@@ -269,19 +271,31 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
     @Override
     public boolean choose(Outcome outcome, Choice choice, Game game) {
         logger.debug("choose 8");
-        // DAgger: log this choice decision (with the expert/CP7-heuristic label)
-        // BEFORE the student acts, so the logged state precedes the decision.
-        if (DAGGER_MODE) {
-            logDaggerChoice(game, outcome, choice);
-        }
-        // Delegate general choice selection to RL decision engine when multiple options exist
-        if (!choice.isChosen() && choice.getChoices() != null && !choice.getChoices().isEmpty()) {
+        List<String> optionValues = choiceOptionValues(choice);
+        // Delegate genuine multi-option choices to the model. Compute the CP7
+        // expert once, before live mutation, when DAgger or sampled shadow needs it.
+        if (!choice.isChosen() && optionValues.size() >= 2) {
             try {
                 Player currentPlayer = game.getPlayer(this.getId());
-                String[] allChoices = choice.getChoices().toArray(new String[0]);
+                String[] allChoices = optionValues.toArray(new String[0]);
+                boolean shadowSample = CP7_SHADOW_ENABLED && !DAGGER_MODE
+                        && ThreadLocalRandom.current().nextDouble() < CP7_SHADOW_RATE;
+                String cp7Expert = (DAGGER_MODE || shadowSample)
+                        ? computeCp7ChoiceExpert(game, outcome, choice) : null;
+                if (DAGGER_MODE) {
+                    logDaggerChoice(game, outcome, choice, cp7Expert);
+                }
                 int idx = selectChoiceViaRL(game, currentPlayer, outcome, choice, allChoices);
                 if (idx >= 0 && idx < allChoices.length) {
-                    choice.setChoice(allChoices[idx]);
+                    if (shadowSample && cp7Expert != null) {
+                        shadowProbeChoice(game, allChoices, idx, cp7Expert);
+                    }
+                    if (choice.isKeyChoice()) {
+                        String key = new ArrayList<>(choice.getKeyChoices().keySet()).get(idx);
+                        choice.setChoiceByKey(key);
+                    } else {
+                        choice.setChoice(allChoices[idx]);
+                    }
                     return true;
                 }
             } catch (Exception e) {
@@ -295,6 +309,17 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
             return true;
         }
         return super.choose(outcome, choice, game);
+    }
+
+    private static List<String> choiceOptionValues(Choice choice) {
+        if (choice == null) {
+            return Collections.emptyList();
+        }
+        if (choice.isKeyChoice()) {
+            return new ArrayList<>(choice.getKeyChoices().values());
+        }
+        return choice.getChoices() != null
+                ? new ArrayList<>(choice.getChoices()) : Collections.emptyList();
     }
 
     @Override
@@ -355,6 +380,61 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         return chosen;
     }
 
+    /**
+     * Sequential pick-one target serving. Returns the targets added by the model,
+     * an empty list for a legal immediate stop, or {@code null} when CP7 fallback
+     * should continue from the current (possibly partially filled) target.
+     */
+    private List<UUID> selectTargetsViaRL(Game game, Outcome outcome, Target target,
+            Ability source, UUID abilityControllerId, UUID[] candidateIds,
+            MageObject[] candidateObjects) {
+        Player currentPlayer = game.getPlayer(this.getId());
+        if (currentPlayer == null) {
+            return null;
+        }
+        List<Integer> remaining = new ArrayList<>();
+        for (int i = 0; i < candidateIds.length; i++) {
+            if (!target.getTargets().contains(candidateIds[i])) {
+                remaining.add(i);
+            }
+        }
+        List<UUID> selected = new ArrayList<>();
+        while (!remaining.isEmpty()
+                && target.getTargets().size() < target.getMaxNumberOfTargets()) {
+            boolean canStop = target.getTargets().size() >= target.getMinNumberOfTargets();
+            List<String> choices = new ArrayList<>();
+            if (canStop) {
+                choices.add(TARGET_STOP_CHOICE);
+            }
+            for (Integer originalIndex : remaining) {
+                MageObject object = candidateObjects[originalIndex];
+                choices.add(object != null ? object.toString() : "unknown");
+            }
+            DecisionResult result = decisionHandler.handleTargets(
+                    game, currentPlayer, outcome, choices.toArray(new String[0]),
+                    getStrategyFromEnvironment());
+            if (!result.isSuccessful() || result.getChosenIndex() == null) {
+                return null;
+            }
+            int chosenIndex = result.getChosenIndex();
+            if (canStop && chosenIndex == 0) {
+                return selected;
+            }
+            int remainingPosition = chosenIndex - (canStop ? 1 : 0);
+            if (remainingPosition < 0 || remainingPosition >= remaining.size()) {
+                return null;
+            }
+            int originalIndex = remaining.remove(remainingPosition);
+            UUID chosen = candidateIds[originalIndex];
+            if (!target.canTarget(abilityControllerId, chosen, source, game)) {
+                return null;
+            }
+            target.addTarget(chosen, source, game);
+            selected.add(chosen);
+        }
+        return selected;
+    }
+
     @Override
     public boolean chooseTarget(Outcome outcome, Target target, Ability source, Game game) {
         if (logger.isDebugEnabled()) {
@@ -398,35 +478,36 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
             possibleTargetsArray[i] = sortedPairs.get(i).getValue();
         }
 
-        // DAgger: log this target decision (with the expert/CP7-heuristic label)
-        // BEFORE the student picks.  Mirrors CP7Instrumented's >=2-candidate gate.
+        boolean targetShadowSample = CP7_SHADOW_ENABLED && !DAGGER_MODE
+                && sortedPairs.size() >= 2
+                && ThreadLocalRandom.current().nextDouble() < CP7_SHADOW_RATE;
+        List<UUID> cp7TargetExpert = (sortedPairs.size() >= 2
+                && (DAGGER_MODE || targetShadowSample))
+                ? computeCp7TargetExpert(game, outcome, target, source)
+                : null;
+        // DAgger and benchmark shadow share the same pre-action expert result.
         if (DAGGER_MODE && sortedPairs.size() >= 2) {
             logDaggerTarget(game, outcome, target, source, abilityControllerId,
-                    possibleTargetsUUIDArray, possibleTargetsArray);
+                    possibleTargetsUUIDArray, possibleTargetsArray, cp7TargetExpert);
         }
 
-        // LLM single-target selection (smoke coverage): if there is exactly one pick to
-        // make, ask LLM once
+        // Generic target selection: sequentially ask the board policy for one
+        // remaining target at a time. Once the minimum is met, index 0 becomes
+        // an explicit stop option. Unsupported/failing shapes fall through to
+        // the existing CP7-derived local heuristic below.
         try {
-            if (possibleTargetsArray.length > 0
-                    && target.getMaxNumberOfTargets() == 1
-                    && target.getTargets().isEmpty()) {
-                String[] allChoices = new String[possibleTargetsArray.length];
-                for (int i2 = 0; i2 < possibleTargetsArray.length; i2++) {
-                    MageObject mo = possibleTargetsArray[i2];
-                    allChoices[i2] = mo != null ? mo.toString() : "unknown";
-                }
-                Player currentPlayer = game.getPlayer(this.getId());
-                // inform* is now called inside handleTargets (with timing); do not call it again here
-                DecisionResult dr = decisionHandler.handleTargets(game, currentPlayer, outcome, allChoices,
-                        getStrategyFromEnvironment());
-                int idx = dr.getChosenIndex() != null ? dr.getChosenIndex() : 0;
-                if (idx >= 0 && idx < possibleTargetsUUIDArray.length) {
-                    UUID chosen = possibleTargetsUUIDArray[idx];
-                    if (target.canTarget(abilityControllerId, chosen, source, game)) {
-                        target.addTarget(chosen, source, game);
-                        return true;
+            if (possibleTargetsArray.length > 0) {
+                List<UUID> rlChosenTargets = selectTargetsViaRL(
+                        game, outcome, target, source, abilityControllerId,
+                        possibleTargetsUUIDArray, possibleTargetsArray);
+                if (rlChosenTargets != null) {
+                    if (targetShadowSample && cp7TargetExpert != null) {
+                        shadowProbeTarget(game,
+                                possibleTargetsUUIDArray, possibleTargetsArray,
+                                new ArrayList<>(target.getTargets()), cp7TargetExpert);
                     }
+                    return target.isChosen(game)
+                            || target.getTargets().size() >= target.getMinNumberOfTargets();
                 }
             }
         } catch (Exception e) {
@@ -1064,6 +1145,43 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         return shadow;
     }
 
+    private String computeCp7ChoiceExpert(Game game, Outcome outcome, Choice choice) {
+        try {
+            Choice copy = choice.copy();
+            copy.clearChoice();
+            RandomUtil.enterSimulation();
+            try {
+                super.choose(outcome, copy, game);
+            } finally {
+                RandomUtil.exitSimulation();
+            }
+            return copy.getChoice();
+        } catch (Throwable t) {
+            logger.debug("CP7 choice expert probe failed: " + t.getMessage());
+            return null;
+        }
+    }
+
+    private List<UUID> computeCp7TargetExpert(Game game, Outcome outcome,
+            Target target, Ability source) {
+        List<UUID> expertChosen = new ArrayList<>();
+        try {
+            ComputerPlayer7 shadow = newShadowCp7();
+            Game sim = shadow.createSimulation(game);
+            Target targetCopy = target.copy();
+            RandomUtil.enterSimulation();
+            try {
+                shadow.chooseTarget(outcome, targetCopy, source, sim);
+            } finally {
+                RandomUtil.exitSimulation();
+            }
+            expertChosen.addAll(targetCopy.getTargets());
+        } catch (Throwable t) {
+            logger.debug("CP7 target expert probe failed: " + t.getMessage());
+        }
+        return expertChosen;
+    }
+
     /** Match key identical to the one actionCache uses (rule + source id). */
     private static String shadowAbilityKey(Ability ability) {
         return ability.getRule() + '_' + ability.getSourceId();
@@ -1120,7 +1238,9 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
             }
             postShadowAgreement(game, "priority",
                     allActions.get(rlChosenIndex).toString(), rlChosenIndex,
-                    cp7Text, matchedIndex, allActions.size());
+                    cp7Text, matchedIndex, allActions.size(),
+                    allActions.get(rlChosenIndex) instanceof PassAbility,
+                    cp7Choice == null || cp7Choice instanceof PassAbility);
         } catch (Throwable t) {
             logger.warn("CP7 shadow probe (priority) failed - ignored", t);
         }
@@ -1250,7 +1370,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
             String cp7Text = String.join(", ", cp7Names);
             Integer matchedIndex = rlText.equals(cp7Text) ? Integer.valueOf(0) : null;
             postShadowAgreement(game, "attackers", rlText, 0, cp7Text, matchedIndex,
-                    possibleAttackers.size());
+                    possibleAttackers.size(), rlNames.isEmpty(), cp7Names.isEmpty());
         } catch (Throwable t) {
             logger.warn("CP7 shadow probe (attackers) failed - ignored", t);
         }
@@ -1323,6 +1443,57 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         return m;
     }
 
+    private void shadowProbeChoice(Game game, String[] allChoices,
+            int rlChosenIndex, String cp7Expert) {
+        try {
+            Integer matchedIndex = null;
+            for (int i = 0; i < allChoices.length; i++) {
+                if (allChoices[i].equals(cp7Expert)) {
+                    matchedIndex = i;
+                    break;
+                }
+            }
+            postShadowAgreement(game, "choice",
+                    allChoices[rlChosenIndex], rlChosenIndex,
+                    cp7Expert, matchedIndex, allChoices.length,
+                    false, false);
+        } catch (Throwable t) {
+            logger.warn("CP7 shadow probe (choice) failed - ignored", t);
+        }
+    }
+
+    private void shadowProbeTarget(Game game, UUID[] candidateUuids,
+            MageObject[] candidateObjects, List<UUID> rlChosen,
+            List<UUID> cp7Chosen) {
+        try {
+            Set<UUID> rlSet = new HashSet<>(rlChosen);
+            Set<UUID> cp7Set = new HashSet<>(cp7Chosen);
+            List<String> rlTextParts = new ArrayList<>();
+            List<String> cp7TextParts = new ArrayList<>();
+            for (int i = 0; i < candidateUuids.length; i++) {
+                String text = candidateObjects[i] != null
+                        ? candidateObjects[i].toString() : candidateUuids[i].toString();
+                if (rlSet.contains(candidateUuids[i])) {
+                    rlTextParts.add(text);
+                }
+                if (cp7Set.contains(candidateUuids[i])) {
+                    cp7TextParts.add(text);
+                }
+            }
+            Collections.sort(rlTextParts);
+            Collections.sort(cp7TextParts);
+            String rlText = rlTextParts.isEmpty()
+                    ? TARGET_STOP_CHOICE : String.join(", ", rlTextParts);
+            String cp7Text = cp7TextParts.isEmpty()
+                    ? TARGET_STOP_CHOICE : String.join(", ", cp7TextParts);
+            Integer matchedIndex = rlSet.equals(cp7Set) ? Integer.valueOf(0) : null;
+            postShadowAgreement(game, "target", rlText, 0, cp7Text,
+                    matchedIndex, candidateUuids.length, false, false);
+        } catch (Throwable t) {
+            logger.warn("CP7 shadow probe (target) failed - ignored", t);
+        }
+    }
+
     /**
      * DAgger: emit the CP7Instrumented-style (choice, choice_result) pair for a
      * general {@link Choice} decision.  The expert/teacher label is computed by
@@ -1334,34 +1505,23 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
      * "choices" are not learnable decisions).  Best-effort: any failure is
      * swallowed so a logging problem can never abort the game.
      */
-    private void logDaggerChoice(Game game, Outcome outcome, Choice choice) {
+    private void logDaggerChoice(Game game, Outcome outcome, Choice choice, String expert) {
         try {
-            if (choice == null || choice.isChosen()
-                    || choice.getChoices() == null || choice.getChoices().size() < 2) {
+            List<String> optionValues = choiceOptionValues(choice);
+            if (choice == null || choice.isChosen() || optionValues.size() < 2) {
                 return;
-            }
-            // Expert label on an isolated copy (no live mutation, RNG-guarded).
-            String expert = null;
-            try {
-                Choice copy = choice.copy();
-                copy.clearChoice();
-                RandomUtil.enterSimulation();
-                try {
-                    super.choose(outcome, copy, game);
-                } finally {
-                    RandomUtil.exitSimulation();
-                }
-                expert = copy.getChoice();
-            } catch (Throwable t) {
-                logger.debug("DAgger choice expert probe failed - logging without label: "
-                        + t.getMessage());
             }
 
             Map<String, Object> available = new java.util.HashMap<>();
             available.put("outcome", outcome != null ? outcome.toString() : "");
             available.put("choice_type", choice.getClass().getSimpleName());
             available.put("message", choice.getMessage());
-            available.put("choices", choice.getChoices());
+            available.put("choices", optionValues);
+            available.put("key_choice", choice.isKeyChoice());
+            if (choice.isKeyChoice()) {
+                available.put("choice_keys",
+                        new ArrayList<>(choice.getKeyChoices().keySet()));
+            }
             Map<String, Object> triggerCtx = newDaggerContext();
             JSONObject trigger = decisionHandler.buildTrajectoryPayload(
                     game, this, "choice", available, null, triggerCtx);
@@ -1391,7 +1551,8 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
      * across the sim copy, so the chosen ids map back to the live candidate list.
      */
     private void logDaggerTarget(Game game, Outcome outcome, Target target, Ability source,
-            UUID abilityControllerId, UUID[] candidateUuids, MageObject[] candidateObjects) {
+            UUID abilityControllerId, UUID[] candidateUuids, MageObject[] candidateObjects,
+            List<UUID> expertChosen) {
         try {
             // available_actions: one map per candidate, CP7Instrumented format.
             List<Map<String, Object>> availableActions = new ArrayList<>();
@@ -1407,29 +1568,18 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
                 availableActions.add(actionMap);
             }
 
-            // Expert label: shadow CP7 targeting on an isolated simulation copy.
-            List<UUID> expertChosen = new ArrayList<>();
-            try {
-                ComputerPlayer7 shadow = newShadowCp7();
-                Game sim = shadow.createSimulation(game);
-                Target targetCopy = target.copy();
-                targetCopy.clearChosen();
-                RandomUtil.enterSimulation();
-                try {
-                    shadow.chooseTarget(outcome, targetCopy, source, sim);
-                } finally {
-                    RandomUtil.exitSimulation();
-                }
-                expertChosen.addAll(targetCopy.getTargets());
-            } catch (Throwable t) {
-                logger.debug("DAgger target expert probe failed - logging without label: "
-                        + t.getMessage());
-            }
+            List<UUID> safeExpertChosen = expertChosen != null
+                    ? expertChosen : Collections.emptyList();
 
             Map<String, Object> triggerCtx = newDaggerContext();
             triggerCtx.put("targetName", target.getTargetName());
             triggerCtx.put("targetType", target.getClass().getSimpleName());
             triggerCtx.put("outcome", outcome != null ? outcome.toString() : "");
+            triggerCtx.put("minTargets", target.getMinNumberOfTargets());
+            triggerCtx.put("maxTargets", target.getMaxNumberOfTargets());
+            triggerCtx.put("alreadySelected", target.getTargets().size());
+            triggerCtx.put("required", target.isRequired(
+                    source != null ? source.getSourceId() : null, game));
             if (source != null) {
                 triggerCtx.put("sourceAbility", source.toString());
                 if (source.getSourceId() != null) {
@@ -1443,7 +1593,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
             List<String> chosenDescriptions = new ArrayList<>();
             List<String> chosenUuids = new ArrayList<>();
             List<Integer> chosenIndices = new ArrayList<>();
-            for (UUID chosen : expertChosen) {
+            for (UUID chosen : safeExpertChosen) {
                 int idx = -1;
                 String desc = "unknown";
                 for (int i = 0; i < candidateUuids.length; i++) {
@@ -1462,7 +1612,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
             chosenAction.put("chosen_descriptions", chosenDescriptions);
             chosenAction.put("chosen_uuids", chosenUuids);
             chosenAction.put("chosen_indices", chosenIndices);
-            chosenAction.put("result", !expertChosen.isEmpty());
+            chosenAction.put("result", !safeExpertChosen.isEmpty());
             Map<String, Object> resultCtx = newDaggerContext();
             JSONObject result = decisionHandler.buildTrajectoryPayload(
                     game, this, "target_result", null, chosenAction, resultCtx);
@@ -1539,7 +1689,8 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
 
     /** Build the comparison payload and POST it best-effort via DecisionHandler. */
     private void postShadowAgreement(Game game, String decisionType, String rlChoiceText,
-            int rlChoiceIndex, String cp7ChoiceText, Integer matchedIndex, int nActions) {
+            int rlChoiceIndex, String cp7ChoiceText, Integer matchedIndex, int nActions,
+            boolean rlIsPass, boolean cp7IsPass) {
         try {
             JSONObject payload = new JSONObject();
             payload.put("game_id", game.getId().toString());
@@ -1554,6 +1705,8 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
             payload.put("cp7_choice_text", cp7ChoiceText);
             payload.put("matched_index", matchedIndex != null ? matchedIndex : JSONObject.NULL);
             payload.put("n_actions", nActions);
+            payload.put("rl_is_pass", rlIsPass);
+            payload.put("cp7_is_pass", cp7IsPass);
             decisionHandler.postShadowAgreement(payload);
         } catch (Throwable t) {
             logger.debug("CP7 shadow agreement post failed - ignored: " + t.getMessage());

@@ -308,7 +308,7 @@ public class DecisionHandler {
             return result;
         } catch (Exception e) {
             logger.error("Failed to handle choice decision", e);
-            return new DecisionResult(0, null, "fallback_to_first_choice");
+            return new DecisionResult(null, null, "fallback_to_cp7_choice");
         }
     }
 
@@ -363,7 +363,7 @@ public class DecisionHandler {
             return result;
         } catch (Exception e) {
             logger.error("Failed to handle target decision", e);
-            return new DecisionResult(0, null, "fallback_to_first_target");
+            return new DecisionResult(null, null, "fallback_to_cp7_target");
         }
     }
 

@@ -28,4 +28,15 @@ public class DecisionResult {
     public String getReason() {
         return reason;
     }
+
+    public boolean isSuccessful() {
+        if (reason == null) {
+            return true;
+        }
+        String normalized = reason.toLowerCase();
+        return !(normalized.contains("fallback")
+                || normalized.equals("server_error")
+                || normalized.equals("unknown_response")
+                || normalized.equals("exception"));
+    }
 }

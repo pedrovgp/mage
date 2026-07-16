@@ -291,7 +291,14 @@ public class ComputerPlayer7Instrumented extends ComputerPlayer7 {
             availableChoices.put("outcome", outcome.toString());
             availableChoices.put("choice_type", choice.getClass().getSimpleName());
             availableChoices.put("message", choice.getMessage());
-            availableChoices.put("choices", choice.getChoices());
+            availableChoices.put("choices", choice.isKeyChoice()
+                    ? new ArrayList<>(choice.getKeyChoices().values())
+                    : choice.getChoices());
+            availableChoices.put("key_choice", choice.isKeyChoice());
+            if (choice.isKeyChoice()) {
+                availableChoices.put("choice_keys",
+                        new ArrayList<>(choice.getKeyChoices().keySet()));
+            }
 
             logTrajectoryData(game, "choice", availableChoices, null, null);
         } catch (Exception e) {
@@ -378,6 +385,10 @@ public class ComputerPlayer7Instrumented extends ComputerPlayer7 {
             ctx.put("targetName", target.getTargetName());
             ctx.put("targetType", target.getClass().getSimpleName());
             ctx.put("outcome", outcome.toString());
+            ctx.put("minTargets", target.getMinNumberOfTargets());
+            ctx.put("maxTargets", target.getMaxNumberOfTargets());
+            ctx.put("alreadySelected", alreadyChosen.size());
+            ctx.put("required", target.isRequired(sourceId, game));
             logTrajectoryData(game, "target", availableActions, null, source, ctx);
         } catch (Exception e) {
             logger.warn("Failed to log pre-target trajectory: " + e.getMessage());
