@@ -438,6 +438,12 @@ public class DecisionHandlerTest {
         assertTrue("myPlayer should have handCards", myPlayer.has("handCards"));
         assertTrue("handCount should be >= 0", myPlayer.getInt("handCount") >= 0);
         assertNotNull("handCards should be a JSONArray", myPlayer.optJSONArray("handCards"));
+        org.json.JSONArray handCards = myPlayer.getJSONArray("handCards");
+        for (int i = 0; i < handCards.length(); i++) {
+            org.json.JSONObject card = handCards.getJSONObject(i);
+            assertTrue("visible card must carry ownerRelation", card.has("ownerRelation"));
+            assertTrue("visible card must carry controllerRelation", card.has("controllerRelation"));
+        }
     }
 
     @Test
@@ -520,6 +526,7 @@ public class DecisionHandlerTest {
         assertTrue("Should contain strategy", payloadJson.has("strategy"));
         assertTrue("Should contain gameId", payloadJson.has("gameId"));
         assertTrue("Should contain matchId", payloadJson.has("matchId"));
+        assertEquals("stable-relations-v1", payloadJson.getString("representationVersion"));
         // gameView should now be a populated JSONObject, not an empty one
         assertTrue("Should contain gameView", payloadJson.has("gameView"));
         org.json.JSONObject gameView = payloadJson.optJSONObject("gameView");

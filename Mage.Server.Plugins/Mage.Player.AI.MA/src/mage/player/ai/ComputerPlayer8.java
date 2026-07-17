@@ -70,6 +70,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -403,16 +404,32 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
                 && target.getTargets().size() < target.getMaxNumberOfTargets()) {
             boolean canStop = target.getTargets().size() >= target.getMinNumberOfTargets();
             List<String> choices = new ArrayList<>();
+            List<String> choiceIds = new ArrayList<>();
             if (canStop) {
                 choices.add(TARGET_STOP_CHOICE);
+                choiceIds.add("");
             }
             for (Integer originalIndex : remaining) {
                 MageObject object = candidateObjects[originalIndex];
                 choices.add(object != null ? object.toString() : "unknown");
+                choiceIds.add(candidateIds[originalIndex].toString());
             }
+            Map<String, Object> targetContext = new HashMap<>();
+            targetContext.put("sourceAbility", source != null ? source.toString() : "");
+            targetContext.put("sourceId",
+                    source != null && source.getSourceId() != null
+                            ? source.getSourceId().toString() : "");
+            targetContext.put("targetName", target.getTargetName());
+            targetContext.put("targetType", target.getClass().getSimpleName());
+            targetContext.put("outcome", outcome.toString());
+            targetContext.put("minTargets", target.getMinNumberOfTargets());
+            targetContext.put("maxTargets", target.getMaxNumberOfTargets());
+            targetContext.put("alreadySelected", target.getTargets().size());
+            targetContext.put("required", target.isRequired(
+                    source != null ? source.getSourceId() : null, game));
             DecisionResult result = decisionHandler.handleTargets(
                     game, currentPlayer, outcome, choices.toArray(new String[0]),
-                    getStrategyFromEnvironment());
+                    choiceIds, targetContext, getStrategyFromEnvironment());
             if (!result.isSuccessful() || result.getChosenIndex() == null) {
                 return null;
             }

@@ -240,6 +240,7 @@ class DecisionStats {
  */
 public class DecisionHandler {
     private static final Logger logger = Logger.getLogger(DecisionHandler.class);
+    private static final String MODEL_REPRESENTATION_VERSION = "stable-relations-v1";
 
     // Endpoint constants aligned with magellmfast routes (relative paths, base URL
     // added by LlmDecisionClient)
@@ -343,7 +344,8 @@ public class DecisionHandler {
      * Times serialisation, HTTP, and informPlayers separately and records to DecisionStats.
      */
     public DecisionResult handleTargets(Game game, Player currentPlayer, Outcome outcome,
-            String[] allChoices, String strategy) {
+            String[] allChoices, List<String> targetCandidateIds,
+            Map<String, Object> targetContext, String strategy) {
         try {
             long t0 = System.nanoTime();
             // Create a dummy choice object since the endpoint requires it
@@ -352,6 +354,8 @@ public class DecisionHandler {
 
             JSONObject payload = buildChooseFromChoicesPayload(game, currentPlayer, outcome, choice, allChoices,
                     strategy);
+            payload.put("targetCandidateIds", convertObjectToJson(targetCandidateIds));
+            payload.put("targetContext", convertObjectToJson(targetContext));
             long t1 = System.nanoTime();
             DecisionPayload dp = new DecisionPayload(ENDPOINT_CHOOSE_TARGETS, payload);
             DecisionResult result = client.requestDecision(dp);
@@ -625,7 +629,8 @@ public class DecisionHandler {
         // My player (full hand visible)
         PlayerView myPlayerView = gameView.getMyPlayer();
         if (myPlayerView != null) {
-            result.put("myPlayer", serializePlayerView(myPlayerView, gameView.getMyHand()));
+            UUID viewerId = myPlayerView.getPlayerId();
+            result.put("myPlayer", serializePlayerView(myPlayerView, gameView.getMyHand(), game, viewerId));
         } else {
             result.put("myPlayer", new JSONObject());
         }
@@ -639,21 +644,23 @@ public class DecisionHandler {
             }
         }
         if (opponentView != null) {
-            result.put("opponentPlayer", serializePlayerView(opponentView, null));
+            UUID viewerId = myPlayerView != null ? myPlayerView.getPlayerId() : null;
+            result.put("opponentPlayer", serializePlayerView(opponentView, null, game, viewerId));
         } else {
             result.put("opponentPlayer", new JSONObject());
         }
 
         // Stack (public) — enriched with chosen targets, source, and controller so the
         // policy can ground each stack effect to the entities it relates to.
-        result.put("stack", serializeStack(gameView.getStack(), game));
+        UUID viewerId = myPlayerView != null ? myPlayerView.getPlayerId() : null;
+        result.put("stack", serializeStack(gameView.getStack(), game, viewerId));
 
         // Combat groups
         JSONArray combatArray = new JSONArray();
         for (CombatGroupView cg : gameView.getCombat()) {
             JSONObject cgObj = new JSONObject();
-            cgObj.put("attackers", serializeCardsView(cg.getAttackers()));
-            cgObj.put("blockers", serializeCardsView(cg.getBlockers()));
+            cgObj.put("attackers", serializeCardsView(cg.getAttackers(), game, viewerId));
+            cgObj.put("blockers", serializeCardsView(cg.getBlockers(), game, viewerId));
             combatArray.put(cgObj);
         }
         result.put("combat", combatArray);
@@ -669,7 +676,7 @@ public class DecisionHandler {
      *                  GameView.getMyHand()). Pass null for opponent to enforce
      *                  information boundary.
      */
-    private JSONObject serializePlayerView(PlayerView pv, CardsView handCards) {
+    private JSONObject serializePlayerView(PlayerView pv, CardsView handCards, Game game, UUID viewerId) {
         JSONObject obj = new JSONObject();
         obj.put("id", pv.getPlayerId().toString());
         obj.put("name", pv.getName());
@@ -679,14 +686,14 @@ public class DecisionHandler {
 
         // Hand cards: full details for own player, empty for opponent
         if (handCards != null) {
-            obj.put("handCards", serializeCardsView(handCards));
+            obj.put("handCards", serializeCardsView(handCards, game, viewerId));
         } else {
             obj.put("handCards", new JSONArray());
         }
 
         // Top card (if revealed)
         if (pv.getTopCard() != null) {
-            obj.put("topCard", serializeCardView(pv.getTopCard()));
+            obj.put("topCard", serializeCardView(pv.getTopCard(), game, viewerId));
         } else {
             obj.put("topCard", JSONObject.NULL);
         }
@@ -694,13 +701,13 @@ public class DecisionHandler {
         // Battlefield permanents
         JSONArray battlefield = new JSONArray();
         for (PermanentView permanentView : pv.getBattlefield().values()) {
-            battlefield.put(serializePermanentView(permanentView));
+            battlefield.put(serializePermanentView(permanentView, game, viewerId));
         }
         obj.put("battlefield", battlefield);
 
         // Public zones
-        obj.put("graveyard", serializeCardsView(pv.getGraveyard()));
-        obj.put("exile", serializeCardsView(pv.getExile()));
+        obj.put("graveyard", serializeCardsView(pv.getGraveyard(), game, viewerId));
+        obj.put("exile", serializeCardsView(pv.getExile(), game, viewerId));
 
         // Mana pool
         obj.put("manaPool", serializeManaPool(pv.getManaPool()));
@@ -716,7 +723,7 @@ public class DecisionHandler {
      * to its source and target entities (e.g. respond to a red source with protection
      * from red). All three are public information — no true-state leak.
      */
-    private JSONArray serializeStack(CardsView stack, Game game) {
+    private JSONArray serializeStack(CardsView stack, Game game, UUID viewerId) {
         JSONArray arr = new JSONArray();
         if (stack == null) {
             return arr;
@@ -741,7 +748,7 @@ public class DecisionHandler {
             logger.warn("[DN1a] Could not read true stack for controller/source: " + e.getMessage());
         }
         for (CardView cardView : stack.values()) {
-            JSONObject obj = serializeCardView(cardView);
+            JSONObject obj = serializeCardView(cardView, game, viewerId);
             UUID id = cardView.getId();
 
             // Chosen targets (public).
@@ -773,6 +780,10 @@ public class DecisionHandler {
             String controllerId = (id != null && controllerById.containsKey(id))
                     ? controllerById.get(id) : "";
             obj.put("controllerId", controllerId);
+            if (!controllerId.isEmpty()) {
+                obj.put("controllerRelation", relationToViewer(
+                        UUID.fromString(controllerId), viewerId, game));
+            }
 
             arr.put(obj);
         }
@@ -782,13 +793,13 @@ public class DecisionHandler {
     /**
      * Serialize a CardsView (map of UUID → CardView) into a JSONArray.
      */
-    private JSONArray serializeCardsView(CardsView cv) {
+    private JSONArray serializeCardsView(CardsView cv, Game game, UUID viewerId) {
         JSONArray arr = new JSONArray();
         if (cv == null) {
             return arr;
         }
         for (CardView cardView : cv.values()) {
-            arr.put(serializeCardView(cardView));
+            arr.put(serializeCardView(cardView, game, viewerId));
         }
         return arr;
     }
@@ -797,7 +808,7 @@ public class DecisionHandler {
      * Serialize a CardView into a JSONObject with strategically relevant fields.
      * Face-down card names are already masked by XMage's view layer.
      */
-    private JSONObject serializeCardView(CardView cv) {
+    private JSONObject serializeCardView(CardView cv, Game game, UUID viewerId) {
         JSONObject obj = new JSONObject();
         obj.put("id", cv.getId() != null ? cv.getId().toString() : "");
         obj.put("name", cv.getName() != null ? cv.getName() : "");
@@ -813,6 +824,7 @@ public class DecisionHandler {
             }
         }
         obj.put("rules", rules);
+        addObjectRelations(obj, cv.getId(), game, viewerId);
         return obj;
     }
 
@@ -820,8 +832,8 @@ public class DecisionHandler {
      * Serialize a PermanentView (extends CardView) into a JSONObject.
      * Includes battlefield-specific fields: tapped, face-down, counters, etc.
      */
-    private JSONObject serializePermanentView(PermanentView pv) {
-        JSONObject obj = serializeCardView(pv);
+    private JSONObject serializePermanentView(PermanentView pv, Game game, UUID viewerId) {
+        JSONObject obj = serializeCardView(pv, game, viewerId);
         obj.put("tapped", pv.isTapped());
         obj.put("faceDown", pv.isMorphed() || pv.isManifested() || pv.isCloaked() || pv.isDisguised());
         obj.put("controlled", pv.isControlled());
@@ -829,6 +841,42 @@ public class DecisionHandler {
         obj.put("summoningSickness", pv.hasSummoningSickness());
         obj.put("attachedTo", pv.getAttachedTo() != null ? pv.getAttachedTo().toString() : JSONObject.NULL);
         return obj;
+    }
+
+    private String relationToViewer(UUID playerId, UUID viewerId, Game game) {
+        if (playerId == null || viewerId == null) {
+            return "unknown";
+        }
+        if (playerId.equals(viewerId)) {
+            return "self";
+        }
+        try {
+            if (game.getOpponents(viewerId).contains(playerId)) {
+                return "opponent";
+            }
+        } catch (Exception ignored) {
+            // Preserve an explicit unknown rather than mislabelling it as opponent.
+        }
+        return "unknown";
+    }
+
+    private void addObjectRelations(JSONObject obj, UUID objectId, Game game, UUID viewerId) {
+        UUID ownerId = null;
+        UUID controllerId = null;
+        if (objectId != null) {
+            Permanent permanent = game.getPermanent(objectId);
+            if (permanent != null) {
+                ownerId = permanent.getOwnerId();
+                controllerId = permanent.getControllerId();
+            } else {
+                Card card = game.getCard(objectId);
+                if (card != null) {
+                    ownerId = card.getOwnerId();
+                }
+            }
+        }
+        obj.put("ownerRelation", relationToViewer(ownerId, viewerId, game));
+        obj.put("controllerRelation", relationToViewer(controllerId, viewerId, game));
     }
 
     /**
@@ -858,6 +906,7 @@ public class DecisionHandler {
         payload.put("strategy", strategy);
         payload.put("gameId", getGameId(game));
         payload.put("matchId", getMatchId(game));
+        payload.put("representationVersion", MODEL_REPRESENTATION_VERSION);
 
         // logTrajectory: controlled by a JVM system property.
         // Defaults to true — trajectory logging is on by default.
