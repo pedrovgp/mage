@@ -40,6 +40,11 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
     public static final String SEED = System.getProperty("seed", "42");
     public static final int MAX_TURNS = Integer.parseInt(System.getProperty("max_turns", "200"));
     public static final int NUM_GAMES = Integer.parseInt(System.getProperty("num_games", "10"));
+    // Anti-durdle stall cap: max consecutive no-action priority passes before the
+    // engine aborts the game as a timeout. Lowered from the TestPlayer default of
+    // 400 so CP8-vs-CP8 eternal-pass games end fast. Tune via -Dmax_calls_without_action.
+    public static final int MAX_CALLS_WITHOUT_ACTION =
+            Integer.parseInt(System.getProperty("max_calls_without_action", "100"));
 
     // Base URL of the magellmfast inference server the AI players talk to.
     // MUST match -Dmagellmfast.url (set by run_fullgame_benchmark.py to the
@@ -316,6 +321,11 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
                 // Create players and add them to the game
                 TestPlayer playerA = createPlayer(game, "PlayerA", gameDeck1);
                 TestPlayer playerB = createPlayer(game, "PlayerB", gameDeck2);
+
+                // Anti-durdle: abort eternal-pass stalls quickly instead of at the
+                // TestPlayer 400-call default (which durdled to ~turn 51).
+                playerA.setMaxCallsWithoutAction(MAX_CALLS_WITHOUT_ACTION);
+                playerB.setMaxCallsWithoutAction(MAX_CALLS_WITHOUT_ACTION);
 
                 // Start the game – GameImpl drives phases internally (mirrors LoadTest
                 // behaviour)
