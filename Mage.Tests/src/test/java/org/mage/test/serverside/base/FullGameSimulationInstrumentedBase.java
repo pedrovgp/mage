@@ -287,6 +287,7 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
             boolean swapped = config.mirrorSides && (gameIndex % 2 == 1);
             String gameDeck1 = swapped ? deck2Resolved : deck1Resolved;
             String gameDeck2 = swapped ? deck1Resolved : deck2Resolved;
+            long gameSeed = random.nextLong();
 
             try {
                 // Reset trajectory counters for this game (non-fatal if server not reachable)
@@ -297,8 +298,6 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
                 }
 
                 // Create new game with seeded random
-                long gameSeed = random.nextLong();
-
                 // DAgger mixture: resolve the per-game pilot BEFORE player
                 // creation; createNewPlayer and the players' provenance
                 // stamps read magellm.daggerPilot.
@@ -372,6 +371,9 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
                     JSONObject payload = new JSONObject();
                     payload.put("game_id",            gameId);
                     payload.put("match_id",           config.deck1Path + "_vs_" + config.deck2Path);
+                    payload.put("seed",               gameSeed);
+                    payload.put("deck1_name",         Path.of(gameDeck1).getFileName().toString());
+                    payload.put("deck2_name",         Path.of(gameDeck2).getFileName().toString());
                     payload.put("turns",              turnsPlayed);
                     payload.put("strategy_winner",    config.strategy);
                     payload.put("strategy_loser",     config.strategy);
@@ -413,6 +415,9 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
                     JSONObject payload = new JSONObject();
                     payload.put("game_id",         "unknown");
                     payload.put("match_id",        config.deck1Path + "_vs_" + config.deck2Path);
+                    payload.put("seed",            gameSeed);
+                    payload.put("deck1_name",      Path.of(gameDeck1).getFileName().toString());
+                    payload.put("deck2_name",      Path.of(gameDeck2).getFileName().toString());
                     payload.put("turns",           0);
                     payload.put("strategy_winner", config.strategy);
                     payload.put("strategy_loser",  config.strategy);
