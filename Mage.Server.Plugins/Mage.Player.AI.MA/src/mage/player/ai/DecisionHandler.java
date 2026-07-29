@@ -44,6 +44,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -924,7 +925,49 @@ public class DecisionHandler {
             payload.put("strategyId", strategyId);
         }
 
+        // Own-seat deck profile, for the deck-strategy encoder.
+        payload.put("ownDeck", buildOwnDeckJson(game, currentPlayer));
+
         return payload;
+    }
+
+    /**
+     * Own-seat deck profile: {cardName: copies} for the DECIDING player only.
+     *
+     * The policy's observation is gameView, and this is the one deliberate
+     * exception: your own decklist is knowledge you legally have, unlike its
+     * ORDER. Both guarantees are made structural here rather than left to the
+     * consumer:
+     *
+     *   - the opponent's cards are filtered out on the server, where ownership is
+     *     authoritative, so the field cannot carry hidden information at all; and
+     *   - a name->count MAP is emitted rather than the card list, so library draw
+     *     order — which the player does not know — cannot survive into it.
+     *
+     * This exists so the Python policy path never has to read `gameCards`, which
+     * holds the true state of both seats. Reading a filtered slice of that would
+     * be correct but would replace a guarantee auditable by inspection with one
+     * that has to be enforced by convention at every call site.
+     *
+     * See memory-bank/progress/bc_learned_strategy_conditioning.md (Step 3.2).
+     */
+    private JSONObject buildOwnDeckJson(Game game, Player currentPlayer) {
+        Map<String, Integer> counts = new TreeMap<>();
+        if (game == null || currentPlayer == null) {
+            return new JSONObject(counts);
+        }
+        UUID ownerId = currentPlayer.getId();
+        for (Card card : game.getCards()) {
+            if (card == null || !ownerId.equals(card.getOwnerId())) {
+                continue;
+            }
+            String name = card.getName();
+            if (name == null || name.isEmpty()) {
+                continue;
+            }
+            counts.merge(name, 1, Integer::sum);
+        }
+        return new JSONObject(counts);
     }
 
     /**
