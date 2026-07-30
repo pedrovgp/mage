@@ -256,6 +256,12 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
             obj.put("median_turns", Math.round(medianTurns * 100.0) / 100.0);
             obj.put("total_duration_ms", totalDurationMs);
             obj.put("seed", seed);
+            // Decision-request health for this JVM, which is this game. A run that
+            // completed while quietly degrading otherwise looks identical to a clean
+            // one, since a failed decision is answered by ComputerPlayer7 rather than
+            // by an error.
+            obj.put("decision_retries", mage.player.ai.DecisionHandler.decisionRetryCount());
+            obj.put("decision_fallbacks", mage.player.ai.DecisionHandler.decisionFallbackCount());
             return obj;
         }
     }

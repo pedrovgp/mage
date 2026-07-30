@@ -96,6 +96,13 @@ class DecisionStats {
     private final AtomicLong getPlayableCount = new AtomicLong();
     private final AtomicLong getPlayableNs    = new AtomicLong();
 
+    // Decision-request health. Retries are attempts that failed and were tried again;
+    // fallbacks are decisions that ran out of attempts and were handed to CP7. Both are
+    // surfaced per game in the benchmark report, because a run that completed while
+    // degrading is otherwise indistinguishable from a clean one.
+    private final AtomicLong decisionRetries   = new AtomicLong();
+    private final AtomicLong decisionFallbacks = new AtomicLong();
+
     void recordAction(long serialNs, long httpNs, long informNs) {
         actionCount.incrementAndGet();
         actionSerial.addAndGet(serialNs);
@@ -139,6 +146,22 @@ class DecisionStats {
         getPlayableNs.addAndGet(elapsedNs);
     }
 
+    void recordDecisionRetry() {
+        decisionRetries.incrementAndGet();
+    }
+
+    void recordDecisionFallback() {
+        decisionFallbacks.incrementAndGet();
+    }
+
+    long getDecisionRetries() {
+        return decisionRetries.get();
+    }
+
+    long getDecisionFallbacks() {
+        return decisionFallbacks.get();
+    }
+
     private static String ms(long ns) {
         return String.format("%8.1f", ns / 1_000_000.0);
     }
@@ -180,6 +203,8 @@ class DecisionStats {
             "TOTAL (RL decisions)",  "", ms(totalRlNs)));
         sb.append(String.format("  %-28s  %30s  %10s%n",
             "TOTAL (all incl local)", "", ms(grandTotal)));
+        sb.append(String.format("  %-28s  %6d  (fallbacks: %d)%n",
+            "request retries", decisionRetries.get(), decisionFallbacks.get()));
         sb.append("===========================\n");
 
         String report = sb.toString();
@@ -288,8 +313,23 @@ public class DecisionHandler {
      * IllegalStateException. So the harness counts a failed game, on the reporting
      * surface it already has.
      */
+    /**
+     * Decision requests that failed and were retried, this JVM. One JVM is one game, so
+     * this is a per-game count. Read by the simulation results so a degraded run is
+     * visible in the benchmark report rather than only in the logs.
+     */
+    public static long decisionRetryCount() {
+        return DecisionStats.INSTANCE.getDecisionRetries();
+    }
+
+    /** Decisions that exhausted their attempts and were handed to CP7, this JVM. */
+    public static long decisionFallbackCount() {
+        return DecisionStats.INSTANCE.getDecisionFallbacks();
+    }
+
     private DecisionResult degradeOrFail(String what, Exception cause, DecisionResult fallback) {
         logger.error("Failed to handle " + what + " decision", cause);
+        DecisionStats.INSTANCE.recordDecisionFallback();
         if (strictDecisionsEnabled()) {
             throw new IllegalStateException(
                     "MAGELLM_STRICT_DECISIONS is set and the " + what + " decision failed; "
