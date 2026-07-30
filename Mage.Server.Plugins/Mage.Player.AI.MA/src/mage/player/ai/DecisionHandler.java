@@ -256,6 +256,49 @@ public class DecisionHandler {
     private final LlmDecisionClient client;
     private final ObjectMapper objectMapper;
 
+    /**
+     * When a decision request fails, degrade or fail the game.
+     *
+     * <p>Off by default: a collection run that loses one decision should keep playing,
+     * since the trajectory is still worth having. On for canaries and pre-build smoke
+     * runs, where a fallback is not a degraded measurement but an invalid one — the
+     * fallbacks below hand the decision to ComputerPlayer7's own heuristic, so a partial
+     * outage reads as a slightly weaker agent rather than as a break. That is how the
+     * unwired /choose_from_choices route survived a full benchmark run.
+     *
+     * <p>Read per call so tests can toggle it. Property first, then environment, the
+     * same shape as MAGELLM_STRATEGY.
+     */
+    public static boolean strictDecisionsEnabled() {
+        String raw = System.getProperty("MAGELLM_STRICT_DECISIONS",
+                System.getenv("MAGELLM_STRICT_DECISIONS"));
+        if (raw == null) {
+            return false;
+        }
+        String v = raw.trim();
+        return v.equals("1") || v.equalsIgnoreCase("true") || v.equalsIgnoreCase("yes");
+    }
+
+    /**
+     * Log a failed decision, then either fall back or fail the game.
+     *
+     * <p>Under strict mode this throws, and the engine does the rest: GameImpl's inner
+     * handler sees an exception from a player in tests mode (which the benchmark base
+     * class sets) and rethrows, which the outer handler turns into a game-ending
+     * IllegalStateException. So the harness counts a failed game, on the reporting
+     * surface it already has.
+     */
+    private DecisionResult degradeOrFail(String what, Exception cause, DecisionResult fallback) {
+        logger.error("Failed to handle " + what + " decision", cause);
+        if (strictDecisionsEnabled()) {
+            throw new IllegalStateException(
+                    "MAGELLM_STRICT_DECISIONS is set and the " + what + " decision failed; "
+                    + "failing the game rather than letting ComputerPlayer7 decide for the "
+                    + "agent under measurement", cause);
+        }
+        return fallback;
+    }
+
     public DecisionHandler(String baseUrl) {
         this.client = new LlmDecisionClient(baseUrl);
         this.objectMapper = createConfiguredObjectMapper();
@@ -284,8 +327,7 @@ public class DecisionHandler {
             logDecision("ACTION", allActions.size(), result);
             return result;
         } catch (Exception e) {
-            logger.error("Failed to handle action decision", e);
-            return new DecisionResult(0, null, "fallback_to_first_action");
+            return degradeOrFail("action", e, new DecisionResult(0, null, "fallback_to_first_action"));
         }
     }
 
@@ -309,8 +351,7 @@ public class DecisionHandler {
             logDecision("CHOICE", allChoices.length, result);
             return result;
         } catch (Exception e) {
-            logger.error("Failed to handle choice decision", e);
-            return new DecisionResult(null, null, "fallback_to_cp7_choice");
+            return degradeOrFail("choice", e, new DecisionResult(null, null, "fallback_to_cp7_choice"));
         }
     }
 
@@ -335,8 +376,7 @@ public class DecisionHandler {
             logDecision("ATTACKERS", possibleAttackers.size(), result);
             return result;
         } catch (Exception e) {
-            logger.error("Failed to handle attacker decision", e);
-            return new DecisionResult(null, List.of(), "fallback_no_attackers");
+            return degradeOrFail("attacker", e, new DecisionResult(null, List.of(), "fallback_no_attackers"));
         }
     }
 
@@ -367,8 +407,7 @@ public class DecisionHandler {
             logDecision("TARGET", allChoices.length, result);
             return result;
         } catch (Exception e) {
-            logger.error("Failed to handle target decision", e);
-            return new DecisionResult(null, null, "fallback_to_cp7_target");
+            return degradeOrFail("target", e, new DecisionResult(null, null, "fallback_to_cp7_target"));
         }
     }
 
@@ -386,9 +425,9 @@ public class DecisionHandler {
             logDecision("TARGET_AMOUNT", targetIds.size(), result);
             return result;
         } catch (Exception e) {
-            logger.error("Failed to handle target amount decision", e);
             List<UUID> fallbackUuids = targetIds.isEmpty() ? List.of() : List.of(UUID.fromString(targetIds.get(0)));
-            return new DecisionResult(null, fallbackUuids, "fallback_to_first_target");
+            return degradeOrFail("target amount", e,
+                    new DecisionResult(null, fallbackUuids, "fallback_to_first_target"));
         }
     }
 
@@ -408,6 +447,9 @@ public class DecisionHandler {
             return result;
         } catch (Exception e) {
             logger.error("Failed to handle trajectory logging", e);
+            // Deliberately NOT routed through degradeOrFail: this is data capture, not a
+            // play decision, so a failure here costs a sample rather than corrupting the
+            // game being measured. Strict runs are benchmarks, which log no trajectories.
             // Include 'fallback' in reason to satisfy tests that assert fallback wording
             return new DecisionResult(null, null, "fallback_trajectory_logging");
         }

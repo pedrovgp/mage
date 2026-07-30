@@ -308,6 +308,69 @@ public class DecisionHandlerTest {
         assertTrue("Reason should indicate fallback", result.getReason().contains("fallback"));
     }
 
+    /**
+     * A failed decision hands the choice to ComputerPlayer7's own heuristic, which is a
+     * competent player — so a broken serving path reads as a slightly weaker agent
+     * rather than as a break, and a whole benchmark can complete looking plausible.
+     * Strict mode is for canaries, where that trade is wrong.
+     */
+    @Test
+    public void testStrictDecisionsFailsTheGameInsteadOfFallingBack() {
+        when(mockClient.requestDecision(any())).thenThrow(new RuntimeException("Test exception"));
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+        Choice choice = new ChoiceImpl(true);
+        choice.setMessage("Test choice");
+        String[] choices = { "Option 1", "Option 2" };
+
+        System.setProperty("MAGELLM_STRICT_DECISIONS", "1");
+        try {
+            decisionHandler.handleChoice(game, player, Outcome.Benefit, choice, choices, "random");
+            fail("Strict mode should refuse to fall back to a CP7 choice");
+        } catch (IllegalStateException expected) {
+            assertTrue("Should name the failing decision, got: " + expected.getMessage(),
+                    expected.getMessage().contains("choice"));
+            assertNotNull("Should keep the original failure as the cause", expected.getCause());
+        } finally {
+            System.clearProperty("MAGELLM_STRICT_DECISIONS");
+        }
+    }
+
+    @Test
+    public void testDecisionsFallBackWhenStrictModeIsOff() {
+        System.clearProperty("MAGELLM_STRICT_DECISIONS");
+        when(mockClient.requestDecision(any())).thenThrow(new RuntimeException("Test exception"));
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+        Choice choice = new ChoiceImpl(true);
+        choice.setMessage("Test choice");
+        String[] choices = { "Option 1", "Option 2" };
+
+        DecisionResult result = decisionHandler.handleChoice(game, player, Outcome.Benefit, choice, choices, "random");
+
+        assertNotNull("Default behaviour must still degrade, not throw", result);
+        assertTrue("Reason should indicate fallback", result.getReason().contains("fallback"));
+    }
+
+    @Test
+    public void testStrictDecisionsReadsOnlyAffirmativeValues() {
+        try {
+            System.clearProperty("MAGELLM_STRICT_DECISIONS");
+            assertFalse("Unset must be off", DecisionHandler.strictDecisionsEnabled());
+
+            for (String on : new String[] { "1", "true", "TRUE", "yes", " 1 " }) {
+                System.setProperty("MAGELLM_STRICT_DECISIONS", on);
+                assertTrue("Should be on for " + on, DecisionHandler.strictDecisionsEnabled());
+            }
+            for (String off : new String[] { "0", "false", "", "no" }) {
+                System.setProperty("MAGELLM_STRICT_DECISIONS", off);
+                assertFalse("Should be off for '" + off + "'", DecisionHandler.strictDecisionsEnabled());
+            }
+        } finally {
+            System.clearProperty("MAGELLM_STRICT_DECISIONS");
+        }
+    }
+
     @Test
     public void testHandleLogTrajectory() {
         // Setup mock client to return a successful decision
