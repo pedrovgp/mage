@@ -77,6 +77,31 @@ public class ComputerPlayer6 extends ComputerPlayer {
     List<Permanent> attackersToCheck = new ArrayList<>();
 
     protected Set<String> actionCache;
+
+    // Number of abilities this player has SUCCESSFULLY activated in a real game.
+    //
+    // TestPlayer's endless-loop guard needs to know whether a priority call did
+    // anything, and it cannot tell: its own check compares the scripted test-action
+    // list before and after, which is empty in every AI-vs-AI full game, so the
+    // guard counts plain priority calls and degenerates into a turn budget.
+    //
+    // The distinction has to be made here because activating an ability can FAIL
+    // after being chosen -- a cast whose cost cannot be paid is accepted, fails to
+    // pay, and is rolled back -- and the AI's own view cannot see that.  Only the
+    // return value of activateAbility separates "played something" from "tried and
+    // was reverted", and both look identical from outside: isPassed() is true
+    // either way, because a spell that uses the stack passes afterwards.
+    //
+    // Monotonic and never reset, so a reader only has to compare two snapshots.
+    // Simulated games are excluded: alpha-beta rollouts activate abilities inside
+    // copied games by the thousand and none of it is play.
+    //
+    // Deliberately counts ability activations ONLY, not attack declarations: a
+    // player who can no longer activate anything is in a position that does not
+    // change, and combat that does change it (unblocked damage) ends the game well
+    // inside the call budget -- even a lone 1-power attacker kills from 20 in about
+    // 20 turns, a quarter of the 400-call budget.
+    private int actionsTaken = 0;
     private static final List<TreeOptimizer> optimizers = new ArrayList<>();
     protected int lastLoggedTurn = 0; // for debug logs: mark start of the turn
     protected static final String BLANKS = "...............................................";
@@ -112,6 +137,18 @@ public class ComputerPlayer6 extends ComputerPlayer {
         this.targets.addAll(player.targets);
         this.choices.addAll(player.choices);
         this.actionCache = player.actionCache;
+        this.actionsTaken = player.actionsTaken;
+    }
+
+    /**
+     * Abilities successfully activated in real (non-simulated) play so far.
+     * <p>
+     * Monotonic. Compare two snapshots around a priority call to learn whether the
+     * AI actually did something: a chosen action that the engine rolled back does
+     * not advance this.
+     */
+    public int getActionsTaken() {
+        return actionsTaken;
     }
 
     @Override
@@ -185,7 +222,10 @@ public class ComputerPlayer6 extends ComputerPlayer {
                         }
                     }
                 }
-                this.activateAbility((ActivatedAbility) ability, game);
+                boolean activated = this.activateAbility((ActivatedAbility) ability, game);
+                if (activated && !game.isSimulation()) {
+                    actionsTaken++;
+                }
                 if (ability.isUsesStack()) {
                     usedStack = true;
                 }

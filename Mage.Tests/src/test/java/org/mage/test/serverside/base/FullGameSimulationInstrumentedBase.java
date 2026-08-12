@@ -40,11 +40,19 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
     public static final String SEED = System.getProperty("seed", "42");
     public static final int MAX_TURNS = Integer.parseInt(System.getProperty("max_turns", "200"));
     public static final int NUM_GAMES = Integer.parseInt(System.getProperty("num_games", "10"));
-    // Anti-durdle stall cap: max consecutive no-action priority passes before the
-    // engine aborts the game as a timeout. Lowered from the TestPlayer default of
-    // 400 so CP8-vs-CP8 eternal-pass games end fast. Tune via -Dmax_calls_without_action.
+    // Max consecutive priority calls in which a player accomplishes nothing before
+    // the engine aborts the game as a timeout. Tune via -Dmax_calls_without_action.
+    //
+    // This was 100, on the belief that it made CP8-vs-CP8 eternal-pass games end
+    // fast. It did not: TestPlayer's counter could not tell whether the AI had acted
+    // and advanced on every priority call, so 100 was a ~turn-10 game cap and it
+    // made ~99% of self-play games report as timeouts. TestPlayer now asks the AI
+    // how many abilities it actually activated (ComputerPlayer6.getActionsTaken), so
+    // the number means what it says and 400 is a genuine no-action budget. Durdling
+    // is priced by the graded timeout terminal in compute_sp_rewards.py; game length
+    // is bounded by MAX_TURNS above.
     public static final int MAX_CALLS_WITHOUT_ACTION =
-            Integer.parseInt(System.getProperty("max_calls_without_action", "100"));
+            Integer.parseInt(System.getProperty("max_calls_without_action", "400"));
 
     // Base URL of the magellmfast inference server the AI players talk to.
     // MUST match -Dmagellmfast.url (set by run_fullgame_benchmark.py to the
@@ -207,12 +215,22 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
         public final long totalDurationMs;
         public final long seed;
         public final List<GameResult> gameResults;
+        // Engine ids of the games this series played, in order. Written to the
+        // summary JSON so the worker can name the game it just finished when it
+        // reports completion, instead of the server matching on a time window.
+        public final List<String> gameIds;
 
         public SimulationResults(String matchup, int gamesRequested, List<GameResult> gameResults, long seed) {
+            this(matchup, gamesRequested, gameResults, seed, new ArrayList<>());
+        }
+
+        public SimulationResults(String matchup, int gamesRequested, List<GameResult> gameResults, long seed,
+                List<String> gameIds) {
             this.matchup = matchup;
             this.gamesRequested = gamesRequested;
             this.gameResults = new ArrayList<>(gameResults);
             this.seed = seed;
+            this.gameIds = new ArrayList<>(gameIds);
 
             // Calculate aggregates
             this.gamesCompleted = (int) gameResults.stream().filter(r -> !r.isError()).count();
@@ -256,6 +274,7 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
             obj.put("median_turns", Math.round(medianTurns * 100.0) / 100.0);
             obj.put("total_duration_ms", totalDurationMs);
             obj.put("seed", seed);
+            obj.put("game_ids", new org.json.JSONArray(gameIds));
             // Decision-request health for this JVM, which is this game. A run that
             // completed while quietly degrading otherwise looks identical to a clean
             // one, since a failed decision is answered by ComputerPlayer7 rather than
@@ -286,6 +305,10 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
         // Set system properties for the simulation
         System.setProperty("strategy", config.strategy);
 
+        // Every game's engine id, in play order, so the caller can attribute an
+        // outcome to a specific game instead of guessing from a time window.
+        List<String> playedGameIds = new ArrayList<>();
+
         for (int gameIndex = 0; gameIndex < config.numGames; gameIndex++) {
             long gameStartTime = System.currentTimeMillis();
 
@@ -294,6 +317,13 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
             String gameDeck1 = swapped ? deck2Resolved : deck1Resolved;
             String gameDeck2 = swapped ? deck1Resolved : deck2Resolved;
             long gameSeed = random.nextLong();
+
+            // Declared outside the try so an ABORTED game can still name itself.
+            // The stall path used to post game_id="unknown", and because game_id is
+            // the result table's key, every stalled game in the fleet collapsed into
+            // one row -- leaving the reward pipeline no way to tell which game had
+            // timed out, so it labelled whichever game it happened to claim.
+            Game game = null;
 
             try {
                 // Reset trajectory counters for this game (non-fatal if server not reachable)
@@ -315,7 +345,10 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
                             + " fraction=" + fraction + " gameSeed=" + gameSeed);
                 }
 
-                Game game = createGameWithDecks(gameDeck1, gameDeck2, gameSeed);
+                game = createGameWithDecks(gameDeck1, gameDeck2, gameSeed);
+                if (game.getId() != null) {
+                    playedGameIds.add(game.getId().toString());
+                }
 
                 GameOptions gameOptions = new GameOptions();
                 gameOptions.testMode = false;
@@ -419,7 +452,9 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
                 // or reliable life totals, so only the classification is posted).
                 try {
                     JSONObject payload = new JSONObject();
-                    payload.put("game_id",         "unknown");
+                    payload.put("game_id",
+                            (game != null && game.getId() != null)
+                                    ? game.getId().toString() : "unknown");
                     payload.put("match_id",        config.deck1Path + "_vs_" + config.deck2Path);
                     payload.put("seed",            gameSeed);
                     payload.put("deck1_name",      Path.of(gameDeck1).getFileName().toString());
@@ -439,7 +474,8 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
 
         // Create results summary
         String matchup = deck1File.getFileName() + " vs " + deck2File.getFileName();
-        SimulationResults simulationResults = new SimulationResults(matchup, config.numGames, results, config.seed);
+        SimulationResults simulationResults =
+                new SimulationResults(matchup, config.numGames, results, config.seed, playedGameIds);
 
         // Save metrics to file
         saveSimulationResults(simulationResults, config.metricsOutputPath);

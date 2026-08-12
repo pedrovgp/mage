@@ -42,6 +42,7 @@ import mage.game.stack.StackAbility;
 import mage.game.stack.StackObject;
 import mage.game.tournament.Tournament;
 import mage.player.ai.ComputerPlayer;
+import mage.player.ai.ComputerPlayer6;
 import mage.players.*;
 import mage.players.net.UserData;
 import mage.target.*;
@@ -231,8 +232,12 @@ public class TestPlayer implements Player {
     }
 
     /**
-     * @param maxCallsWithoutAction max number of priority passes a player may
-     *                              have for this test (default = 100)
+     * @param maxCallsWithoutAction max number of CONSECUTIVE priority calls in
+     *                              which this player accomplishes nothing before the
+     *                              game is aborted (default = 400). See
+     *                              {@link #didSomething} for what counts as
+     *                              accomplishing something -- notably, an action the
+     *                              engine rolled back does not.
      */
     public void setMaxCallsWithoutAction(int maxCallsWithoutAction) {
         this.maxCallsWithoutAction = maxCallsWithoutAction;
@@ -1133,10 +1138,11 @@ public class TestPlayer implements Player {
         }
 
         // normal priority (by AI or pass)
+        int aiActionsBefore = aiActionsTaken();
         tryToPlayPriority(game);
 
         // check to prevent endless loops
-        if (numberOfActions == actions.size()) {
+        if (!didSomething(numberOfActions, aiActionsBefore)) {
             foundNoAction++;
             if (foundNoAction > maxCallsWithoutAction) {
                 // how-to fix: if you really need a long game with many turns then use prepare command TestPlayer.setMaxCallsWithoutAction
@@ -1191,6 +1197,43 @@ public class TestPlayer implements Player {
         } else {
             computerPlayer.pass(game);
         }
+    }
+
+    /**
+     * Abilities the inner AI has successfully activated so far, or -1 if it cannot
+     * say (a scripted TestComputerPlayer, which does not extend ComputerPlayer6).
+     */
+    private int aiActionsTaken() {
+        return computerPlayer instanceof ComputerPlayer6
+                ? ((ComputerPlayer6) computerPlayer).getActionsTaken()
+                : -1;
+    }
+
+    /**
+     * Whether the priority call just made accomplished anything.
+     * <p>
+     * Two independent witnesses, because the two kinds of player answer in
+     * different currencies:
+     * <ul>
+     * <li>a SCRIPTED player consumes an entry from {@code actions}, so the list
+     * shrinking is the signal (the original check, kept verbatim);
+     * <li>an AI player has no scripted actions at all -- {@code actions} is empty
+     * for the whole game -- so the shrink test is vacuously false on every call and
+     * the guard would count plain priority calls. For those we ask the AI how many
+     * abilities it has actually activated.
+     * </ul>
+     * That second case is why an AI-vs-AI game used to abort near turn 10 at a cap
+     * of 100: the cap was never a no-action budget, it was a priority-call budget,
+     * and at 8-10 priority calls a turn it set the game length. A chosen action the
+     * engine ROLLED BACK -- an unpayable cost, most often -- still counts as nothing
+     * here, which is what lets the guard catch a real stall: the counter only moves
+     * when the engine accepted the activation.
+     */
+    private boolean didSomething(int scriptedActionsBefore, int aiActionsBefore) {
+        if (scriptedActionsBefore != actions.size()) {
+            return true;
+        }
+        return aiActionsBefore >= 0 && aiActionsTaken() > aiActionsBefore;
     }
 
     private Permanent findPermanentWithAssert(PlayerAction action, Game game, Player player, String cardName) {

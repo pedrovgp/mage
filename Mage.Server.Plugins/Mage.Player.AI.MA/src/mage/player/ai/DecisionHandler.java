@@ -638,6 +638,11 @@ public class DecisionHandler {
         payload.put("outcome", convertObjectToJson(outcome));
         payload.put("choice", convertObjectToJson(choice));
         payload.put("allChoices", convertObjectToJson(allChoices));
+        // Serialising the Choice loses its runtime class, but the trajectory loggers
+        // (ComputerPlayer7Instrumented, ComputerPlayer8) record it as choice_type, so
+        // omitting it here would make every served candidate text differ from the text
+        // the same decision was trained on.
+        payload.put("choice_type", choice != null ? choice.getClass().getSimpleName() : "");
         return payload;
     }
 
