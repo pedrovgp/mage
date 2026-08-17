@@ -1,8 +1,10 @@
 package org.mage.test.serverside.base;
 
+import mage.player.ai.DecisionHandler;
 import mage.player.ai.DecisionPayload;
 import mage.player.ai.DecisionResult;
 import mage.player.ai.LlmDecisionClient;
+import mage.player.ai.StrictDecisionFailure;
 import org.json.JSONObject;
 import org.junit.After;
 import org.junit.Test;
@@ -159,9 +161,51 @@ public class LlmDecisionClientRetryTest {
         try {
             client.requestDecision(payload());
             fail("Strict mode should refuse to degrade the decision");
-        } catch (IllegalStateException expected) {
+        } catch (StrictDecisionFailure expected) {
             assertTrue("Should name the endpoint, got: " + expected.getMessage(),
                     expected.getMessage().contains("/choose_from_all_actions"));
+        }
+    }
+
+    /**
+     * An {@link Error}, not an exception, because the caller is
+     * {@code ComputerPlayer8.choose}/{@code .chooseTarget} and both catch
+     * {@code Exception} and fall through to CP7 — which is how two benchmark runs
+     * reported {@code strict_decisions: True} alongside five figures of fallbacks.
+     */
+    @Test
+    public void testStrictFailureIsNotAnException() {
+        System.setProperty("MAGELLM_DECISION_ATTEMPTS", "1");
+        System.setProperty("MAGELLM_STRICT_DECISIONS", "1");
+        ScriptedClient client = new ScriptedClient(List.of(500));
+
+        boolean swallowed = false;
+        try {
+            try {
+                client.requestDecision(payload());
+            } catch (Exception e) {
+                swallowed = true;
+            }
+            fail("A catch(Exception) caller must not be able to intercept it");
+        } catch (StrictDecisionFailure expected) {
+            assertFalse("catch(Exception) must not see the strict failure", swallowed);
+        }
+    }
+
+    /** A strict failure ends the game, so there is no fallback to account for. */
+    @Test
+    public void testStrictModeDoesNotRecordAFallback() {
+        System.setProperty("MAGELLM_DECISION_ATTEMPTS", "1");
+        System.setProperty("MAGELLM_STRICT_DECISIONS", "1");
+        ScriptedClient client = new ScriptedClient(List.of(500));
+
+        long before = DecisionHandler.decisionFallbackCount();
+        try {
+            client.requestDecision(payload());
+            fail("Strict mode should have thrown");
+        } catch (StrictDecisionFailure expected) {
+            assertEquals("Strict mode must not record a fallback",
+                    before, DecisionHandler.decisionFallbackCount());
         }
     }
 

@@ -162,6 +162,17 @@ class DecisionStats {
         return decisionFallbacks.get();
     }
 
+    /**
+     * Decisions the policy was asked for, across all four decision kinds.
+     *
+     * <p>A fallback count on its own says nothing about how contaminated a run is: 300
+     * fallbacks is a rounding error against 200k decisions and a catastrophe against
+     * 400. The denominator is what makes the number readable.
+     */
+    long getDecisionsServed() {
+        return actionCount.get() + choiceCount.get() + attackerCount.get() + targetCount.get();
+    }
+
     private static String ms(long ns) {
         return String.format("%8.1f", ns / 1_000_000.0);
     }
@@ -305,15 +316,6 @@ public class DecisionHandler {
     }
 
     /**
-     * Log a failed decision, then either fall back or fail the game.
-     *
-     * <p>Under strict mode this throws, and the engine does the rest: GameImpl's inner
-     * handler sees an exception from a player in tests mode (which the benchmark base
-     * class sets) and rethrows, which the outer handler turns into a game-ending
-     * IllegalStateException. So the harness counts a failed game, on the reporting
-     * surface it already has.
-     */
-    /**
      * Decision requests that failed and were retried, this JVM. One JVM is one game, so
      * this is a per-game count. Read by the simulation results so a degraded run is
      * visible in the benchmark report rather than only in the logs.
@@ -327,15 +329,35 @@ public class DecisionHandler {
         return DecisionStats.INSTANCE.getDecisionFallbacks();
     }
 
+    /** Decisions the policy was asked for, this JVM: the denominator for the above. */
+    public static long decisionsServedCount() {
+        return DecisionStats.INSTANCE.getDecisionsServed();
+    }
+
+    /**
+     * Log a failed decision, then either fall back or fail the game.
+     *
+     * <p>Under strict mode this throws a {@link StrictDecisionFailure}, which is an
+     * {@link Error} so that no {@code catch (Exception)} on the way out can turn it back
+     * into a heuristic decision. That is not hypothetical: this used to throw an
+     * {@code IllegalStateException}, and both {@code ComputerPlayer8.choose} and
+     * {@code ComputerPlayer8.chooseTarget} caught it and fell through to CP7, while
+     * {@code GameImpl} rolled back and continued. Strict runs completed, counted five
+     * figures of fallbacks, and still published a win rate.
+     */
     private DecisionResult degradeOrFail(String what, Exception cause, DecisionResult fallback) {
         logger.error("Failed to handle " + what + " decision", cause);
-        DecisionStats.INSTANCE.recordDecisionFallback();
         if (strictDecisionsEnabled()) {
-            throw new IllegalStateException(
+            // No fallback is recorded: the game is ending, so there is nothing to
+            // account for, and counting here inflated the number. The engine rolls
+            // back to the priority bookmark and replays on an inner error, so one
+            // failing decision used to be counted once per replay.
+            throw new StrictDecisionFailure(
                     "MAGELLM_STRICT_DECISIONS is set and the " + what + " decision failed; "
                     + "failing the game rather than letting ComputerPlayer7 decide for the "
                     + "agent under measurement", cause);
         }
+        DecisionStats.INSTANCE.recordDecisionFallback();
         return fallback;
     }
 

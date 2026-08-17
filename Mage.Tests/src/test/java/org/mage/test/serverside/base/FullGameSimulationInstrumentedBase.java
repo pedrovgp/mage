@@ -281,6 +281,10 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
             // by an error.
             obj.put("decision_retries", mage.player.ai.DecisionHandler.decisionRetryCount());
             obj.put("decision_fallbacks", mage.player.ai.DecisionHandler.decisionFallbackCount());
+            // The denominator. Without it a fallback count cannot be read: the two
+            // published reports showed ~29 fallbacks per game and no way to tell whether
+            // that was 0.1% of decisions or 30%.
+            obj.put("decisions_served", mage.player.ai.DecisionHandler.decisionsServedCount());
             return obj;
         }
     }

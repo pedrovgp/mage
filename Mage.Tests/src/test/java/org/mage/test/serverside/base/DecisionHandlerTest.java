@@ -12,6 +12,7 @@ import mage.players.Players;
 import mage.player.ai.DecisionHandler;
 import mage.player.ai.DecisionResult;
 import mage.player.ai.LlmDecisionClient;
+import mage.player.ai.StrictDecisionFailure;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -327,10 +328,73 @@ public class DecisionHandlerTest {
         try {
             decisionHandler.handleChoice(game, player, Outcome.Benefit, choice, choices, "random");
             fail("Strict mode should refuse to fall back to a CP7 choice");
-        } catch (IllegalStateException expected) {
+        } catch (StrictDecisionFailure expected) {
             assertTrue("Should name the failing decision, got: " + expected.getMessage(),
                     expected.getMessage().contains("choice"));
             assertNotNull("Should keep the original failure as the cause", expected.getCause());
+        } finally {
+            System.clearProperty("MAGELLM_STRICT_DECISIONS");
+        }
+    }
+
+    /**
+     * The reason strict mode is an {@link Error} and not an exception. Every caller on
+     * the way out of a decision is lined with {@code catch (Exception)} — CP8's
+     * {@code choose} and {@code chooseTarget} fall through to CP7, and GameImpl's inner
+     * priority handler rolls back and continues. Two benchmark reports recorded
+     * {@code strict_decisions: True}, counted five figures of fallbacks and still
+     * published a win rate. If someone re-types this as a RuntimeException, that
+     * silently comes back.
+     */
+    @Test
+    public void testStrictFailureSurvivesACatchExceptionCaller() {
+        when(mockClient.requestDecision(any())).thenThrow(new RuntimeException("Test exception"));
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+        Choice choice = new ChoiceImpl(true);
+        choice.setMessage("Test choice");
+        String[] choices = { "Option 1", "Option 2" };
+
+        System.setProperty("MAGELLM_STRICT_DECISIONS", "1");
+        boolean swallowed = false;
+        try {
+            // Exactly the shape of ComputerPlayer8.choose() and .chooseTarget().
+            try {
+                decisionHandler.handleChoice(game, player, Outcome.Benefit, choice, choices, "random");
+            } catch (Exception e) {
+                swallowed = true;
+            }
+            fail("A catch(Exception) caller must not be able to intercept the strict failure");
+        } catch (StrictDecisionFailure expected) {
+            assertFalse("catch(Exception) must not see the strict failure", swallowed);
+        } finally {
+            System.clearProperty("MAGELLM_STRICT_DECISIONS");
+        }
+    }
+
+    /**
+     * Under strict the game is ending, so there is nothing to account for. Counting here
+     * also inflated the number: the engine rolls back to the priority bookmark and
+     * replays on an inner error, so one failing decision was counted once per replay.
+     * A strict run must report zero fallbacks or the report is not trustworthy.
+     */
+    @Test
+    public void testStrictModeRecordsNoFallback() {
+        when(mockClient.requestDecision(any())).thenThrow(new RuntimeException("Test exception"));
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+        Choice choice = new ChoiceImpl(true);
+        choice.setMessage("Test choice");
+        String[] choices = { "Option 1", "Option 2" };
+
+        long before = DecisionHandler.decisionFallbackCount();
+        System.setProperty("MAGELLM_STRICT_DECISIONS", "1");
+        try {
+            decisionHandler.handleChoice(game, player, Outcome.Benefit, choice, choices, "random");
+            fail("Strict mode should have thrown");
+        } catch (StrictDecisionFailure expected) {
+            assertEquals("Strict mode must not record a fallback",
+                    before, DecisionHandler.decisionFallbackCount());
         } finally {
             System.clearProperty("MAGELLM_STRICT_DECISIONS");
         }

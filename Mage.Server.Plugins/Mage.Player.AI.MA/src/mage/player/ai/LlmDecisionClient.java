@@ -153,14 +153,17 @@ public class LlmDecisionClient {
     private DecisionResult degrade(DecisionPayload payload, RequestFailure failure, int attempts) {
         String kind = failure == null ? "exception" : failure.kind;
         String detail = failure == null ? "unknown" : failure.getMessage();
-        DecisionStats.INSTANCE.recordDecisionFallback();
         if (DecisionHandler.strictDecisionsEnabled()) {
-            throw new IllegalStateException(
+            // Not counted, and thrown as an Error: see StrictDecisionFailure. The
+            // caller's catch(Exception) used to swallow this and record a second
+            // fallback on the way past, so one real failure read as two.
+            throw new StrictDecisionFailure(
                     "MAGELLM_STRICT_DECISIONS is set and " + payload.getEndpointPath()
                     + " failed after " + attempts + " attempt(s) (" + kind + "); failing the "
                     + "game rather than letting ComputerPlayer7 decide for the agent under "
                     + "measurement: " + detail, failure);
         }
+        DecisionStats.INSTANCE.recordDecisionFallback();
         logger.error("decision " + payload.getEndpointPath() + " failed after " + attempts
                 + " attempt(s) (" + kind + "): " + detail);
         return new DecisionResult(0, new ArrayList<>(), kind);
