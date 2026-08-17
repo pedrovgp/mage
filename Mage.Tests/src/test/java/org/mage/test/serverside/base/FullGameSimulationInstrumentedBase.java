@@ -283,8 +283,30 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
             obj.put("decision_fallbacks", mage.player.ai.DecisionHandler.decisionFallbackCount());
             // The denominator. Without it a fallback count cannot be read: the two
             // published reports showed ~29 fallbacks per game and no way to tell whether
-            // that was 0.1% of decisions or 30%.
+            // that was 0.1% of decisions or 30%.  Successes only — a failed decision
+            // increments nothing, so contamination is served + fallbacks, not served.
             obj.put("decisions_served", mage.player.ai.DecisionHandler.decisionsServedCount());
+            // How much of the game the policy was actually offered, which is a much
+            // larger number: ~7 priority windows per turn against roughly one served
+            // decision.  ComputerPlayer8 only consults the policy when more than Pass
+            // is legal, so most windows are forced.  Reported so that the two are never
+            // confused again — reading served decisions as opportunities is what made
+            // the published fallback counts unintelligible.
+            obj.put("priority_windows", mage.player.ai.DecisionHandler.priorityWindowCount());
+            // Windows minus ACTION decisions: the ones that held no choice at all.
+            // Emitted rather than derived because the report cannot subtract
+            // correctly — choices, targets and attackers are served decisions that
+            // are not priority windows.
+            obj.put("forced_passes", mage.player.ai.DecisionHandler.forcedPassCount());
+            // Decisions with real alternatives that the policy never sees at all.
+            // Blockers are the CP6 heuristic (ComputerPlayer8.selectBlockers delegates
+            // to super and there is no blocker endpoint), so this is missing coverage
+            // rather than a fallback, and it is why the damage_taken reward term has
+            // nothing to act on.
+            obj.put("local_blocker_decisions",
+                    mage.player.ai.DecisionHandler.localBlockerDecisionCount());
+            obj.put("local_target_decisions",
+                    mage.player.ai.DecisionHandler.localTargetDecisionCount());
             return obj;
         }
     }

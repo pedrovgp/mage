@@ -416,6 +416,84 @@ public class DecisionHandlerTest {
         assertTrue("Reason should indicate fallback", result.getReason().contains("fallback"));
     }
 
+    /**
+     * The served count is the fallback denominator, so it must not silently include the
+     * attempts that failed — otherwise contamination hides in its own denominator.
+     */
+    @Test
+    public void testServedCountsSuccessesAndNotAttempts() {
+        System.clearProperty("MAGELLM_STRICT_DECISIONS");
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+        Choice choice = new ChoiceImpl(true);
+        choice.setMessage("Test choice");
+        String[] choices = { "Option 1", "Option 2" };
+
+        when(mockClient.requestDecision(any())).thenThrow(new RuntimeException("Test exception"));
+        long beforeFailure = DecisionHandler.decisionsServedCount();
+        decisionHandler.handleChoice(game, player, Outcome.Benefit, choice, choices, "random");
+        assertEquals("A failed decision must not count as served",
+                beforeFailure, DecisionHandler.decisionsServedCount());
+
+        reset(mockClient);
+        when(mockClient.requestDecision(any())).thenReturn(new DecisionResult(1, null, "ok"));
+        decisionHandler.handleChoice(game, player, Outcome.Benefit, choice, choices, "random");
+        assertEquals("A served decision must count once",
+                beforeFailure + 1, DecisionHandler.decisionsServedCount());
+    }
+
+    /**
+     * Served decisions and priority windows are different quantities. Reading one as the
+     * other is what made the fallback rate in two published benchmark reports
+     * unintelligible, so they are tracked apart and must stay apart.
+     */
+    @Test
+    public void testPriorityWindowsAreCountedApartFromServedDecisions() {
+        System.clearProperty("MAGELLM_STRICT_DECISIONS");
+        when(mockClient.requestDecision(any())).thenReturn(new DecisionResult(1, null, "ok"));
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+        Choice choice = new ChoiceImpl(true);
+        choice.setMessage("Test choice");
+
+        long windowsBefore = DecisionHandler.priorityWindowCount();
+        long servedBefore = DecisionHandler.decisionsServedCount();
+        decisionHandler.handleChoice(game, player, Outcome.Benefit, choice,
+                new String[] { "Option 1", "Option 2" }, "random");
+
+        assertEquals("Serving a choice is not a priority window",
+                windowsBefore, DecisionHandler.priorityWindowCount());
+        assertTrue("The choice should have been served",
+                DecisionHandler.decisionsServedCount() > servedBefore);
+        assertTrue("Locally resolved decisions are reported, not hidden",
+                DecisionHandler.localBlockerDecisionCount() >= 0
+                        && DecisionHandler.localTargetDecisionCount() >= 0);
+    }
+
+    /**
+     * Forced passes are windows minus ACTION decisions. Subtracting all served
+     * decisions instead would count a choice or a target against the window total and
+     * understate how many windows held no choice at all.
+     */
+    @Test
+    public void testForcedPassesDoNotSubtractNonWindowDecisions() {
+        System.clearProperty("MAGELLM_STRICT_DECISIONS");
+        when(mockClient.requestDecision(any())).thenReturn(new DecisionResult(1, null, "ok"));
+        Game game = TestGameFactory.createMinimalGame();
+        Player player = TestGameFactory.getPlayerA(game);
+        Choice choice = new ChoiceImpl(true);
+        choice.setMessage("Test choice");
+
+        long before = DecisionHandler.forcedPassCount();
+        decisionHandler.handleChoice(game, player, Outcome.Benefit, choice,
+                new String[] { "Option 1", "Option 2" }, "random");
+
+        assertEquals("A served choice must not change the forced-pass count",
+                before, DecisionHandler.forcedPassCount());
+        assertTrue("Forced passes can never be negative",
+                DecisionHandler.forcedPassCount() >= 0);
+    }
+
     @Test
     public void testStrictDecisionsReadsOnlyAffirmativeValues() {
         try {

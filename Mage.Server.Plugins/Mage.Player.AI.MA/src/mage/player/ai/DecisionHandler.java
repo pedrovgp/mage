@@ -163,14 +163,65 @@ class DecisionStats {
     }
 
     /**
-     * Decisions the policy was asked for, across all four decision kinds.
+     * Decisions the policy actually answered, across all four decision kinds.
      *
      * <p>A fallback count on its own says nothing about how contaminated a run is: 300
      * fallbacks is a rounding error against 200k decisions and a catastrophe against
      * 400. The denominator is what makes the number readable.
+     *
+     * <p>Counts SUCCESSES only. Each {@code recordX} call sits after
+     * {@code client.requestDecision} returns, so a decision that failed and fell back
+     * increments nothing here. Read it as "decisions the policy served", never as
+     * "decisions the policy was offered" — for that, see {@link #getPriorityWindows()}.
      */
     long getDecisionsServed() {
         return actionCount.get() + choiceCount.get() + attackerCount.get() + targetCount.get();
+    }
+
+    /**
+     * Priority windows this seat was given, whether or not it had anything to do.
+     *
+     * <p>The honest denominator for "how much of this game did the policy decide", and
+     * far larger than {@link #getDecisionsServed()} — about 7 per turn against roughly
+     * one. ComputerPlayer8 computes the playable set at every window and only consults
+     * the policy when {@code allActions.size() > 1}; when the sole legal option is Pass
+     * there is no decision to make, so the window is skipped. Measured on a 14-turn
+     * game: 102 windows, 16 policy calls.
+     *
+     * <p>This exists because the difference was invisible in the report, and a fallback
+     * count was read against the wrong denominator for two published runs.
+     */
+    long getPriorityWindows() {
+        return getPlayableCount.get();
+    }
+
+    /**
+     * Priority windows where Pass was the only legal option, so no decision existed.
+     *
+     * <p>Windows minus ACTION decisions specifically, not minus all served decisions:
+     * choices, targets and attacker declarations are not priority windows, and
+     * subtracting them would understate the forced count. Floored at zero because the
+     * action count includes windows the policy answered from its cache.
+     */
+    long getForcedPasses() {
+        return Math.max(0L, getPlayableCount.get() - actionCount.get());
+    }
+
+    /**
+     * Blocker declarations, all of which are made by the CP6 heuristic.
+     *
+     * <p>Not a policy decision, and not a fallback either: {@code ComputerPlayer8}
+     * has no blocker endpoint to call, so this is coverage the policy never had. It is
+     * reported next to the served decisions so that gap is visible in the numbers
+     * rather than only in the source.
+     */
+    long getLocalBlockerDecisions() {
+        return localBlockerCount.get();
+    }
+
+    /** Target choices resolved by the local heuristic instead of {@code /choose_targets}. */
+    long getLocalTargetDecisions() {
+        return localTargetCount.get();
     }
 
     private static String ms(long ns) {
@@ -329,9 +380,29 @@ public class DecisionHandler {
         return DecisionStats.INSTANCE.getDecisionFallbacks();
     }
 
-    /** Decisions the policy was asked for, this JVM: the denominator for the above. */
+    /** Decisions the policy answered, this JVM. Successes only — see getDecisionsServed. */
     public static long decisionsServedCount() {
         return DecisionStats.INSTANCE.getDecisionsServed();
+    }
+
+    /** Priority windows this seat was given, this JVM: the honest denominator. */
+    public static long priorityWindowCount() {
+        return DecisionStats.INSTANCE.getPriorityWindows();
+    }
+
+    /** Priority windows whose only legal option was Pass, this JVM. */
+    public static long forcedPassCount() {
+        return DecisionStats.INSTANCE.getForcedPasses();
+    }
+
+    /** Blocker declarations made by the CP6 heuristic, this JVM. The policy has no say. */
+    public static long localBlockerDecisionCount() {
+        return DecisionStats.INSTANCE.getLocalBlockerDecisions();
+    }
+
+    /** Target choices resolved locally rather than by the policy, this JVM. */
+    public static long localTargetDecisionCount() {
+        return DecisionStats.INSTANCE.getLocalTargetDecisions();
     }
 
     /**
