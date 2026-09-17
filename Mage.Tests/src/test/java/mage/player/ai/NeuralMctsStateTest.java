@@ -40,6 +40,38 @@ public class NeuralMctsStateTest extends CardTestPlayerBase {
         assertEquals(scalar.value, batch.get(0).value, 2e-5);
         assertArrayEquals(scalar.priors, batch.get(0).priors, 2e-5);
     }
+    @Test public void slighActionsAreInvariantAcrossSampledMadnessHands() {
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 3);
+        addCard(Zone.BATTLEFIELD, playerA, "Wasteland", 1);
+        addCard(Zone.BATTLEFIELD, playerA, "Mogg Fanatic", 1);
+        addCard(Zone.BATTLEFIELD, playerA, "Grim Lavamancer", 1);
+        for (String name : Arrays.asList("Lightning Bolt", "Chain Lightning", "Incinerate",
+                "Fireblast", "Seal of Fire", "Price of Progress", "Ball Lightning"))
+            addCard(Zone.HAND, playerA, name, 1);
+        addCard(Zone.GRAVEYARD, playerA, "Mountain", 2);
+        addCard(Zone.LIBRARY, playerA, "Mountain", 60);
+        addCard(Zone.BATTLEFIELD, playerB, "Forest", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Wild Mongrel", 1);
+        addCard(Zone.BATTLEFIELD, playerB, "Basking Rootwalla", 1);
+        addCard(Zone.HAND, playerB, "Circular Logic", 2);
+        addCard(Zone.LIBRARY, playerB, "Island", 20);
+        addCard(Zone.LIBRARY, playerB, "Forest", 20);
+        addCard(Zone.LIBRARY, playerB, "Basking Rootwalla", 20);
+        runCode("root invariance", 1, PhaseStep.PRECOMBAT_MAIN, playerA, (info, player, game) -> {
+            List<String> expected = new ArrayList<>();
+            for (NeuralMctsState.Move move : root(game, player.getId(), 1000000005).moves()) expected.add(move.key);
+            for (int i = 1; i < 16; i++) {
+                List<String> actual = new ArrayList<>();
+                for (NeuralMctsState.Move move : root(game, player.getId(), 1000000005 + i).moves()) actual.add(move.key);
+                Set<String> missing = new TreeSet<>(expected), extra = new TreeSet<>(actual);
+                missing.removeAll(actual); extra.removeAll(expected);
+                assertTrue("world " + i + " missing=" + missing + " extra=" + extra,
+                        missing.isEmpty() && extra.isEmpty());
+            }
+        });
+        setStopAt(1, PhaseStep.POSTCOMBAT_MAIN);
+        execute();
+    }
     @Test public void castAndResolveOnCopiesWithStableTargetsAndHiddenHand() {
         addCard(Zone.BATTLEFIELD, playerA, "Mountain", 1);
         addCard(Zone.HAND, playerA, "Lightning Bolt", 1);

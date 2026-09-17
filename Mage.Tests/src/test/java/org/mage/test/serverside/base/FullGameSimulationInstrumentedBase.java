@@ -219,6 +219,7 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
         // summary JSON so the worker can name the game it just finished when it
         // reports completion, instead of the server matching on a time window.
         public final List<String> gameIds;
+        public final List<JSONObject> seedReceipts = new ArrayList<>();
 
         public SimulationResults(String matchup, int gamesRequested, List<GameResult> gameResults, long seed) {
             this(matchup, gamesRequested, gameResults, seed, new ArrayList<>());
@@ -275,6 +276,7 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
             obj.put("total_duration_ms", totalDurationMs);
             obj.put("seed", seed);
             obj.put("game_ids", new org.json.JSONArray(gameIds));
+            obj.put("seed_receipts", new org.json.JSONArray(seedReceipts));
             // Decision-request health for this JVM, which is this game. A run that
             // completed while quietly degrading otherwise looks identical to a clean
             // one, since a failed decision is answered by ComputerPlayer7 rather than
@@ -334,6 +336,7 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
         // Every game's engine id, in play order, so the caller can attribute an
         // outcome to a specific game instead of guessing from a time window.
         List<String> playedGameIds = new ArrayList<>();
+        List<JSONObject> seedReceipts = new ArrayList<>();
 
         for (int gameIndex = 0; gameIndex < config.numGames; gameIndex++) {
             long gameStartTime = System.currentTimeMillis();
@@ -385,6 +388,11 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
                 // Create players and add them to the game
                 TestPlayer playerA = createPlayer(game, "PlayerA", gameDeck1);
                 TestPlayer playerB = createPlayer(game, "PlayerB", gameDeck2);
+                if (game instanceof SeededBenchmarkGame) {
+                    mage.util.RandomUtil.registerPlayer(playerA.getId(), gameSeed ^ 0xAAAAAAAAL);
+                    mage.util.RandomUtil.registerPlayer(playerB.getId(), gameSeed ^ 0xBBBBBBBBL);
+                    seedReceipts.add(((SeededBenchmarkGame) game).receipt);
+                }
 
                 // Anti-durdle: abort eternal-pass stalls quickly instead of at the
                 // TestPlayer 400-call default (which durdled to ~turn 51).
@@ -502,6 +510,7 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
         String matchup = deck1File.getFileName() + " vs " + deck2File.getFileName();
         SimulationResults simulationResults =
                 new SimulationResults(matchup, config.numGames, results, config.seed, playedGameIds);
+        simulationResults.seedReceipts.addAll(seedReceipts);
 
         // Save metrics to file
         saveSimulationResults(simulationResults, config.metricsOutputPath);
@@ -526,6 +535,11 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
      */
     protected Game createGameWithDecks(String deck1Path, String deck2Path, long seed)
             throws GameException, FileNotFoundException {
+        if (Boolean.getBoolean("magellm.frozenBenchmark")) {
+            mage.util.RandomUtil.setSeed(seed);
+            System.setProperty("neuralMcts.gameSeed", Long.toString(seed));
+            return new SeededBenchmarkGame(seed);
+        }
         Game game = new TwoPlayerDuel(MultiplayerAttackOption.LEFT, RangeOfInfluence.ONE,
                 MulliganType.GAME_DEFAULT.getMulligan(0), 60, 20, 7);
 
@@ -668,7 +682,8 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
     protected static void httpPost(String urlString, String body) {
         // The frozen search service owns no training/game-result routes. The
         // benchmark's authoritative result remains its local SimulationResults.
-        if ("neural_mcts".equals(System.getProperty("strategy.id"))) return;
+        if (Boolean.getBoolean("magellm.frozenBenchmark")
+                || "neural_mcts".equals(System.getProperty("strategy.id"))) return;
         try {
             java.net.URL url = java.net.URI.create(urlString).toURL();
             java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();

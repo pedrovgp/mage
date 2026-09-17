@@ -158,11 +158,31 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
 
     @Override
     public boolean priority(Game game) {
+        long started = System.nanoTime();
+        priorityOwner = "forced";
+        priorityCandidates = 1;
         game.resumeTimer(getTurnControlledBy());
-        boolean result = priorityPlay(game);
-        game.pauseTimer(getTurnControlledBy());
-        return result;
+        try {
+            return priorityPlay(game);
+        } finally {
+            game.pauseTimer(getTurnControlledBy());
+            String trace = System.getProperty("magellm.cp8DecisionLog");
+            if (trace != null && !game.isSimulation()) {
+                try {
+                    java.nio.file.Files.write(java.nio.file.Paths.get(trace),
+                            (new org.json.JSONObject().put("game_id", game.getId())
+                                    .put("decision_type", "priority").put("owner", priorityOwner)
+                                    .put("candidate_count", priorityCandidates)
+                                    .put("elapsed_ms", (System.nanoTime() - started) / 1e6)
+                                    .toString() + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                            java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+                } catch (java.io.IOException exc) { throw new IllegalStateException("priority trace failed", exc); }
+            }
+        }
     }
+
+    protected String priorityOwner;
+    protected int priorityCandidates;
 
     private boolean llmPlay(Game game) {
         PassAbility passAbility = new PassAbility();
@@ -171,6 +191,13 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         long _gpStart = System.nanoTime();
         allActions.addAll(this.getPlayable(game, false));
         DecisionStats.INSTANCE.recordGetPlayable(System.nanoTime() - _gpStart);
+        priorityCandidates = allActions.size();
+        priorityOwner = allActions.size() == 1 ? "forced" : "cp8";
+
+        // Optional search layer. CP8 remains the owner of phase filtering,
+        // forced passes, all unsearched callbacks, and unsuccessful overrides.
+        if (allActions.size() == 1) onForcedPriority(game);
+        else if (tryPriorityOverride(game, allActions)) return true;
 
         int chosenActionIndex = 0;
         if (allActions.size() > 1) {
@@ -208,6 +235,12 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
 
         return true;
     }
+
+    /** Return true only after a successful live action; false delegates to CP8. */
+    protected boolean tryPriorityOverride(Game game, List<Ability> allActions) { return false; }
+
+    /** Diagnostic hook only; a forced Pass must never call a policy or search. */
+    protected void onForcedPriority(Game game) { }
 
     private boolean priorityPlay(Game game) {
         game.getState().setPriorityPlayerId(playerId);

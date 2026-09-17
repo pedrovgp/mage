@@ -136,7 +136,7 @@ public class ComputerPlayer6 extends ComputerPlayer {
         this.actions.addAll(player.actions);
         this.targets.addAll(player.targets);
         this.choices.addAll(player.choices);
-        this.actionCache = player.actionCache;
+        this.actionCache = new HashSet<>(player.actionCache);
         this.actionsTaken = player.actionsTaken;
     }
 

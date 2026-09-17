@@ -1114,7 +1114,9 @@ public class DecisionHandler {
         // strategyId: sub-strategy selector within the rl branch.
         // Set via -Dstrategy.id=<id> (e.g. cosine, zone, noop).
         // Absent → Python server defaults to "cosine" (back-compat).
-        String strategyId = System.getProperty("strategy.id");
+        // Player selection (e.g. neural_mcts) is independent of CP8's served
+        // policy strategy. A hybrid's fallback must use the research policy.
+        String strategyId = System.getProperty("magellmfast.strategyId", System.getProperty("strategy.id"));
         if (strategyId != null && !strategyId.isEmpty()) {
             payload.put("strategyId", strategyId);
         }

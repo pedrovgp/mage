@@ -136,6 +136,12 @@ final class NeuralMctsState implements NeuralMctsSearch.State {
                 return true;
             }
         }
+        long activationSeed() {
+            // Auxiliary payment choices are part of replay, not of the sampled
+            // hidden world. Fireblast's alternative-cost chooser uses RNG: using
+            // the world seed here randomly removes different target variants.
+            return Long.parseUnsignedLong(fingerprint.substring(0, 16), 16);
+        }
         private static String combatKey(Game game) {
             Map<UUID, String> groups = new TreeMap<>();
             for (CombatGroup group : game.getCombat().getGroups())
@@ -235,7 +241,7 @@ final class NeuralMctsState implements NeuralMctsSearch.State {
                     Move m = new Move(a.copy(), null, null);
                     // getPlayableOptions is advisory: some optional-cost/target
                     // variants still fail activation. Never create those edges.
-                    if (m.legalPriority(game, actor, childSeed(m))) unique.put(m.fingerprint, m);
+                    if (m.legalPriority(game, actor, m.activationSeed())) unique.put(m.fingerprint, m);
                     else rejectedCandidates++;
                     if (unique.size() > MAX_ACTIONS) throw new SearchAbort("priority candidate limit");
                 }
@@ -280,7 +286,9 @@ final class NeuralMctsState implements NeuralMctsSearch.State {
         try (RandomUtil.RandomScope scope = RandomUtil.searchScope(childSeed)) {
             Game child = game.createSimulationForAI();
             int errors = child.getTotalErrorsCount();
-            moves().get(index).apply(child, actor);
+            try (RandomUtil.RandomScope activation = RandomUtil.searchScope(moves().get(index).activationSeed())) {
+                moves().get(index).apply(child, actor);
+            }
             child.resume();
             if (child.getTotalErrorsCount() != errors) throw new SearchAbort("simulation engine error");
             UUID nextActor = rootPlayer;
