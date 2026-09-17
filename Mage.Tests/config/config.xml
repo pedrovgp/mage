@@ -5,6 +5,7 @@
     <playerTypes>
         <playerType name="Computer - mad" jar="mage-player-ai-ma.jar" className="mage.player.ai.ComputerPlayerControllableProxy"/>
         <playerType name="Computer - monte carlo" jar="mage-player-aimcts.jar" className="mage.player.ai.ComputerPlayerMCTS"/>
+        <playerType name="Computer - neural MCTS (known decks)" jar="mage-player-ai-mcts.jar" className="mage.player.ai.ComputerPlayerNeuralMCTS"/>
     </playerTypes>
     <gameTypes>
         <gameType name="Two Player Duel" jar="mage-game-twoplayerduel.jar" className="mage.game.TwoPlayerMatch" typeName="mage.game.TwoPlayerDuelType"/>

@@ -711,6 +711,20 @@ public class DecisionHandler {
         return payload;
     }
 
+    /** Shared gameView serializer for search. No true-state/logging payload built. */
+    public JSONObject buildSearchObservation(Game game, Player viewer) {
+        JSONObject payload = new JSONObject();
+        payload.put("player_id", viewer.getId().toString());
+        payload.put("game_view", buildGameViewJson(game, viewer));
+        payload.put("own_deck", buildOwnDeckJson(game, viewer));
+        payload.put("log_trajectory", false);
+        return payload;
+    }
+
+    public JSONObject serializeSearchAbility(Ability ability) {
+        return (JSONObject) convertObjectToJson(ability);
+    }
+
     /**
      * Build payload for ChooseAttackersCreate schema
      */

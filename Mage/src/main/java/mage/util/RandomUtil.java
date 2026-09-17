@@ -27,6 +27,25 @@ public final class RandomUtil {
     // Use enterSimulation()/exitSimulation() around game.copy()-based search.
     private static final AtomicInteger simulationDepth = new AtomicInteger(0);
     private static final Random simulationRandom = new Random(0xFEEDFACEL);
+    // Neural search is local to one thread. Never reseed/advance live-game RNGs.
+    private static final ThreadLocal<Random> searchRandom = new ThreadLocal<>();
+
+    public static RandomScope searchScope(long seed) {
+        return new RandomScope(seed);
+    }
+
+    public static final class RandomScope implements AutoCloseable {
+        private final Random previous;
+        private RandomScope(long seed) {
+            previous = searchRandom.get();
+            searchRandom.set(new Random(seed));
+        }
+        @Override
+        public void close() {
+            if (previous == null) searchRandom.remove();
+            else searchRandom.set(previous);
+        }
+    }
 
     // Separate RNG for alpha-beta tie-breaking in ComputerPlayer6/7.
     // INTENTIONALLY seeded with a fixed constant (not the game seed) so that all
@@ -82,6 +101,7 @@ public final class RandomUtil {
     // -------------------------------------------------------------------------
 
     private static Random resolveRng(UUID playerId) {
+        if (searchRandom.get() != null) return searchRandom.get();
         if (simulationDepth.get() > 0) {
             return simulationRandom;
         }
@@ -99,6 +119,7 @@ public final class RandomUtil {
     // -------------------------------------------------------------------------
 
     public static Random getRandom() {
+        if (searchRandom.get() != null) return searchRandom.get();
         return random;
     }
 

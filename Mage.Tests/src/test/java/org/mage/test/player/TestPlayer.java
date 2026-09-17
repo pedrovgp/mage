@@ -138,6 +138,12 @@ public class TestPlayer implements Player {
         computerPlayer.setTestPlayerLink(this);
     }
 
+    public TestPlayer(TestComputerPlayerNeuralMCTS computerPlayer) {
+        this.computerPlayer = computerPlayer;
+        AIPlayer = false;
+        computerPlayer.setTestPlayerLink(this);
+    }
+
     public TestPlayer(TestComputerPlayer8 computerPlayer) {
         this.computerPlayer = computerPlayer;
         AIPlayer = false;

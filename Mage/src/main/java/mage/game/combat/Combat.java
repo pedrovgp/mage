@@ -596,7 +596,7 @@ public class Combat implements Serializable, Copyable<Combat> {
      * @return true if the attack with that set of creatures and attacked
      * players/planeswalkers is possible
      */
-    protected boolean checkAttackRestrictions(Player player, Game game) {
+    public boolean checkAttackRestrictions(Player player, Game game) {
         boolean check = true;
         int numberOfChecks = 0;
         UUID attackerToRemove = null;

@@ -541,8 +541,16 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
             // Competitive evaluation mode: CP8 (RL via HTTP) vs CP7 (MCTS).
             // PlayerA is the RL agent; PlayerB is the rule-based opponent.
             if ("PlayerA".equals(playerName)) {
-                player = new TestPlayer(
-                        new org.mage.test.player.TestComputerPlayer8(playerName, rangeOfInfluence, 8));
+                if ("neural_mcts".equals(System.getProperty("strategy.id"))) {
+                    player = new TestPlayer(new org.mage.test.player.TestComputerPlayerNeuralMCTS(
+                            playerName, rangeOfInfluence, 8));
+                } else if ("random_mcts".equals(System.getProperty("strategy.id"))) {
+                    player = new TestPlayer(new org.mage.test.player.TestComputerPlayerMonteCarlo(
+                            playerName, rangeOfInfluence, 8));
+                } else {
+                    player = new TestPlayer(
+                            new org.mage.test.player.TestComputerPlayer8(playerName, rangeOfInfluence, 8));
+                }
             } else {
                 player = new TestPlayer(
                         new org.mage.test.player.TestComputerPlayer7(playerName, rangeOfInfluence, 8));
@@ -658,6 +666,9 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
 
     // HTTP helpers (copied from LLMPuzzlesBase)
     protected static void httpPost(String urlString, String body) {
+        // The frozen search service owns no training/game-result routes. The
+        // benchmark's authoritative result remains its local SimulationResults.
+        if ("neural_mcts".equals(System.getProperty("strategy.id"))) return;
         try {
             java.net.URL url = java.net.URI.create(urlString).toURL();
             java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
