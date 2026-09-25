@@ -341,6 +341,13 @@ public class DecisionHandler {
     private static final String ENDPOINT_SHADOW_AGREEMENT = "/v1/shadow_agreement";
 
     private final LlmDecisionClient client;
+    private static final ThreadLocal<long[]> diagnosticRpc = ThreadLocal.withInitial(() -> new long[2]);
+    public static long[] diagnosticRpcSnapshot() { return diagnosticRpc.get().clone(); }
+    private DecisionResult measuredRequest(DecisionPayload payload) throws Exception {
+        long start = System.nanoTime();
+        try { return client.requestDecision(payload); }
+        finally { long[] stats = diagnosticRpc.get(); stats[0] += System.nanoTime() - start; stats[1]++; }
+    }
     private final ObjectMapper objectMapper;
 
     /**
@@ -452,7 +459,7 @@ public class DecisionHandler {
             JSONObject payload = buildChooseFromAllActionsPayload(game, currentPlayer, allActions, strategy);
             long t1 = System.nanoTime();
             DecisionPayload dp = new DecisionPayload(ENDPOINT_CHOOSE_FROM_ALL_ACTIONS, payload);
-            DecisionResult result = client.requestDecision(dp);
+            DecisionResult result = measuredRequest(dp);
             long t2 = System.nanoTime();
             informChosenAction(game, currentPlayer, allActions, result);
             long t3 = System.nanoTime();
@@ -476,7 +483,7 @@ public class DecisionHandler {
                     strategy);
             long t1 = System.nanoTime();
             DecisionPayload dp = new DecisionPayload(ENDPOINT_CHOOSE_FROM_CHOICES, payload);
-            DecisionResult result = client.requestDecision(dp);
+            DecisionResult result = measuredRequest(dp);
             long t2 = System.nanoTime();
             informChosenChoice(game, currentPlayer, allChoices, result);
             long t3 = System.nanoTime();
@@ -501,7 +508,7 @@ public class DecisionHandler {
                     strategy);
             long t1 = System.nanoTime();
             DecisionPayload dp = new DecisionPayload(ENDPOINT_CHOOSE_ATTACKERS, payload);
-            DecisionResult result = client.requestDecision(dp);
+            DecisionResult result = measuredRequest(dp);
             long t2 = System.nanoTime();
             informChosenAttackers(game, currentPlayer, possibleAttackers, result);
             long t3 = System.nanoTime();
@@ -532,7 +539,7 @@ public class DecisionHandler {
             payload.put("targetContext", convertObjectToJson(targetContext));
             long t1 = System.nanoTime();
             DecisionPayload dp = new DecisionPayload(ENDPOINT_CHOOSE_TARGETS, payload);
-            DecisionResult result = client.requestDecision(dp);
+            DecisionResult result = measuredRequest(dp);
             long t2 = System.nanoTime();
             informChosenReason(game, currentPlayer, "TARGET", result);
             long t3 = System.nanoTime();
@@ -553,7 +560,7 @@ public class DecisionHandler {
             JSONObject payload = buildChooseTargetAmountPayload(game, currentPlayer, targetIds, minAmount, maxAmount,
                     strategy);
             DecisionPayload dp = new DecisionPayload(ENDPOINT_CHOOSE_TARGET_AMOUNT, payload);
-            DecisionResult result = client.requestDecision(dp);
+            DecisionResult result = measuredRequest(dp);
 
             logDecision("TARGET_AMOUNT", targetIds.size(), result);
             return result;
@@ -574,7 +581,7 @@ public class DecisionHandler {
             JSONObject payload = buildTrajectoryPayload(game, currentPlayer, decisionType, availableActions,
                     chosenAction, additionalContext);
             DecisionPayload dp = new DecisionPayload(ENDPOINT_LOG_TRAJECTORY, payload);
-            DecisionResult result = client.requestDecision(dp);
+            DecisionResult result = measuredRequest(dp);
 
             logDecision("TRAJECTORY_LOG", 1, result);
             return result;
@@ -596,7 +603,7 @@ public class DecisionHandler {
     public void postShadowAgreement(JSONObject payload) {
         try {
             DecisionPayload dp = new DecisionPayload(ENDPOINT_SHADOW_AGREEMENT, payload);
-            client.requestDecision(dp);
+            measuredRequest(dp);
         } catch (Exception e) {
             logger.debug("shadow_agreement post failed (ignored): " + e.getMessage());
         }
@@ -612,7 +619,7 @@ public class DecisionHandler {
     public void postTrajectory(JSONObject payload) {
         try {
             DecisionPayload dp = new DecisionPayload(ENDPOINT_LOG_TRAJECTORY, payload);
-            client.requestDecision(dp);
+            measuredRequest(dp);
         } catch (Exception e) {
             logger.debug("trajectory post failed (ignored): " + e.getMessage());
         }

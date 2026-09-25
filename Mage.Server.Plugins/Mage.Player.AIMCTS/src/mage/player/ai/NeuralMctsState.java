@@ -34,7 +34,7 @@ final class NeuralMctsState implements NeuralMctsSearch.State {
     private List<Move> moves;
     int rejectedCandidates;
 
-    static final class SearchPlayer extends MCTSPlayer {
+    static class SearchPlayer extends MCTSPlayer {
         private final long deadline;
         SearchPlayer(Player original, long deadline) {
             super(original.getId());
@@ -154,6 +154,41 @@ final class NeuralMctsState implements NeuralMctsSearch.State {
             result.put("action", ability == null ? new JSONObject() : serializer.serializeSearchAbility(ability));
             return result;
         }
+        JSONObject describe(Game game) {
+            JSONObject result = new JSONObject().put("fingerprint", fingerprint).put("key", key);
+            if (ability != null) {
+                mage.MageObject source = game.getObject(ability.getSourceId());
+                result.put("description", ability instanceof PassAbility ? "Pass" : ability.getRule())
+                        .put("source_id", ability.getSourceId() == null ? JSONObject.NULL : ability.getSourceId())
+                        .put("source_card", source == null ? JSONObject.NULL : source.getName())
+                        .put("ability_id", ability.getId()).put("costs", ability.getManaCostsToPay().getText())
+                        .put("additional_costs", ability.getCosts().getText())
+                        .put("modes", new JSONArray(ability.getModes().getSelectedModes()));
+                JSONArray modeDescriptions = new JSONArray();
+                for (Mode mode : ability.getModes().values()) modeDescriptions.put(new JSONObject().put("id", mode.getId())
+                        .put("description", mode.getEffects().getText(mode))
+                        .put("selected", ability.getModes().getSelectedModes().contains(mode.getId())));
+                result.put("mode_descriptions", modeDescriptions);
+                JSONArray targets = new JSONArray();
+                for (Mode mode : ability.getModes().values()) for (Target target : mode.getTargets())
+                    for (UUID id : target.getTargets()) targets.put(new JSONObject().put("id", id)
+                            .put("name", objectName(game, id))
+                            .put("amount", target.getTargetAmount(id)));
+                result.put("targets", targets);
+            } else {
+                Map<UUID, UUID> assignments = attacks != null ? attacks : blocks;
+                List<String> descriptions = new ArrayList<>();
+                for (Map.Entry<UUID, UUID> entry : assignments.entrySet())
+                    descriptions.add(objectName(game, entry.getKey()) + (attacks != null ? " attacks " : " blocks ") + objectName(game, entry.getValue()));
+                result.put("description", descriptions.isEmpty() ? (attacks != null ? "No attackers" : "No blockers")
+                        : String.join("; ", descriptions)).put("assignments", new JSONObject(assignments));
+            }
+            return result;
+        }
+        private static String objectName(Game game, UUID id) {
+            return game.getObject(id) != null ? game.getObject(id).getName()
+                    : game.getPlayer(id) != null ? game.getPlayer(id).getName() : id.toString();
+        }
     }
 
     static String hash(String text) {
@@ -167,11 +202,12 @@ final class NeuralMctsState implements NeuralMctsSearch.State {
 
     static NeuralMctsState root(Game live, UUID player, MCTSPlayer.NextAction kind, long seed,
                                 long deadline, String checkpoint, DecisionHandler serializer) {
+        boolean oracle = oracleEnabled();
         if (live.getPlayers().size() != 2) throw new SearchAbort("neural MCTS supports two-player games only");
         try (RandomUtil.RandomScope scope = RandomUtil.searchScope(seed)) {
             Game copy = live.createSimulationForAI();
             // Uniform known-deck sampling does not model unknown morph/exile identities.
-            for (Card card : copy.getCards()) if (card.isFaceDown(copy))
+            for (Card card : copy.getCards()) if (!oracle && card.isFaceDown(copy))
                 throw new SearchAbort("face-down hidden objects require belief sampling");
             Set<UUID> known = new HashSet<>();
             for (Cards cards : copy.getState().getRevealed().values()) known.addAll(cards);
@@ -179,6 +215,10 @@ final class NeuralMctsState implements NeuralMctsSearch.State {
             JSONObject view = serializer.buildSearchObservation(copy, copy.getPlayer(player)).getJSONObject("game_view");
             for (Player original : new ArrayList<>(copy.getPlayers().values())) {
                 SearchPlayer simulation = new SearchPlayer(original, deadline);
+                if (oracle) {
+                    copy.getState().getPlayers().put(simulation.getId(), simulation);
+                    continue;
+                }
                 JSONObject playerView = view.getJSONObject(original.getId().equals(player) ? "myPlayer" : "opponentPlayer");
                 JSONObject top = playerView.optJSONObject("topCard");
                 Card visibleTop = top == null ? null : copy.getCard(UUID.fromString(top.getString("id")));
@@ -206,6 +246,17 @@ final class NeuralMctsState implements NeuralMctsSearch.State {
             copy.pause();
             return new NeuralMctsState(copy, player, player, kind, seed, deadline, checkpoint, serializer);
         }
+    }
+
+    static boolean oracleEnabled() {
+        String mode = System.getProperty("neuralMcts.hiddenStateMode", "known_deck_uniform");
+        if (!mode.equals("oracle") && !mode.equals("known_deck_uniform"))
+            throw new IllegalArgumentException("invalid hidden state mode: " + mode);
+        if (mode.equals("oracle") && (!Boolean.getBoolean("magellm.frozenBenchmark")
+                || !"false".equals(System.getProperty("magellmfast.logTrajectory"))
+                || Boolean.getBoolean("magellm.dagger") || Boolean.getBoolean("magellm.cp7Shadow")))
+            throw new IllegalStateException("oracle requires explicit frozen benchmark with training/shadow logging disabled");
+        return mode.equals("oracle");
     }
 
     private static void canonicalShuffle(Player player, Game game) {
@@ -281,6 +332,7 @@ final class NeuralMctsState implements NeuralMctsSearch.State {
         for (Move m : moves()) keys.add(m.fingerprint);
         return keys;
     }
+    @Override public JSONObject actionDescription(int index) { return moves().get(index).describe(game); }
     @Override public NeuralMctsState next(int index) {
         long childSeed = childSeed(moves().get(index));
         try (RandomUtil.RandomScope scope = RandomUtil.searchScope(childSeed)) {
@@ -305,7 +357,7 @@ final class NeuralMctsState implements NeuralMctsSearch.State {
             return new NeuralMctsState(child, rootPlayer, nextActor, nextKind, childSeed, deadline, checkpoint, serializer);
         }
     }
-    private long childSeed(Move move) {
+    long childSeed(Move move) {
         return seed * 6364136223846793005L + Long.parseUnsignedLong(move.fingerprint.substring(0, 16), 16);
     }
     @Override public JSONObject request() {
@@ -317,5 +369,30 @@ final class NeuralMctsState implements NeuralMctsSearch.State {
         JSONArray candidates = new JSONArray();
         for (Move m : moves()) candidates.put(m.payload(serializer));
         return request.put("all_actions", candidates);
+    }
+
+    @Override public JSONObject snapshot() {
+        return snapshot(game, actor, rootPlayer, kind, serializer);
+    }
+    static JSONObject snapshot(Game game, UUID actor, UUID rootPlayer, MCTSPlayer.NextAction kind, DecisionHandler serializer) {
+        // Deliberately separate from request(): privileged fields never reach a model.
+        JSONObject result = new JSONObject().put("actor", actor).put("value_player_id", rootPlayer)
+                .put("turn", game.getTurnNum()).put("step", game.getTurnStepType())
+                .put("decision_type", kind).put("observation", serializer.buildSearchObservation(game, game.getPlayer(actor)))
+                .put("diagnostic_only", true).put("training_eligible", false);
+        if (oracleEnabled()) {
+            JSONArray hidden = new JSONArray();
+            for (Player player : game.getPlayers().values()) {
+                JSONArray hand = new JSONArray(), library = new JSONArray();
+                for (UUID id : player.getHand()) hand.put(cardDescription(game, id));
+                for (UUID id : player.getLibrary().getCardList()) library.put(cardDescription(game, id));
+                hidden.put(new JSONObject().put("player_id", player.getId()).put("hand", hand).put("library_order", library));
+            }
+            result.put("privileged_oracle", true).put("privileged_hidden_state", hidden);
+        }
+        return result;
+    }
+    private static JSONObject cardDescription(Game game, UUID id) {
+        return new JSONObject().put("id", id).put("name", game.getCard(id).getName());
     }
 }

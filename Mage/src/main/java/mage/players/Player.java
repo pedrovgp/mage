@@ -693,6 +693,11 @@ public interface Player extends MageItem, Copyable<Player> {
 
     boolean choose(Outcome outcome, Choice choice, Game game);
 
+    /** Alternative payment menu with explicit source/key context for AI legality checks. */
+    default boolean chooseAlternativeCost(Choice choice, Ability source, String regularCostKey, Game game) {
+        return choose(Outcome.Benefit, choice, game);
+    }
+
     boolean choosePile(Outcome outcome, String message, List<? extends Card> pile1, List<? extends Card> pile2, Game game);
 
     boolean playMana(Ability ability, ManaCost unpaid, String promptText, Game game);

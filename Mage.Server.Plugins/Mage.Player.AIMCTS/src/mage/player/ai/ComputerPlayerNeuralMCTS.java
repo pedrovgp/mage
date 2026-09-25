@@ -14,12 +14,30 @@ import java.util.*;
 public class ComputerPlayerNeuralMCTS extends ComputerPlayer8 {
     private long decisions;
     private transient DecisionHandler serializer;
+    private long decisionSequence;
+    private transient NeuralMctsDiagnostics diagnostic;
+    @Override protected String priorityDiagnosticId() { return diagnostic == null ? null : diagnostic.event.getString("decision_id"); }
     public ComputerPlayerNeuralMCTS(String name, RangeOfInfluence range, int skill) { super(name, range, skill); }
     protected ComputerPlayerNeuralMCTS(ComputerPlayerNeuralMCTS other) { super(other); decisions = other.decisions; }
     @Override public ComputerPlayerNeuralMCTS copy() { return new ComputerPlayerNeuralMCTS(this); }
 
     protected NeuralMctsState.Move search(Game game, MCTSPlayer.NextAction kind) {
-        if (!Boolean.getBoolean("neuralMcts.knownDecks"))
+        if (diagnostic == null) return searchInternal(game, kind);
+        String[] before = new String[2];
+        diagnostic.attempt(() -> { before[0] = NeuralMctsDiagnostics.stateReceipt(game); before[1] = mage.util.RandomUtil.liveStreamsReceipt(); });
+        long started = System.nanoTime(), diagnosticBefore = diagnostic.diagnosticNanos;
+        try { return searchInternal(game, kind); }
+        finally {
+            if (diagnostic.result == null) diagnostic.event.put("simulation_ms", Math.max(0,
+                    (System.nanoTime() - started - diagnostic.diagnosticNanos + diagnosticBefore) / 1e6
+                            - diagnostic.event.optDouble("inference_ms", 0)));
+            diagnostic.attempt(() -> diagnostic.event
+                    .put("search_live_state_unchanged", before[0] != null && before[0].equals(NeuralMctsDiagnostics.stateReceipt(game)))
+                    .put("search_live_rng_unchanged", before[1] != null && before[1].equals(mage.util.RandomUtil.liveStreamsReceipt())));
+        }
+    }
+    private NeuralMctsState.Move searchInternal(Game game, MCTSPlayer.NextAction kind) {
+        if (!NeuralMctsState.oracleEnabled() && !Boolean.getBoolean("neuralMcts.knownDecks"))
             throw new IllegalStateException("uniform determinization requires explicit neuralMcts.knownDecks=true; unknown decks need belief sampling");
         if (serializer == null) serializer = new DecisionHandler(System.getProperty("neuralMcts.url", "http://localhost:9310"));
         String checkpoint = System.getProperty("neuralMcts.checkpoint", "arm20_step17176");
@@ -34,6 +52,7 @@ public class ComputerPlayerNeuralMCTS extends ComputerPlayer8 {
         List<NeuralMctsSearch.State> worlds = new ArrayList<>();
         NeuralMctsState first = NeuralMctsState.root(game, playerId, kind, seed, deadline, checkpoint, serializer);
         if (first.moves().size() == 1) {
+            if (diagnostic != null) { diagnostic.root = first; diagnostic.selected = first.moves().get(0); diagnostic.event.put("candidate_count", 1); }
             record(context(game, kind).put("owner", "forced").put("fast_path", true)
                     .put("simulations", 0).put("evaluated_positions", 0).put("inference_batches", 0)
                     .put("chosen", first.moves().get(0).fingerprint).put("candidate_count", 1)
@@ -47,22 +66,45 @@ public class ComputerPlayerNeuralMCTS extends ComputerPlayer8 {
         NeuralMctsSearch engine = new NeuralMctsSearch(client,
                 Double.parseDouble(System.getProperty("neuralMcts.cPuct", "1.5")),
                 Integer.getInteger("neuralMcts.maxDepth", 32));
-        NeuralMctsSearch.Result result = engine.search(worlds, playerId, budget, deadline);
+        NeuralMctsSearch.Result result;
+        try { result = engine.search(worlds, playerId, budget, deadline); }
+        catch (Exception | NeuralMctsState.SearchAbort | NeuralMctsSearch.DeadlineExceeded exc) {
+            if (diagnostic != null) {
+                JSONObject progress = engine.progressDiagnostics();
+                for (String key : progress.keySet()) diagnostic.event.put(key, progress.get(key));
+                diagnostic.event.put("offending_path", engine.failureContext);
+            }
+            throw exc;
+        }
+        long searchNanos = System.nanoTime() - start;
+        // These fields are also merged into the decision before serialization.
+        // Keep IDs as strings: JSONObject.getString does not coerce UUID objects.
         record(result.diagnostics.put("checkpoint_id", checkpoint).put("chosen", result.action)
-                .put("seed", seed).put("decision_type", kind).put("game_id", game.getId())
-                .put("player_id", playerId).put("turn", game.getTurnNum()).put("step", game.getTurnStepType())
+                .put("decision_id", diagnostic == null ? JSONObject.NULL : diagnostic.event.get("decision_id"))
+                .put("seed", seed).put("decision_type", kind).put("game_id", game.getId().toString())
+                .put("player_id", playerId.toString()).put("turn", game.getTurnNum()).put("step", game.getTurnStepType())
                 .put("elapsed_ms", (System.nanoTime() - start) / 1e6).put("fallback", false)
                 .put("owner", "mcts").put("candidate_count", first.moves().size())
                 .put("rejected_root_candidates", first.rejectedCandidates)
-                .put("hidden_state_mode", "known_deck_uniform"));
-        for (NeuralMctsState.Move move : first.moves()) if (move.fingerprint.equals(result.action)) return move;
+                .put("hidden_state_mode", System.getProperty("neuralMcts.hiddenStateMode", "known_deck_uniform"))
+                .put("diagnostic_only", NeuralMctsState.oracleEnabled()));
+        if (diagnostic != null) {
+            diagnostic.acceptSearch(first, result, searchNanos);
+            // The original CP8 route is deliberately outside the search deadline.
+            diagnostic.attempt(() -> diagnostic.probe(game, this, kind));
+        }
+        for (NeuralMctsState.Move move : first.moves()) if (move.fingerprint.equals(result.action)) {
+            if (diagnostic != null) diagnostic.selected = move;
+            return move;
+        }
         throw new IllegalStateException("chosen action was not legal at root");
     }
     protected void failure(Game game, Throwable error) {
         boolean strict = Boolean.parseBoolean(System.getProperty("neuralMcts.strict", "false"));
-        record(new JSONObject().put("game_id", game.getId()).put("failed", true)
+        if (diagnostic != null) { diagnostic.failure(error); diagnostic.event.put("fallback", !strict); }
+        record(context(game, MCTSPlayer.NextAction.PRIORITY).put("failed", true)
                 .put("fallback", !strict).put("fallback_owner", strict ? "none" : "cp8")
-                .put("error", error.toString()));
+                .put("failure_category", NeuralMctsDiagnostics.category(error)).put("error", error.toString()));
         if (strict)
             throw new NeuralMctsState.SearchAbort("neural MCTS failed: " + error);
     }
@@ -75,8 +117,52 @@ public class ComputerPlayerNeuralMCTS extends ComputerPlayer8 {
         } catch (Exception exc) { throw new IllegalStateException("cannot write search diagnostics", exc); }
     }
     private JSONObject context(Game game, MCTSPlayer.NextAction kind) {
-        return new JSONObject().put("game_id", game.getId()).put("player_id", playerId)
+        JSONObject context = new JSONObject().put("game_id", game.getId().toString()).put("player_id", playerId.toString())
+                .put("hidden_state_mode", System.getProperty("neuralMcts.hiddenStateMode", "known_deck_uniform"))
+                .put("diagnostic_only", "oracle".equals(System.getProperty("neuralMcts.hiddenStateMode")))
                 .put("turn", game.getTurnNum()).put("step", game.getTurnStepType()).put("decision_type", kind);
+        if (diagnostic != null) context.put("decision_id", diagnostic.event.get("decision_id"));
+        return context;
+    }
+    private void beginDiagnostic(Game game, MCTSPlayer.NextAction kind) {
+        if (NeuralMctsDiagnostics.enabled(game)) {
+            diagnostic = new NeuralMctsDiagnostics(game, playerId, ++decisionSequence, kind);
+            diagnostic.attempt(() -> {
+                if (serializer == null) serializer = new DecisionHandler(System.getProperty("neuralMcts.url", "http://localhost:9310"));
+                diagnostic.detail.put("root", NeuralMctsState.snapshot(game, playerId, playerId, kind, serializer));
+            });
+        }
+    }
+    @Override public boolean priority(Game game) {
+        beginDiagnostic(game, MCTSPlayer.NextAction.PRIORITY);
+        try {
+            boolean answer = super.priority(game);
+            if (diagnostic != null) diagnostic.event.put("execution_status", "executed");
+            return answer;
+        } catch (Exception | NeuralMctsState.SearchAbort | NeuralMctsSearch.DeadlineExceeded | StrictDecisionFailure exc) {
+            if (diagnostic != null) { diagnostic.failure(exc); diagnostic.event.put("execution_status", "failed"); }
+            throw exc;
+        } finally {
+            if (diagnostic != null) {
+                if (diagnostic.selected == null && priorityCandidates == 1)
+                    diagnostic.selected = new NeuralMctsState.Move(new PassAbility(), null, null);
+                diagnostic.finish(game, priorityOwner, priorityCandidates); diagnostic = null;
+            }
+        }
+    }
+    @Override protected void onPriorityCandidates(Game game, List<Ability> actions) {
+        if (diagnostic != null) diagnostic.event.put("live_candidate_count", actions.size());
+        if (diagnostic != null && !searchEnabled() && actions.size() > 1) {
+            if (serializer == null) serializer = new DecisionHandler(System.getProperty("neuralMcts.url", "http://localhost:9310"));
+            diagnostic.attempt(() -> diagnostic.evaluateControl(game, playerId, MCTSPlayer.NextAction.PRIORITY, serializer, actions.size()));
+        }
+    }
+    @Override protected void onPrioritySelected(Game game, Ability action) {
+        if (diagnostic != null) diagnostic.attempt(() -> {
+            diagnostic.selected = NeuralMctsDiagnostics.actualMove(game, action);
+            diagnostic.event.put("executed_action", diagnostic.selected.describe(game));
+            if (!priorityActivated) diagnostic.failure(new IllegalStateException("live CP8 activation failed"));
+        });
     }
     protected boolean searchEnabled() {
         return !Boolean.getBoolean("neuralMcts.policyOnly")
@@ -111,10 +197,21 @@ public class ComputerPlayerNeuralMCTS extends ComputerPlayer8 {
             if (!game.isSimulation() && getActionsTaken() == before)
                 throw new NeuralMctsState.SearchAbort("selected action failed during live CP8 activation");
         }
+        if (diagnostic != null) diagnostic.attempt(() -> diagnostic.event.put("executed_action",
+                NeuralMctsDiagnostics.actualMove(game, move.ability).describe(game)));
         return true; // never retry/fall back after a partially applied live action.
     }
     @Override public void selectAttackers(Game game, UUID attackingPlayerId) {
+        beginDiagnostic(game, MCTSPlayer.NextAction.SELECT_ATTACKERS);
+        try { selectAttackersImpl(game, attackingPlayerId); }
+        catch (Exception | NeuralMctsState.SearchAbort | NeuralMctsSearch.DeadlineExceeded | StrictDecisionFailure exc) {
+            if (diagnostic != null) { diagnostic.failure(exc); diagnostic.event.put("execution_status", "failed"); }
+            throw exc;
+        } finally { finishCombatDiagnostic(game, MCTSPlayer.NextAction.SELECT_ATTACKERS); }
+    }
+    private void selectAttackersImpl(Game game, UUID attackingPlayerId) {
         if (!searchEnabled() || !Boolean.parseBoolean(System.getProperty("neuralMcts.searchCombat", "true"))) {
+            controlCombatDiagnostic(game, MCTSPlayer.NextAction.SELECT_ATTACKERS);
             super.selectAttackers(game, attackingPlayerId); return;
         }
         NeuralMctsState.Move move;
@@ -123,12 +220,36 @@ public class ComputerPlayerNeuralMCTS extends ComputerPlayer8 {
         move.apply(game, playerId);
     }
     @Override public void selectBlockers(Ability source, Game game, UUID defendingPlayerId) {
+        beginDiagnostic(game, MCTSPlayer.NextAction.SELECT_BLOCKERS);
+        try { selectBlockersImpl(source, game, defendingPlayerId); }
+        catch (Exception | NeuralMctsState.SearchAbort | NeuralMctsSearch.DeadlineExceeded | StrictDecisionFailure exc) {
+            if (diagnostic != null) { diagnostic.failure(exc); diagnostic.event.put("execution_status", "failed"); }
+            throw exc;
+        } finally { finishCombatDiagnostic(game, MCTSPlayer.NextAction.SELECT_BLOCKERS); }
+    }
+    private void selectBlockersImpl(Ability source, Game game, UUID defendingPlayerId) {
         if (!searchEnabled() || !Boolean.parseBoolean(System.getProperty("neuralMcts.searchCombat", "true"))) {
+            controlCombatDiagnostic(game, MCTSPlayer.NextAction.SELECT_BLOCKERS);
             super.selectBlockers(source, game, defendingPlayerId); return;
         }
         NeuralMctsState.Move move;
         try { move = search(game, MCTSPlayer.NextAction.SELECT_BLOCKERS); }
         catch (Exception | NeuralMctsState.SearchAbort | NeuralMctsSearch.DeadlineExceeded exc) { failure(game, exc); super.selectBlockers(source, game, defendingPlayerId); return; }
         move.apply(game, playerId);
+    }
+    private void controlCombatDiagnostic(Game game, MCTSPlayer.NextAction kind) {
+        if (diagnostic == null) return;
+        if (serializer == null) serializer = new DecisionHandler(System.getProperty("neuralMcts.url", "http://localhost:9310"));
+        diagnostic.attempt(() -> diagnostic.evaluateControl(game, playerId, kind, serializer, -1));
+    }
+    private void finishCombatDiagnostic(Game game, MCTSPlayer.NextAction kind) {
+        if (diagnostic == null) return;
+        if (!"failed".equals(diagnostic.event.getString("execution_status"))) {
+            diagnostic.selected = NeuralMctsDiagnostics.combatMove(game, kind);
+            diagnostic.event.put("execution_status", "executed");
+        }
+        diagnostic.finish(game, diagnostic.event.optBoolean("fallback") ? "cp8_fallback" : searchEnabled() ? "mcts" : "cp8",
+                diagnostic.event.optInt("candidate_count", -1));
+        diagnostic = null;
     }
 }

@@ -1946,7 +1946,11 @@ public class ComputerPlayer extends PlayerImpl {
         Collections.sort(list, new Comparator<Entry<MageObject, Integer>>() {
             @Override
             public int compare(Entry<MageObject, Integer> o1, Entry<MageObject, Integer> o2) {
-                return (o1.getValue().compareTo(o2.getValue()));
+                int score = o1.getValue().compareTo(o2.getValue());
+                // MageObject uses identity hashing, which changes on a game copy.
+                // Equal-scored producers must pay identically in an activation
+                // probe and its replay (the source may also have a tap cost).
+                return score != 0 ? score : o1.getKey().getId().compareTo(o2.getKey().getId());
             }
         });
         List<MageObject> result = new ArrayList<>();

@@ -568,6 +568,7 @@ public abstract class AbilityImpl implements Ability {
                             : "You may choose an alternative cost"
             );
             Map<String, Integer> sort = new LinkedHashMap<>();
+            String regularCostKey = null;
             int i;
             for (i = 0; i < possibleAlternatives.size(); i++) {
                 String key = Integer.toString(i + 1);
@@ -585,6 +586,7 @@ public abstract class AbilityImpl implements Ability {
             if (!mustChooseAlternative) {
                 // add the non-alternative cast as the last option.
                 String key = Integer.toString(i + 1);
+                regularCostKey = key;
                 sort.put(key, i);
                 choice.withItem(
                         key,
@@ -594,7 +596,7 @@ public abstract class AbilityImpl implements Ability {
                         sourceObject.getId().toString()
                 );
             }
-            if (!player.choose(Outcome.Benefit, choice, game)) {
+            if (!player.chooseAlternativeCost(choice, this, regularCostKey, game)) {
                 return false;
             }
             String choiceKey = choice.getChoiceKey();

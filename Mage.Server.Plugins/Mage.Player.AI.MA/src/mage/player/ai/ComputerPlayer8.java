@@ -2,6 +2,7 @@ package mage.player.ai;
 
 import mage.MageObject;
 import mage.abilities.Ability;
+import mage.abilities.ActivatedAbility;
 import mage.abilities.TriggeredAbilities;
 import mage.abilities.common.PassAbility;
 import mage.abilities.costs.mana.ColoredManaCost;
@@ -171,6 +172,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
                 try {
                     java.nio.file.Files.write(java.nio.file.Paths.get(trace),
                             (new org.json.JSONObject().put("game_id", game.getId())
+                                    .put("player_id", playerId).put("decision_id", priorityDiagnosticId())
                                     .put("decision_type", "priority").put("owner", priorityOwner)
                                     .put("candidate_count", priorityCandidates)
                                     .put("elapsed_ms", (System.nanoTime() - started) / 1e6)
@@ -182,7 +184,9 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
     }
 
     protected String priorityOwner;
+    protected String priorityDiagnosticId() { return null; }
     protected int priorityCandidates;
+    protected boolean priorityActivated;
 
     private boolean llmPlay(Game game) {
         PassAbility passAbility = new PassAbility();
@@ -193,6 +197,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         DecisionStats.INSTANCE.recordGetPlayable(System.nanoTime() - _gpStart);
         priorityCandidates = allActions.size();
         priorityOwner = allActions.size() == 1 ? "forced" : "cp8";
+        onPriorityCandidates(game, allActions);
 
         // Optional search layer. CP8 remains the owner of phase filtering,
         // forced passes, all unsearched callbacks, and unsuccessful overrides.
@@ -205,6 +210,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         }
 
         Ability chosenAction = allActions.get(chosenActionIndex);
+        priorityActivated = chosenAction instanceof PassAbility;
 
         if (logger.isInfoEnabled()) {
             logger.info("LLM chosen action: " + chosenAction.toString());
@@ -233,7 +239,18 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
             act(game);
         }
 
+        onPrioritySelected(game, chosenAction);
         return true;
+    }
+
+    /** Read-only benchmark hooks; production CP8 selection stays in llmPlay. */
+    protected void onPriorityCandidates(Game game, List<Ability> allActions) { }
+    protected void onPrioritySelected(Game game, Ability action) { }
+
+    @Override public boolean activateAbility(mage.abilities.ActivatedAbility ability, Game game) {
+        boolean activated = super.activateAbility(ability, game);
+        priorityActivated = activated;
+        return activated;
     }
 
     /** Return true only after a successful live action; false delegates to CP8. */
@@ -300,6 +317,37 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
     @Override
     public void setAllowBadMoves(boolean allowBadMoves) {
         this.allowBadMoves = allowBadMoves;
+    }
+
+    @Override
+    public boolean chooseAlternativeCost(Choice choice, Ability source, String regularCostKey, Game game) {
+        if (regularCostKey != null && source instanceof ActivatedAbility
+                && choice.getKeyChoices().containsKey(regularCostKey)) {
+            // getPlayable may admit a spell only because an alternative cost can
+            // be paid. Do not offer its unaffordable regular cost to the model.
+            // Match the engine's regular-cost check, including cost modifiers,
+            // available mana abilities and life-payment options, on a copy.
+            Game calculation = game.createSimulationForPlayableCalc();
+            ActivatedAbility cost = ((ActivatedAbility) source).copy();
+            cost.adjustCosts(calculation);
+            calculation.getContinuousEffects().costModification(cost, calculation);
+            if (!canPayMinimumManaCost(cost, getManaAvailable(calculation), calculation)) {
+                Map<String, String> alternatives = new java.util.LinkedHashMap<>(choice.getKeyChoices());
+                alternatives.remove(regularCostKey);
+                if (alternatives.isEmpty()) return false;
+                if (alternatives.size() == 1) {
+                    choice.setChoiceByKey(alternatives.keySet().iterator().next());
+                    return true;
+                }
+                Choice payable = choice.copy();
+                payable.setKeyChoices(alternatives);
+                if (!choose(Outcome.Benefit, payable, game)) return false;
+                if (!alternatives.containsKey(payable.getChoiceKey())) return false;
+                choice.setChoiceByKey(payable.getChoiceKey());
+                return true;
+            }
+        }
+        return choose(Outcome.Benefit, choice, game);
     }
 
     @Override

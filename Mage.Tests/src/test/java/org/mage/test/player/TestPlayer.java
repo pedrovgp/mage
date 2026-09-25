@@ -2262,6 +2262,14 @@ public class TestPlayer implements Player {
     }
 
     @Override
+    public boolean chooseAlternativeCost(Choice choice, Ability source, String regularCostKey, Game game) {
+        if (choices.isEmpty() && canChooseByComputer()) {
+            return computerPlayer.chooseAlternativeCost(choice, source, regularCostKey, game);
+        }
+        return choose(Outcome.Benefit, choice, game);
+    }
+
+    @Override
     public boolean choose(Outcome outcome, Choice choice, Game game) {
         assertAliasSupportInChoices(false);
 

@@ -471,8 +471,13 @@ public class ComputerPlayer6 extends ComputerPlayer {
      * @return
      */
     protected Integer addActionsTimed() {
-        // run new game simulation in parallel thread
-        FutureTask<Integer> task = new FutureTask<>(() -> addActions(root, maxDepth, Integer.MIN_VALUE, Integer.MAX_VALUE));
+        // Executor threads do not inherit scoped RNGs. Cancelled tasks may still
+        // unwind engine code, so give each task private snapshots of both streams.
+        RandomUtil.SimulationFork rng = RandomUtil.forkSimulation();
+        SimulationNode2 submittedRoot = root;
+        int submittedDepth = maxDepth;
+        FutureTask<Integer> task = new FutureTask<>(() -> rng.call(
+                () -> addActions(submittedRoot, submittedDepth, Integer.MIN_VALUE, Integer.MAX_VALUE)));
         // task.run();  // for easier debugging
         threadPoolSimulations.execute(task);
         try {
@@ -482,6 +487,7 @@ public class ComputerPlayer6 extends ComputerPlayer {
             }
             logger.debug("maxThink: " + maxSeconds + " seconds ");
             Integer res = task.get(maxSeconds, TimeUnit.SECONDS);
+            rng.commit();
             if (res != null) {
                 return res;
             }

@@ -1,6 +1,9 @@
 package mage.player.ai;
 
 import mage.abilities.common.PassAbility;
+import mage.abilities.ActivatedAbility;
+import mage.choices.Choice;
+import mage.util.RandomUtil;
 import mage.constants.*;
 import mage.cards.Card;
 import mage.players.Player;
@@ -15,6 +18,137 @@ import static org.junit.Assert.*;
 public class NeuralMctsStateTest extends CardTestPlayerBase {
     private static final String CHECKPOINT = "arm20_step17176";
     private final DecisionHandler serializer = new DecisionHandler("http://127.0.0.1:9310");
+
+    private void oracle(Runnable work) {
+        String[] keys = {"neuralMcts.hiddenStateMode", "magellm.frozenBenchmark", "magellmfast.logTrajectory"};
+        String[] old = Arrays.stream(keys).map(System::getProperty).toArray(String[]::new);
+        System.setProperty(keys[0], "oracle"); System.setProperty(keys[1], "true"); System.setProperty(keys[2], "false");
+        try { work.run(); }
+        finally { for (int i = 0; i < keys.length; i++) {
+            if (old[i] == null) System.clearProperty(keys[i]); else System.setProperty(keys[i], old[i]);
+        } }
+    }
+    @Test public void oracleRequiresExplicitFrozenNonTrainingWorkflow() {
+        String old = System.getProperty("neuralMcts.hiddenStateMode");
+        System.setProperty("neuralMcts.hiddenStateMode", "oracle");
+        try { assertThrows(IllegalStateException.class, NeuralMctsState::oracleEnabled); }
+        finally { if (old == null) System.clearProperty("neuralMcts.hiddenStateMode"); else System.setProperty("neuralMcts.hiddenStateMode", old); }
+    }
+    @Test public void oraclePreservesHiddenAllocationsLibraryOrderStackAndLiveRng() {
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 1);
+        addCard(Zone.HAND, playerA, "Lightning Bolt", 1);
+        addCard(Zone.HAND, playerB, "Giant Growth", 1);
+        addCard(Zone.LIBRARY, playerA, "Mountain", 20);
+        addCard(Zone.LIBRARY, playerA, "Forest", 20);
+        addCard(Zone.LIBRARY, playerB, "Island", 20);
+        addCard(Zone.LIBRARY, playerB, "Forest", 20);
+        runCode("oracle hidden state", 1, PhaseStep.PRECOMBAT_MAIN, playerA, (info, player, game) -> oracle(() -> {
+            String rng = RandomUtil.liveStreamsReceipt(), before = NeuralMctsDiagnostics.stateReceipt(game);
+            for (int i = 0; i < 8; i++) {
+                NeuralMctsState copied = root(game, player.getId(), 314 + i);
+                for (Player live : game.getPlayers().values()) {
+                    assertEquals(live.getHand(), copied.game.getPlayer(live.getId()).getHand());
+                    assertEquals(live.getLibrary().getCardList(), copied.game.getPlayer(live.getId()).getLibrary().getCardList());
+                }
+                JSONObject request = copied.request();
+                assertEquals(0, request.getJSONObject("game_view").getJSONObject("opponentPlayer").getJSONArray("handCards").length());
+                assertFalse(request.getBoolean("log_trajectory"));
+                assertFalse(request.toString().contains("privileged_hidden_state"));
+                assertTrue(copied.snapshot().getBoolean("privileged_oracle"));
+                assertEquals(before, NeuralMctsDiagnostics.stateReceipt(game));
+                assertEquals(rng, RandomUtil.liveStreamsReceipt());
+            }
+            NeuralMctsState first = root(game, player.getId(), 5);
+            for (int i = 0; i < first.moves().size(); i++) {
+                NeuralMctsState.Move move = first.moves().get(i);
+                if (move.ability != null && !(move.ability instanceof PassAbility)) {
+                    NeuralMctsState child = first.next(i);
+                    NeuralMctsState copied = root(child.game, child.actor, 123);
+                    assertEquals(child.game.getStack().size(), copied.game.getStack().size());
+                    assertEquals(serializer.buildSearchObservation(child.game, child.game.getPlayer(child.actor)).toString(),
+                            serializer.buildSearchObservation(copied.game, copied.game.getPlayer(child.actor)).toString());
+                    break;
+                }
+            }
+            assertEquals(before, NeuralMctsDiagnostics.stateReceipt(game));
+            assertEquals(rng, RandomUtil.liveStreamsReceipt());
+        }));
+        setStopAt(1, PhaseStep.POSTCOMBAT_MAIN); execute();
+    }
+
+    private NeuralMctsState referenceTransition(NeuralMctsState state, int index) {
+        NeuralMctsState.Move move = state.moves().get(index);
+        Game reference;
+        try (RandomUtil.RandomScope scope = RandomUtil.searchScope(state.childSeed(move))) {
+            reference = state.game.createSimulationForAI();
+            try (RandomUtil.RandomScope activation = RandomUtil.searchScope(move.activationSeed())) {
+                assertTrue(reference.getPlayer(state.actor).activateAbility((ActivatedAbility) move.ability.copy(), reference));
+            }
+            reference.resume();
+        }
+        NeuralMctsState child = state.next(index);
+        assertEquals(NeuralMctsDiagnostics.stateReceipt(reference), NeuralMctsDiagnostics.stateReceipt(child.game));
+        assertEquals(reference.checkIfGameIsOver(), child.game.checkIfGameIsOver());
+        return child;
+    }
+    /** Script the optional payment in this fixture; production auxiliaries are unchanged. */
+    static class AlternativePaymentPlayer extends NeuralMctsState.SearchPlayer {
+        AlternativePaymentPlayer(NeuralMctsState.SearchPlayer player) { super(player); }
+        @Override public AlternativePaymentPlayer copy() { return new AlternativePaymentPlayer(this); }
+        @Override public boolean choose(Outcome outcome, Choice choice, Game game) {
+            if (choice.isKeyChoice()) {
+                for (Map.Entry<String, String> option : choice.getKeyChoices().entrySet())
+                    if (option.getValue().toLowerCase(Locale.ROOT).contains("sacrifice")) {
+                        choice.setChoiceByKey(option.getKey()); return true;
+                    }
+            } else if (choice.getChoices() != null) {
+                for (String option : choice.getChoices()) if (option.toLowerCase(Locale.ROOT).contains("sacrifice")) {
+                    choice.setChoice(option); return true;
+                }
+            }
+            return super.choose(outcome, choice, game);
+        }
+    }
+    private void spellTransition(String spell, String land, int lands, String graveyardCard) {
+        if (spell.equals("Lightning Bolt")) setLife(playerB, 3);
+        addCard(Zone.BATTLEFIELD, playerA, land, lands);
+        addCard(Zone.HAND, playerA, spell, 1);
+        if (graveyardCard != null) addCard(Zone.GRAVEYARD, playerA, graveyardCard, 1);
+        addCard(Zone.LIBRARY, playerA, "Forest", 30);
+        addCard(Zone.LIBRARY, playerB, "Island", 30);
+        runCode("reference " + spell, 1, PhaseStep.PRECOMBAT_MAIN, playerA, (info, player, game) -> oracle(() -> {
+            NeuralMctsState state = root(game, player.getId(), 55);
+            if (spell.equals("Fireblast")) state.game.getState().getPlayers().put(player.getId(),
+                    new AlternativePaymentPlayer((NeuralMctsState.SearchPlayer) state.game.getPlayer(player.getId())));
+            boolean found = false;
+            for (int i = 0; i < state.moves().size(); i++) {
+                NeuralMctsState.Move move = state.moves().get(i);
+                if (move.ability != null && game.getCard(move.ability.getSourceId()) != null
+                        && spell.equals(game.getCard(move.ability.getSourceId()).getName())) {
+                    if (spell.equals("Lightning Bolt") && !game.getOpponents(player.getId()).iterator().next()
+                            .equals(move.ability.getTargets().getFirstTarget())) continue;
+                    NeuralMctsState child = referenceTransition(state, i);
+                    for (int n = 0; n < 12 && !child.game.getStack().isEmpty(); n++) {
+                        for (int p = 0; p < child.moves().size(); p++) if (child.moves().get(p).ability instanceof PassAbility) {
+                            child = referenceTransition(child, p); break;
+                        }
+                    }
+                    assertTrue(child.game.getStack().isEmpty());
+                    if (spell.equals("Lightning Bolt")) assertEquals(Double.valueOf(1), child.terminalValue());
+                    if (spell.equals("Fireblast")) assertEquals(0, child.game.getBattlefield().getAllActivePermanents(player.getId()).size());
+                    if (graveyardCard != null) assertTrue(child.game.getBattlefield().getAllActivePermanents(player.getId()).stream()
+                            .anyMatch(card -> graveyardCard.equals(card.getName())));
+                    found = true; break;
+                }
+            }
+            assertTrue("generated spell " + spell + " rejected=" + state.rejectedCandidates + " request=" + state.request(), found);
+        }));
+        setStopAt(1, PhaseStep.POSTCOMBAT_MAIN); execute();
+    }
+    @Test public void alternativeCostMatchesReferenceEngine() { spellTransition("Fireblast", "Mountain", 2, null); }
+    @Test public void graveyardRecursionMatchesReferenceEngine() { spellTransition("Unearth", "Swamp", 1, "Grizzly Bears"); }
+    @Test public void drawAndPendingChoiceMatchReferenceEngine() { spellTransition("Opt", "Island", 1, null); }
+    @Test public void lethalSpellMatchesReferenceTerminalOutcome() { spellTransition("Lightning Bolt", "Mountain", 1, null); }
 
     private NeuralMctsState root(Game game, UUID player, long seed) {
         return NeuralMctsState.root(game, player, MCTSPlayer.NextAction.PRIORITY, seed,

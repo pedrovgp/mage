@@ -91,6 +91,20 @@ public class NeuralMctsSearchTest {
         new NeuralMctsSearch((p, d) -> { throw new IllegalStateException("offline"); }, 1.5, 8)
                 .search(Collections.singletonList(root), ROOT, 8, DEADLINE);
     }
+    @Test public void failureRetainsCompletedWorkAndRootValue() {
+        State broken = new State("broken", ROOT, null, .4, terminal("end", 1)) {
+            @Override public State next(int action) { throw new IllegalStateException("injected transition failure"); }
+        };
+        State root = new State("root", ROOT, null, .3, broken);
+        NeuralMctsSearch engine = new NeuralMctsSearch(new Evaluator(), 1.5, 32);
+        assertThrows(IllegalStateException.class, () -> engine.search(Collections.singletonList(root), ROOT, 256, DEADLINE));
+        JSONObject progress = engine.progressDiagnostics();
+        assertEquals(1, progress.getInt("simulations"));
+        assertEquals(2, progress.getInt("evaluated_positions"));
+        assertEquals(1, progress.getInt("evaluated_leaf_positions"));
+        assertEquals(.3, progress.getDouble("root_value"), 1e-9);
+        assertEquals("transition", engine.failureContext.getString("stage"));
+    }
     @Test(expected = IllegalStateException.class) public void rootOrderingMustMatchAcrossWorlds() {
         State first = new State("root", ROOT, null, 0, terminal("a", 1), terminal("b", -1));
         State second = new State("root", ROOT, null, 0, terminal("b", -1), terminal("a", 1));
@@ -98,6 +112,13 @@ public class NeuralMctsSearchTest {
     }
     @Test public void rngScopesDoNotAdvanceLiveStreamsAndRestoreAfterException() {
         RandomUtil.setSeed(19); RandomUtil.registerPlayer(ROOT, 23);
+        RandomUtil.resetAlphaBetaForThink(91);
+        String receipt = RandomUtil.liveStreamsReceipt();
+        try (RandomUtil.RandomScope audit = RandomUtil.searchScope(12)) {
+            RandomUtil.resetAlphaBetaForThink(88); RandomUtil.nextAlphaBetaBoolean();
+            RandomUtil.nextInt(); RandomUtil.playerNextInt(ROOT, 100);
+        }
+        assertEquals(receipt, RandomUtil.liveStreamsReceipt());
         Random global = new Random(19), player = new Random(23);
         assertEquals(global.nextInt(), RandomUtil.nextInt());
         try (RandomUtil.RandomScope scope = RandomUtil.searchScope(31)) {
@@ -108,6 +129,31 @@ public class NeuralMctsSearchTest {
         }
         assertEquals(global.nextInt(), RandomUtil.nextInt());
         assertEquals(player.nextInt(100), RandomUtil.playerNextInt(ROOT, 100));
+    }
+    @Test public void diagnosticsOnlyInspectVisitedPathsAndDoNotChangeFixedBudgetDecisions() {
+        State later = new State("later", OPP, null, -.6, terminal("end", 1));
+        State sameActor = new State("same", ROOT, null, .4, later);
+        State root = new State("root", ROOT, null, -.9, sameActor, terminal("other", -1));
+        Evaluator evaluator = new Evaluator();
+        NeuralMctsSearch.Result result = new NeuralMctsSearch(evaluator, 1.5, 32)
+                .search(Arrays.asList(root, root), ROOT, 256, DEADLINE);
+        int calls = evaluator.calls;
+        JSONArray paths = result.paths("unknown");
+        assertEquals(calls, evaluator.calls);
+        assertTrue(paths.length() <= 3);
+        assertFalse(paths.getJSONObject(1).getBoolean("available"));
+        JSONArray fallbackPaths = result.paths("unmapped_executed_fallback", "unknown");
+        assertEquals("unmapped_executed_fallback", fallbackPaths.getJSONObject(0).getString("root_action"));
+        assertFalse(fallbackPaths.getJSONObject(0).getBoolean("available"));
+        JSONArray plies = paths.getJSONObject(0).getJSONArray("plies");
+        assertEquals(ROOT.toString(), plies.getJSONObject(0).get("actor").toString());
+        assertEquals(ROOT.toString(), plies.getJSONObject(1).get("actor").toString());
+        assertEquals(OPP.toString(), plies.getJSONObject(2).get("actor").toString());
+        for (Object item : plies) assertEquals(ROOT.toString(), ((JSONObject) item).get("value_player_id").toString());
+        NeuralMctsSearch.Result repeat = new NeuralMctsSearch(new Evaluator(), 1.5, 32)
+                .search(Arrays.asList(root, root), ROOT, 256, DEADLINE);
+        assertEquals(result.action, repeat.action);
+        assertEquals(result.diagnostics.getJSONArray("actions").toString(), repeat.diagnostics.getJSONArray("actions").toString());
     }
     @Test public void responseRejectsPermutationAndWrongPerspective() {
         JSONObject request = new JSONObject().put("player_id", ROOT.toString())
