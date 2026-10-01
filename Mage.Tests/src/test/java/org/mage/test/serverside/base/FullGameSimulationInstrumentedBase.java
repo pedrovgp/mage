@@ -551,7 +551,16 @@ public abstract class FullGameSimulationInstrumentedBase extends CardTestPlayerB
     protected TestPlayer createNewPlayer(String playerName, RangeOfInfluence rangeOfInfluence) {
         TestPlayer player;
         String currentStrategy = System.getProperty("strategy", STRATEGY);
-        if ("rl".equals(currentStrategy) || "rl_eval".equals(currentStrategy)) {
+        boolean plainReference = Boolean.getBoolean("magellm.benchmarkPlainReference");
+        if (plainReference && (!Boolean.getBoolean("magellm.frozenBenchmark") || !"mageai".equals(currentStrategy))) {
+            throw new IllegalStateException("plain CP7 reference requires a frozen mageai benchmark");
+        }
+        if (plainReference) {
+            // The neural arm's opponent is this exact class too. Opt in only
+            // for paired pilot comparisons; preserve the instrumented default.
+            player = new TestPlayer(
+                    new org.mage.test.player.TestComputerPlayer7(playerName, rangeOfInfluence, 8));
+        } else if ("rl".equals(currentStrategy) || "rl_eval".equals(currentStrategy)) {
             // Competitive evaluation mode: CP8 (RL via HTTP) vs CP7 (MCTS).
             // PlayerA is the RL agent; PlayerB is the rule-based opponent.
             if ("PlayerA".equals(playerName)) {

@@ -31,7 +31,19 @@ public class SeededBenchmarkGame extends TwoPlayerDuel {
             player.getLibrary().clear();
             cards.forEach(card -> player.getLibrary().putOnBottom(card, this));
         }
-        startingPlayerId = choosingPlayerId; // same seat starts in both arms
+        // Default preserves every existing paired benchmark. Explicit play/draw
+        // assignments are test-only and recorded in the usual deal receipt.
+        String requested = System.getProperty("magellm.benchmarkStartingPlayer");
+        startingPlayerId = choosingPlayerId;
+        if (requested != null) {
+            if (!"PlayerA".equals(requested) && !"PlayerB".equals(requested)) {
+                throw new IllegalArgumentException("magellm.benchmarkStartingPlayer must be PlayerA or PlayerB");
+            }
+            startingPlayerId = getPlayers().values().stream()
+                    .filter(player -> requested.equals(player.getName()))
+                    .map(Player::getId).findFirst()
+                    .orElseThrow(() -> new IllegalStateException("requested benchmark starting player is absent"));
+        }
         super.init(choosingPlayerId);
         receipt.put("starting_player", getPlayer(startingPlayerId).getName());
         for (Player player : getPlayers().values()) {
