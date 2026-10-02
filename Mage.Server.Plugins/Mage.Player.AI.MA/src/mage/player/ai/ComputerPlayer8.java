@@ -1216,15 +1216,15 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
      * Build a fresh shadow CP7 instance for a probe think.
      *
      * The copy constructor shares playerId (so the shadow searches from this seat)
-     * but the CP6 copy ctor SHARES the actionCache reference and COPIES
-     * actions/combat. All three are reset so that:
+     * but the copy still contains prior actions/combat/cache history. Reset it
+     * explicitly so that:
      *  - the shadow's first choice is the raw alpha-beta answer (no repeat
      *    suppression from the live player's history),
      *  - the shadow can never write into the live player's actionCache,
      *  - a think that yields no result cannot leave a stale copied combat behind.
      * root is not copied by the ctor (null => calculateActions does a fresh search).
      */
-    private ComputerPlayer7 newShadowCp7() {
+    protected ComputerPlayer7 newShadowCp7() {
         ComputerPlayer7 shadow = new ComputerPlayer7(this);
         shadow.actionCache = new HashSet<>();
         shadow.actions = new LinkedList<>();
@@ -1285,6 +1285,50 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
         return ability.getRule() + '_' + ability.getSourceId();
     }
 
+    public static final String PRIORITY_SHADOW_V2 = "cp7-priority-phase-fresh-v2";
+    public static final String PRIORITY_SHADOW_RAW_V1 = "cp7-priority-raw-search-v1";
+
+    protected Ability freshCp7PriorityChoice(Game game) {
+        ComputerPlayer7 shadow = newShadowCp7();
+        shadow.calculateActions(game);
+        return shadow.actions.isEmpty() ? null : shadow.actions.peek();
+    }
+
+    private static Integer matchShadowPriority(List<Ability> allActions, Ability choice) {
+        for (int i = 0; i < allActions.size(); i++) {
+            Ability candidate = allActions.get(i);
+            if (choice == null || choice instanceof PassAbility) {
+                if (candidate instanceof PassAbility) return i;
+            } else if (shadowAbilityKey(candidate).equals(shadowAbilityKey(choice))) {
+                return i;
+            }
+        }
+        return null;
+    }
+
+    private static JSONObject shadowPriorityChoice(List<Ability> actions, Ability choice) {
+        Integer matched = matchShadowPriority(actions, choice);
+        return new JSONObject().put("cp7_choice_text", choice == null ? "Pass" : choice.toString())
+                .put("matched_index", matched == null ? JSONObject.NULL : matched)
+                .put("cp7_is_pass", choice == null || choice instanceof PassAbility);
+    }
+
+    /** One read-only comparison. No priority/act call is made on the live game.
+     * Auto-Pass steps skip search unless a separately labelled raw proposal is
+     * explicitly requested. Search steps still start with fresh teacher history. */
+    protected JSONObject priorityShadowComparison(Game game, List<Ability> allActions, boolean includeRaw) {
+        boolean search = ComputerPlayer7.searchesPriorityAtStep(game.getTurnStepType());
+        Ability raw = search || includeRaw ? freshCp7PriorityChoice(game) : null;
+        JSONObject comparison = shadowPriorityChoice(allActions, search ? raw : null)
+                .put("schema_version", 2).put("teacher_semantics", PRIORITY_SHADOW_V2)
+                .put("teacher_history", "fresh").put("teacher_search_enabled", search);
+        if (includeRaw) {
+            comparison.put("raw_search", shadowPriorityChoice(allActions, raw)
+                    .put("teacher_semantics", PRIORITY_SHADOW_RAW_V1));
+        }
+        return comparison;
+    }
+
     /**
      * Shadow probe for priority decisions. Sample-rate gated BEFORE the expensive
      * think; the gate uses ThreadLocalRandom so the game's RandomUtil sequences are
@@ -1297,26 +1341,12 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
             if (!DAGGER_MODE && ThreadLocalRandom.current().nextDouble() >= CP7_SHADOW_RATE) {
                 return;
             }
-            ComputerPlayer7 shadow = newShadowCp7();
-            shadow.calculateActions(game);
-            // Take the first/root choice directly from the shadow's actions queue.
-            Ability cp7Choice = shadow.actions.isEmpty() ? null : shadow.actions.peek();
-            // CP7 with no calculated actions passes (act() -> pass), so treat null as Pass.
-            String cp7Text = cp7Choice != null ? cp7Choice.toString() : "Pass";
-            Integer matchedIndex = null;
-            for (int i = 0; i < allActions.size(); i++) {
-                Ability candidate = allActions.get(i);
-                if (cp7Choice == null) {
-                    if (candidate instanceof PassAbility) {
-                        matchedIndex = i;
-                        break;
-                    }
-                } else if (shadowAbilityKey(candidate).equals(shadowAbilityKey(cp7Choice))) {
-                    matchedIndex = i;
-                    break;
-                }
-            }
             if (DAGGER_MODE) {
+                // Preserve the existing unrestricted DAgger label policy. The
+                // metric correction must not silently change training labels.
+                Ability cp7Choice = freshCp7PriorityChoice(game);
+                String cp7Text = cp7Choice != null ? cp7Choice.toString() : "Pass";
+                Integer matchedIndex = matchShadowPriority(allActions, cp7Choice);
                 // Collection mode (student acted): the shadow choice IS the
                 // training label.  We ALWAYS log multi-action priority
                 // decisions now.  Previously an unmatched shadow choice
@@ -1334,11 +1364,14 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
                 logDaggerPriority(game, allActions, cp7Choice, matchedIndex);
                 return;
             }
+            JSONObject comparison = priorityShadowComparison(game, allActions,
+                    Boolean.getBoolean("magellm.cp7ShadowRawPriority"));
+            Integer matchedIndex = comparison.isNull("matched_index") ? null : comparison.getInt("matched_index");
             postShadowAgreement(game, "priority",
                     allActions.get(rlChosenIndex).toString(), rlChosenIndex,
-                    cp7Text, matchedIndex, allActions.size(),
+                    comparison.getString("cp7_choice_text"), matchedIndex, allActions.size(),
                     allActions.get(rlChosenIndex) instanceof PassAbility,
-                    cp7Choice == null || cp7Choice instanceof PassAbility);
+                    comparison.getBoolean("cp7_is_pass"), comparison);
         } catch (Throwable t) {
             logger.warn("CP7 shadow probe (priority) failed - ignored", t);
         }
@@ -1354,6 +1387,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
             Ability cp7Choice, Integer matchedIndex) {
         try {
             Map<String, Object> triggerCtx = newDaggerContext();
+            triggerCtx.put("teacher_semantics", PRIORITY_SHADOW_RAW_V1);
             JSONObject trigger = decisionHandler.buildTrajectoryPayload(
                     game, this, "priority", allActions, null, triggerCtx);
 
@@ -1379,6 +1413,7 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
             chosenAction.put("actions_taken", chosenList.size());
             chosenAction.put("available_actions_count", allActions.size());
             Map<String, Object> resultCtx = newDaggerContext();
+            resultCtx.put("teacher_semantics", PRIORITY_SHADOW_RAW_V1);
             JSONObject result = decisionHandler.buildTrajectoryPayload(
                     game, this, "priority_result", null, chosenAction, resultCtx);
 
@@ -1789,9 +1824,24 @@ public class ComputerPlayer8 extends ComputerPlayer7 implements ComputerPlayer8I
     private void postShadowAgreement(Game game, String decisionType, String rlChoiceText,
             int rlChoiceIndex, String cp7ChoiceText, Integer matchedIndex, int nActions,
             boolean rlIsPass, boolean cp7IsPass) {
+        postShadowAgreement(game, decisionType, rlChoiceText, rlChoiceIndex, cp7ChoiceText,
+                matchedIndex, nActions, rlIsPass, cp7IsPass, null);
+    }
+
+    private void postShadowAgreement(Game game, String decisionType, String rlChoiceText,
+            int rlChoiceIndex, String cp7ChoiceText, Integer matchedIndex, int nActions,
+            boolean rlIsPass, boolean cp7IsPass, JSONObject comparison) {
         try {
             JSONObject payload = new JSONObject();
+            payload.put("schema_version", 2);
+            payload.put("teacher_semantics", "cp7-callback-v1");
+            if (comparison != null) {
+                for (String key : comparison.keySet()) payload.put(key, comparison.get(key));
+            }
             payload.put("game_id", game.getId().toString());
+            payload.put("player_id", playerId.toString());
+            payload.put("active_player_id", game.getActivePlayerId() != null
+                    ? game.getActivePlayerId().toString() : JSONObject.NULL);
             payload.put("turn", game.getTurnNum());
             payload.put("phase", game.getPhase() != null && game.getPhase().getType() != null
                     ? game.getPhase().getType().toString() : "");

@@ -2,6 +2,7 @@ package mage.player.ai;
 
 import mage.abilities.Ability;
 import mage.constants.RangeOfInfluence;
+import mage.constants.PhaseStep;
 import mage.game.Game;
 import mage.util.RandomUtil;
 import org.apache.log4j.Logger;
@@ -19,6 +20,13 @@ public class ComputerPlayer7 extends ComputerPlayer6 {
     private static final Logger logger = Logger.getLogger(ComputerPlayer7.class);
 
     private boolean allowBadMoves;
+
+    /** Phase contract for a fresh priority probe. Tested against priority() for
+     * every PhaseStep; this does not reproduce the live player's cached plan. */
+    public static boolean searchesPriorityAtStep(PhaseStep step) {
+        return step == PhaseStep.PRECOMBAT_MAIN || step == PhaseStep.DECLARE_ATTACKERS
+                || step == PhaseStep.DECLARE_BLOCKERS || step == PhaseStep.POSTCOMBAT_MAIN;
+    }
 
     public ComputerPlayer7(String name, RangeOfInfluence range, int skill) {
         super(name, range, skill);
